@@ -88,3 +88,24 @@ class NightRiderAPI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FrontendSourceTests(unittest.TestCase):
+    def test_public_pages_use_openstreetmap_and_no_google_key(self):
+        pub = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public")
+        joined = ""
+        for name in sorted(os.listdir(pub)):
+            if name.endswith(".html") or name.endswith(".css"):
+                with open(os.path.join(pub, name), encoding="utf-8") as fh:
+                    joined += fh.read()
+        self.assertNotIn("googleapis", joined.lower())
+        self.assertNotIn("api_key", joined.lower())
+        self.assertIn("openstreetmap", joined.lower())
+        with open(os.path.join(pub, "index.html"), encoding="utf-8") as fh:
+            index = fh.read()
+        self.assertIn("leaflet", index.lower())
+        self.assertIn("nominatim", index.lower())
+
+
+if __name__ == "__main__":
+    unittest.main()

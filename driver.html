@@ -1,65 +1,103 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NightRider · Driver</title><link rel="stylesheet" href="nightrider.css"></head>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NightRider — Driver</title>
+<link rel="stylesheet" href="nightrider.css">
+</head>
 <body>
-<header><a class="brand" href="/">Night<span>Rider</span></a>
-<nav><a href="index.html">Ride</a><a href="driver.html" aria-current="page">Driver</a><a href="dispatch.html">Dispatch</a></nav></header>
+<header>
+  <a class="brand" href="/">Night<span>Rider</span></a>
+  <nav>
+    <a href="/">Ride</a>
+    <a href="/driver.html" aria-current="page">Driver</a>
+    <a href="/dispatch.html">Dispatch</a>
+  </nav>
+</header>
 <main>
-<h1>Driver console</h1>
-<section class="card">
-<label for="driver">Your driver name</label><input id="driver" autocomplete="username" placeholder="Sam Okafor…">
-<p id="msg" class="msg" aria-live="polite"></p>
-<h2 style="font-weight:400">Open requests</h2>
-<div id="requests" class="muted">Enter your name to see requests.</div>
-</section>
-<section class="card">
-<h2 style="font-weight:400;margin-top:0">Your active ride</h2>
-<div id="active" class="muted">None.</div>
-</section>
+  <h1>Driver board</h1>
+  <div class="card">
+    <label for="driverName">Your name</label>
+    <input id="driverName" placeholder="e.g. Sam" autocomplete="name">
+    <button type="button" id="refresh">Refresh open rides</button>
+    <p class="msg" id="msg"></p>
+  </div>
+  <div class="card">
+    <h2>Open requests</h2>
+    <div id="openRides" class="grid"></div>
+  </div>
+  <div class="card">
+    <h2>Your active rides</h2>
+    <div id="myRides" class="grid"></div>
+  </div>
 </main>
+
 <script>
-const $=id=>document.getElementById(id),msg=$('msg');
-let myRide=null;
-async function api(path,opts){const r=await fetch(path,opts);const j=await r.json();if(!r.ok)throw new Error(j.error||'Error');return j;}
-async function refresh(){
-  try{
-    const {rides}=await api('/api/rides');
-    const name=$('driver').value.trim();
-    myRide=rides.find(r=>r.driver===name&&!['completed','cancelled'].includes(r.status))||null;
-    const open=rides.filter(r=>r.status==='requested');
-    $('requests').innerHTML=open.length?'':'<span class="muted">No open requests.</span>';
-    open.forEach(r=>{
-      const d=document.createElement('div');d.className='card';
-      d.innerHTML=`<strong></strong><div class="muted"></div><div class="num"></div><button type="button">Accept</button>`;
-      d.querySelector('strong').textContent=`${r.rider_name} · $${r.fare.toFixed(2)}`;
-      d.querySelector('.muted').textContent=`${r.pickup} → ${r.dropoff}`;
-      d.querySelector('.num').textContent=`${r.distance_mi} mi`;
-      d.querySelector('button').disabled=!name;
-      d.querySelector('button').onclick=()=>accept(r.id);
-      $('requests').append(d);
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  function money(n) { return "$" + Number(n).toFixed(2); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
+  function driver() { return $("driverName").value.trim(); }
+
+  function api(path, body) {
+    return fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined)
+      .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
+  }
+
+  function rideCard(ride, actions) {
+    var el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML =
+      '<div class="tripbar"><span class="muted">' + esc(ride.id) + '</span><span class="status">' + esc(ride.status) + "</span></div>" +
+      '<p><strong>' + esc(ride.rider_name) + "</strong></p>" +
+      '<p class="muted">Pickup: ' + esc(ride.pickup) + "</p>" +
+      '<p class="muted">Drop-off: ' + esc(ride.dropoff) + "</p>" +
+      '<p class="num">' + ride.distance_mi + " mi \u00b7 " + money(ride.fare) + "</p>" +
+      (ride.driver ? '<p class="muted">Driver: ' + esc(ride.driver) + "</p>" : "");
+    actions.forEach(function (a) {
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = a.label; if (a.alt) { b.className = "alt"; b.style.marginLeft = "0"; }
+      b.addEventListener("click", a.run);
+      el.appendChild(b);
     });
-    renderActive();
-  }catch(e){msg.textContent=e.message;}
-}
-function renderActive(){
-  const a=$('active');
-  if(!myRide){a.textContent='None.';return;}
-  const next={accepted:'Arrived at pickup',arrived:'Start trip',in_progress:'Complete trip'}[myRide.status];
-  a.innerHTML='';
-  const s=document.createElement('p');s.innerHTML='<span class="status"></span>';s.querySelector('.status').textContent=myRide.status.replace('_',' ');
-  const t=document.createElement('p');t.textContent=`${myRide.rider_name}: ${myRide.pickup} → ${myRide.dropoff} · $${myRide.fare.toFixed(2)}`;
-  a.append(s,t);
-  if(next){const b=document.createElement('button');b.type='button';b.textContent=next;b.onclick=()=>advance(myRide.id);a.append(b);}
-}
-async function accept(id){
-  const name=$('driver').value.trim();
-  try{await api(`/api/rides/${id}/accept`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({driver:name})});msg.textContent='';refresh();}
-  catch(e){msg.textContent=e.message;refresh();}
-}
-async function advance(id){
-  try{await api(`/api/rides/${id}/advance`,{method:'POST'});refresh();}catch(e){msg.textContent=e.message;}
-}
-$('driver').addEventListener('change',refresh);
-refresh();setInterval(refresh,4000);
+    return el;
+  }
+
+  function load() {
+    $("msg").textContent = "";
+    api("/api/rides").then(function (res) {
+      var rides = res.j.rides || [];
+      var open = rides.filter(function (r) { return r.status === "requested"; });
+      var mine = rides.filter(function (r) { return r.driver && r.driver === driver() && r.status !== "requested"; });
+      var openBox = $("openRides"), myBox = $("myRides");
+      openBox.innerHTML = ""; myBox.innerHTML = "";
+      if (!open.length) { openBox.innerHTML = '<p class="muted">No open requests right now.</p>'; }
+      open.forEach(function (r) {
+        openBox.appendChild(rideCard(r, [{ label: "Accept", run: function () { accept(r.id); } }]));
+      });
+      if (!mine.length) { myBox.innerHTML = '<p class="muted">No active rides for this name.</p>'; }
+      mine.forEach(function (r) {
+        var acts = [];
+        if (r.status !== "completed") { acts.push({ label: "Advance", run: function () { advance(r.id); } }); }
+        myBox.appendChild(rideCard(r, acts));
+      });
+    }).catch(function () { $("msg").textContent = "Could not load rides."; });
+  }
+
+  function accept(id) {
+    var d = driver();
+    if (!d) { $("msg").textContent = "Enter your name before accepting."; return; }
+    api("/api/rides/" + id + "/accept", { driver: d }).then(load).catch(function () { $("msg").textContent = "Accept failed."; });
+  }
+  function advance(id) { api("/api/rides/" + id + "/advance", {}).then(load).catch(function () { $("msg").textContent = "Advance failed."; }); }
+
+  $("refresh").addEventListener("click", load);
+  $("driverName").addEventListener("change", load);
+  load();
+  setInterval(load, 5000);
+})();
 </script>
-</body></html>
+</body>
+</html>
