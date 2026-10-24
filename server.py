@@ -1,7 +1,16 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
-import json, os, threading, time, uuid
+import json, math, os, threading, time, uuid
 
-# CARTO basemap key used for the rider map's Voyager tiles. This is a public,
+# A stand-in driver permanently parked at Savannah City Hall, so the
+# driver -> pickup leg of the fare can be exercised without a real driver.
+# Coords are 2 E Bay St, Savannah, GA (32.08111, -81.09111).
+DEMO_DRIVER = {
+    "name": "Test Driver",
+    "label": "Savannah City Hall",
+    "coords": [32.08111, -81.09111],
+}
+
+# CARTO basemap key used for the rider map's Dark Matter tiles. This is a public,
 # client-side basemap key -- it ships in every tile URL the browser requests --
 # so a working default is included to make the map work out of the box. Set the
 # CARTO_API_KEY environment variable on the host to override/rotate it without
@@ -38,9 +47,59 @@ def clean_text(v, n=120):
     return str(v or "").strip()[:n]
 
 
-def fare(distance_mi):
-    # Basic placeholder fare: base + per-mile, minimum applied.
-    return round(max(7.0, 3.0 + 1.6 * float(distance_mi)), 2)
+# ---- Fares -------------------------------------------------------------
+# $5.00 flag drop, plus $1.00 per mile of the trip (pickup -> drop-off),
+# plus $0.25 per mile the driver spends getting to the pickup.
+FLAG_DROP = 5.00
+TRIP_PER_MILE = 1.00
+APPROACH_PER_MILE = 0.25
+
+def _miles(value):
+    """Coerce a distance to a non-negative float; bad input counts as 0."""
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def fare(distance_mi, driver_to_pickup_mi=0.0):
+    """$5 flag drop + $1.00/mi trip + $0.25/mi driver -> pickup."""
+    total = FLAG_DROP + TRIP_PER_MILE * _miles(distance_mi) + APPROACH_PER_MILE * _miles(driver_to_pickup_mi)
+    return round(total, 2)
+
+
+def fare_breakdown(distance_mi, driver_to_pickup_mi=0.0):
+    """The itemised fare so the client never has to re-derive the formula."""
+    trip = _miles(distance_mi)
+    approach = _miles(driver_to_pickup_mi)
+    return {
+        "flag_drop": FLAG_DROP,
+        "trip_mi": round(trip, 1),
+        "trip_fare": round(TRIP_PER_MILE * trip, 2),
+        "driver_to_pickup_mi": round(approach, 1),
+        "approach_fare": round(APPROACH_PER_MILE * approach, 2),
+        "total": fare(trip, approach),
+    }
+
+
+def haversine_miles(lat1, lng1, lat2, lng2):
+    """Straight-line distance, used for the driver -> pickup leg."""
+    r = 3958.8
+    dlat = math.radians(lat2 - lat1)
+    dlng = math.radians(lng2 - lng1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlng / 2) ** 2
+    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+
+
+def parse_coords(value):
+    """Accept {lat,lng} or its JSON string form; return [lat, lng] or None."""
+    try:
+        if isinstance(value, str):
+            value = json.loads(value or "{}")
+        lat, lng = float(value["lat"]), float(value["lng"])
+        return [lat, lng] if -90 <= lat <= 90 and -180 <= lng <= 180 else None
+    except (TypeError, KeyError, ValueError):
+        return None
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -71,7 +130,17 @@ class Handler(SimpleHTTPRequestHandler):
                 # Host environment variable wins (lets you rotate the key
                 # without a code change); otherwise use the built-in key.
                 key = os.environ.get("CARTO_API_KEY", DEFAULT_CARTO_KEY).strip()
-                return self.send_json(200, {"cartoKey": key})
+                return self.send_json(200, {
+                    "cartoKey": key,
+                    # One source of truth: the client prices the preview with
+                    # these rates instead of hard-coding its own copy.
+                    "rates": {
+                        "flag_drop": FLAG_DROP,
+                        "trip_per_mile": TRIP_PER_MILE,
+                        "approach_per_mile": APPROACH_PER_MILE,
+                    },
+                    "demoDriver": DEMO_DRIVER,
+                })
             if self.path == "/api/rides":
                 with LOCK:
                     rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
@@ -102,19 +171,24 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json(400, {"error": "pickup, dropoff and rider_name are required"})
             if not (0 < miles <= 500):
                 return self.send_json(400, {"error": "distance_mi must be between 0 and 500"})
-            def coord(v):
-                try:
-                    if isinstance(v, str):
-                        v = json.loads(v or "{}")
-                    lat, lng = float(v["lat"]), float(v["lng"])
-                    return [lat, lng] if -90 <= lat <= 90 and -180 <= lng <= 180 else None
-                except (TypeError, KeyError, ValueError):
-                    return None
+            pickup_coords = parse_coords(data.get("pickup_coords"))
+            # The rider's preview sends the distance it computed from the test
+            # driver; otherwise fall back to pricing it from City Hall.
+            if data.get("driver_to_pickup_mi") is not None:
+                approach = _miles(data.get("driver_to_pickup_mi"))
+            elif DEMO_DRIVER and pickup_coords:
+                approach = haversine_miles(DEMO_DRIVER["coords"][0], DEMO_DRIVER["coords"][1],
+                                           pickup_coords[0], pickup_coords[1])
+            else:
+                approach = 0.0
+            if not (0 <= approach <= 200):
+                return self.send_json(400, {"error": "driver_to_pickup_mi must be between 0 and 200"})
             ride = {
                 "id": uuid.uuid4().hex[:8], "rider_name": name, "pickup": pickup, "dropoff": dropoff,
-                "pickup_coords": coord(data.get("pickup_coords")),
-                "dropoff_coords": coord(data.get("dropoff_coords")),
-                "distance_mi": round(miles, 1), "fare": fare(miles), "status": "requested",
+                "pickup_coords": pickup_coords,
+                "dropoff_coords": parse_coords(data.get("dropoff_coords")),
+                "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
+                "fare": fare(miles, approach), "status": "requested",
                 "driver": None, "created": time.time(),
             }
             with LOCK:
@@ -137,6 +211,21 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(400, {"error": "driver name required"})
                     ride["driver"] = driver
                     ride["status"] = "accepted"
+                    # Price the driver -> pickup leg now that we know who is
+                    # coming and (when the driver's page shares it) where from.
+                    approach = None
+                    dcoords = parse_coords(data.get("driver_coords"))
+                    if not dcoords and data.get("demo") and DEMO_DRIVER:
+                        dcoords = list(DEMO_DRIVER["coords"])
+                    if dcoords and ride.get("pickup_coords"):
+                        approach = haversine_miles(dcoords[0], dcoords[1],
+                                                   ride["pickup_coords"][0], ride["pickup_coords"][1])
+                    elif data.get("driver_to_pickup_mi") is not None:
+                        approach = _miles(data.get("driver_to_pickup_mi"))
+                    if approach is not None:
+                        ride["driver_to_pickup_mi"] = round(approach, 1)
+                        ride["driver_coords"] = dcoords
+                        ride["fare"] = fare(ride["distance_mi"], ride["driver_to_pickup_mi"])
                 elif action == "advance":
                     nxt = NEXT.get(ride["status"])
                     if not nxt:

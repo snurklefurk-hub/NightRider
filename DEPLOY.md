@@ -23,7 +23,7 @@ No coding is needed. You will copy the files to GitHub, then connect GitHub to R
 5. Click the link at the top of the page (it looks like `https://nightrider-xxxx.onrender.com`). That is your live site.
 
 Your pages:
-- `/` is the rider page (map, address search, ride tiers, live status).
+- `/` is the rider page (map, address search, one fare estimate, live status).
 - `/driver.html` is the driver page.
 - `/dispatch.html` is the dispatch page.
 

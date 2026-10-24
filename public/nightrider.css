@@ -1,8 +1,12 @@
 /* NightRider shared skin — nightwave palette, sharp panels, tracked uppercase labels, scanlines. */
 :root{
   --void:#0a0f1d; --indigo:#120a2a; --panel:rgba(18,10,42,.82);
-  --cyan:#00f0ff; --pink:#ff007f; --ice:#e0f7ff; --mist:#8a9cc0;
-  --line:rgba(0,240,255,.35); --danger:#ff4e38; --ok:#3dffa0;
+  /* Warm accents sit on the plum side of magenta: softened toward #8e4585 so they
+     glow against the dark base instead of reading as harsh red. */
+  --plum:#c464b1; --plum-rgb:196,100,177;
+  --rose:#c05984; --rose-rgb:192,89,132;
+  --cyan:#00f0ff; --ice:#e0f7ff; --mist:#8a9cc0;
+  --line:rgba(0,240,255,.35); --danger:var(--rose); --ok:#3dffa0;
   --sheet:rgba(10,15,29,.92);
 }
 *{box-sizing:border-box}
@@ -12,7 +16,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:re
 header,main{position:relative;z-index:1}
 header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:1px solid var(--line);background:rgba(10,15,29,.7);flex-wrap:wrap}
 .brand{font:700 1.5rem/1 "Arial Black","Impact",sans-serif;letter-spacing:.18em;text-transform:uppercase;color:var(--cyan);text-decoration:none;text-shadow:0 0 8px rgba(0,240,255,.8),0 0 18px rgba(0,240,255,.4)}
-.brand span{color:var(--pink);text-shadow:0 0 8px rgba(255,0,127,.8)}
+.brand span{color:var(--plum);text-shadow:0 0 8px rgba(var(--plum-rgb),.8)}
 nav a{color:var(--mist);margin-left:1rem;text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:.8rem}
 nav a[aria-current="page"],nav a:hover,nav a:focus-visible{color:var(--cyan);outline:none;text-shadow:0 0 6px rgba(0,240,255,.8)}
 main{max-width:960px;margin:0 auto;padding:2rem 1.5rem}
@@ -25,13 +29,13 @@ input:focus,select:focus{outline:none;border-bottom-color:var(--cyan);box-shadow
 input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 button{margin-top:1rem;padding:.7rem 1.3rem;border:1px solid var(--cyan);border-radius:0;background:transparent;color:var(--cyan);font:inherit;font-weight:700;text-transform:uppercase;letter-spacing:.14em;cursor:pointer;box-shadow:0 0 10px rgba(0,240,255,.35),inset 0 0 10px rgba(0,240,255,.15);transition:box-shadow .2s,background .2s}
 button:hover{background:rgba(0,240,255,.12);box-shadow:0 0 18px rgba(0,240,255,.6),inset 0 0 12px rgba(0,240,255,.25)}
-button.alt{border-color:var(--pink);color:var(--pink);margin-left:.5rem;box-shadow:0 0 10px rgba(255,0,127,.35),inset 0 0 10px rgba(255,0,127,.15)}
-button.alt:hover{background:rgba(255,0,127,.12);box-shadow:0 0 18px rgba(255,0,127,.6)}
+button.alt{border-color:var(--plum);color:var(--plum);margin-left:.5rem;box-shadow:0 0 10px rgba(var(--plum-rgb),.35),inset 0 0 10px rgba(var(--plum-rgb),.15)}
+button.alt:hover{background:rgba(var(--plum-rgb),.12);box-shadow:0 0 18px rgba(var(--plum-rgb),.6)}
 button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
-.status{display:inline-block;padding:.15rem .6rem;border:1px solid var(--pink);color:var(--pink);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;text-shadow:0 0 6px rgba(255,0,127,.7)}
+.status{display:inline-block;padding:.15rem .6rem;border:1px solid var(--plum);color:var(--plum);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;text-shadow:0 0 6px rgba(var(--plum-rgb),.7)}
 .muted{color:var(--mist);font-size:.85rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:1rem}
-.msg{min-height:1.5rem;color:var(--pink)}
+.msg{min-height:1.5rem;color:var(--plum)}
 table{width:100%;border-collapse:collapse}
 th,td{text-align:left;padding:.55rem;border-bottom:1px solid rgba(0,240,255,.2);vertical-align:top}
 th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercase;letter-spacing:.14em}
@@ -51,7 +55,7 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .field{position:relative;display:flex;align-items:center;gap:.6rem;background:rgba(10,15,29,.85);border:1px solid rgba(0,240,255,.22);padding:.35rem .6rem;margin-bottom:.5rem}
 .field .dot{width:10px;height:10px;flex:0 0 auto}
 .field .dot.pick{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
-.field .dot.drop{background:var(--pink);box-shadow:0 0 8px var(--pink)}
+.field .dot.drop{background:var(--plum);box-shadow:0 0 8px var(--plum)}
 .field input{border-bottom:0;padding:.45rem .2rem;background:transparent}
 .field input:focus{box-shadow:none}
 .results{list-style:none;margin:0 0 .6rem;padding:0;border:1px solid var(--line);background:rgba(6,10,22,.97);max-height:230px;overflow:auto}
@@ -71,8 +75,8 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .option .price{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ice);text-shadow:0 0 6px rgba(224,247,255,.4)}
 .cta{width:100%;background:var(--cyan);color:#04121a;border-color:var(--cyan);font-size:1rem;padding:.95rem;margin-top:.5rem;text-shadow:none;box-shadow:0 0 22px rgba(0,240,255,.55)}
 .cta:hover{background:#7cf6ff;color:#04121a}
-.cta.pink{background:var(--pink);border-color:var(--pink);color:#1a000d;box-shadow:0 0 22px rgba(255,0,127,.55)}
-.cta.pink:hover{background:#ff5aa8;color:#1a000d}
+.cta.pink{background:var(--plum);border-color:var(--plum);color:#1a0016;box-shadow:0 0 22px rgba(var(--plum-rgb),.55)}
+.cta.pink:hover{background:#d883c4;color:#1a0016}
 .row{display:flex;gap:.6rem}
 .row>*{flex:1 1 0}
 .tripbar{display:flex;justify-content:space-between;gap:1rem;align-items:center;border:1px solid rgba(0,240,255,.18);padding:.6rem .8rem;margin-bottom:.8rem;background:rgba(10,15,29,.6)}
@@ -86,7 +90,7 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .steps li.on::before{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 8px var(--cyan)}
 .steps li.done{color:var(--ice)}
 .steps li.done::before{background:var(--ice);border-color:var(--ice)}
-.pulse{display:inline-block;width:9px;height:9px;background:var(--pink);box-shadow:0 0 10px var(--pink);margin-right:.5rem;vertical-align:middle}
+.pulse{display:inline-block;width:9px;height:9px;background:var(--plum);box-shadow:0 0 10px var(--plum);margin-right:.5rem;vertical-align:middle}
 @media (prefers-reduced-motion:no-preference){.pulse{animation:p 1.1s ease-in-out infinite}@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}}
 .leaflet-container{background:#e9e7e2;font:inherit}
 .leaflet-bar a{background:#fff!important;color:#2f3b52!important;border-color:#dfe3e8!important}
@@ -98,8 +102,33 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
    use clearly different colors, each with a white ring so they read on light tiles. */
 .pin{width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-sizing:border-box;box-shadow:0 1px 5px rgba(10,15,29,.45)}
 .pin.pick{background:#0f7ea8}
-.pin.drop{background:#e8467c}
+.pin.drop{background:var(--plum)}
+/* Test driver parked at Savannah City Hall: amber square, so it never reads
+   as a pickup or drop-off pin. */
+.pin.demo{width:20px;height:20px;border-radius:6px;background:#f5c451}
 
 /* Keep the map completely clear: drop the decorative scanline overlay on the
    rider page so nothing is drawn on top of the map. */
 body.rider::before{display:none}
+
+/* ---------- Fare breakdown (single fare, no ride types) ---------- */
+.farebox{border:1px solid rgba(0,240,255,.18);background:rgba(10,15,29,.6);margin:.2rem 0 .9rem}
+.farerow{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.55rem .8rem;border-bottom:1px solid rgba(0,240,255,.10);font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mist)}
+.farerow:last-child{border-bottom:0}
+.farerow .num{color:var(--ice);letter-spacing:.04em}
+.farerow .muted{text-transform:none;letter-spacing:.02em;font-size:.74rem}
+.farerow.total{border-top:1px solid rgba(0,240,255,.34);color:var(--ice);font-weight:700}
+.farerow.total .num{color:var(--cyan);font-size:1.05rem;text-shadow:0 0 10px rgba(0,240,255,.65)}
+
+/* ---------- Android / iOS safe areas ----------
+   Android's navigation bar (gesture pill or the 3-button bar) can sit over the
+   bottom of the page, and env(safe-area-inset-bottom) frequently reports 0px
+   there, which left the bottom controls unreachable. Every page therefore keeps
+   a guaranteed 14px gutter ON TOP of whatever the browser reports, so nothing
+   is ever laid out underneath the system navigation buttons. */
+:root{--safe-bottom:calc(env(safe-area-inset-bottom,0px) + 14px)}
+main{padding-bottom:calc(2rem + var(--safe-bottom));
+     padding-left:calc(1.5rem + env(safe-area-inset-left,0px));
+     padding-right:calc(1.5rem + env(safe-area-inset-right,0px))}
+.sheet{padding-bottom:calc(1rem + var(--safe-bottom))}
+.rider{padding-bottom:env(safe-area-inset-bottom,0px)}

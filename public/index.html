@@ -48,7 +48,13 @@
       <span class="muted" id="routeLabel">—</span>
       <span class="num" id="routeStats">—</span>
     </div>
-    <div id="options"></div>
+    <div class="farebox">
+      <div class="farerow"><span>Flag drop</span><span class="num" id="fareBase">—</span></div>
+      <div class="farerow"><span id="fareTripLabel">Trip</span><span class="num" id="fareTrip">—</span></div>
+      <div class="farerow"><span id="fareApproachLabel">Driver to pickup</span><span class="num muted" id="fareApproach">—</span></div>
+      <div class="farerow total"><span>Estimated total</span><span class="num" id="fareTotal">—</span></div>
+    </div>
+    <p class="muted" id="fareNote"></p>
     <div class="row">
       <button type="button" class="cta" id="requestBtn" disabled>Request NightRide</button>
       <button type="button" class="alt" id="backBtn" style="flex:0 0 auto;margin-left:0">Edit trip</button>
@@ -73,6 +79,7 @@
       <span class="muted" id="tripStatus">—</span>
       <span class="num" id="tripFare">—</span>
     </div>
+    <p class="muted" id="tripBreakdown"></p>
     <div class="driverline">
       <div class="avatar" id="driverInitial">?</div>
       <div>
@@ -128,13 +135,39 @@
   }
   fetch("/api/config")
     .then(function (r) { return r.json(); })
-    .then(function (cfg) { addBaseMap(cfg && cfg.cartoKey); })
+    .then(function (cfg) {
+      addBaseMap(cfg && cfg.cartoKey);
+      if (cfg && cfg.rates) { RATES = cfg.rates; }
+      if (cfg && cfg.demoDriver) { DEMO_DRIVER = cfg.demoDriver; addDemoDriver(); }
+    })
     .catch(function () { addBaseMap(""); });
 
   // Start point = solid teal dot. End point = solid dot in a DIFFERENT color (coral).
   // Both read clearly on the dark basemap thanks to their white ring.
   var pickIcon = L.divIcon({ className: "", html: '<div class="pin pick"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
   var dropIcon = L.divIcon({ className: "", html: '<div class="pin drop"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+  // The test driver, parked at Savannah City Hall.
+  var demoIcon = L.divIcon({ className: "", html: '<div class="pin demo" aria-hidden="true"></div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+
+  function addDemoDriver() {
+    if (!DEMO_DRIVER || !DEMO_DRIVER.coords || state.demoMarker) { return; }
+    state.demoMarker = L.marker(DEMO_DRIVER.coords, { icon: demoIcon, title: DEMO_DRIVER.name })
+      .addTo(map).bindPopup("Test driver \u00b7 " + DEMO_DRIVER.label);
+  }
+
+  // Straight-line miles, matching the server's haversine for the driver leg.
+  function haversineMiles(lat1, lng1, lat2, lng2) {
+    var R = 3958.8, rad = Math.PI / 180;
+    var dLat = (lat2 - lat1) * rad, dLng = (lng2 - lng1) * rad;
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(a)));
+  }
+
+  function approachMiles(pickup) {
+    if (!DEMO_DRIVER || !DEMO_DRIVER.coords || !pickup) { return 0; }
+    return haversineMiles(DEMO_DRIVER.coords[0], DEMO_DRIVER.coords[1], pickup.lat, pickup.lng);
+  }
 
   var state = {
     pickup: null,      // {lat,lng,label}
@@ -148,17 +181,19 @@
     options: [],
     selected: null,
     rideId: null,
-    poll: null
+    poll: null,
+    approachMi: 0,
+    demoMarker: null
   };
 
-  var TIERS = [
-    { key: "night", name: "NightRider", car: "\uD83D\uDE95", seats: 4, mult: 1.0, eta: 3 },
-    { key: "xl",    name: "NightRider XL", car: "\uD83D\uDE90", seats: 6, mult: 1.5, eta: 5 },
-    { key: "lux",   name: "NightRider Lux", car: "\uD83C\uDFCE\uFE0F", seats: 4, mult: 2.0, eta: 7 }
-  ];
+  // Fare rates come from the server (/api/config) so the formula lives in one
+  // place. These defaults only apply if that request fails.
+  var RATES = { flag_drop: 5, trip_per_mile: 1, approach_per_mile: 0.25 };
+  // Supplied by /api/config; the test driver that is always at City Hall.
+  var DEMO_DRIVER = { name: "Test Driver", label: "Savannah City Hall", coords: [32.08111, -81.09111] };
 
-  function fareFor(miles, mult) { return Math.round(Math.max(7, 3 + 1.6 * miles) * mult * 100) / 100; }
-  function money(n) { return "$" + n.toFixed(2); }
+  function round2(n) { return Math.round(n * 100) / 100; }
+  function money(n) { return "$" + Number(n).toFixed(2); }
 
   function setMarker(kind, latlng) {
     if (kind === "pick") {
@@ -284,36 +319,24 @@
     $("stepOptions").hidden = false;
     $("routeLabel").textContent = shorten(state.pickup.label) + " \u2192 " + shorten(state.dropoff.label);
     $("routeStats").textContent = state.miles + " mi \u00b7 ~" + state.minutes + " min";
-    var box = $("options"); box.innerHTML = "";
-    var firstKey = TIERS[0].key;
-    state.options = TIERS.map(function (t) {
-      var price = fareFor(state.miles, t.mult);
-      var el = document.createElement("button");
-      el.type = "button";
-      el.className = "option" + (t.key === firstKey ? " sel" : "");
-      el.dataset.key = t.key;
-      el.innerHTML =
-        '<span class="car" aria-hidden="true">' + t.car + "</span>" +
-        '<span class="info"><span class="name">' + t.name + "</span>" +
-        '<span class="meta">' + t.seats + " seats \u00b7 " + t.eta + " min away</span></span>" +
-        '<span class="price">' + money(price) + "</span>";
-      el.addEventListener("click", function () { selectTier(t.key); });
-      box.appendChild(el);
-      return { key: t.key, name: t.name, price: price };
-    });
-    state.selected = firstKey;
+    // $5 flag drop + $1/mi for the trip. The $0.25/mi driver -> pickup leg
+    // cannot be priced before a driver exists, so it is shown as pending here
+    // and added to the total once a driver accepts.
+    // $5 flag drop + $1/mi for the trip + $0.25/mi from the driver's location
+    // to the pickup. The test driver is always at Savannah City Hall, so the
+    // third leg is priced from there.
+    var tripFare = round2(RATES.trip_per_mile * state.miles);
+    state.approachMi = approachMiles(state.pickup);
+    var approachFare = round2(RATES.approach_per_mile * state.approachMi);
+    $("fareBase").textContent = money(RATES.flag_drop);
+    $("fareTripLabel").textContent = money(RATES.trip_per_mile) + "/mi \u00d7 " + state.miles + " mi";
+    $("fareTrip").textContent = money(tripFare);
+    $("fareApproachLabel").textContent = money(RATES.approach_per_mile) + "/mi \u00d7 " + state.approachMi.toFixed(1) + " mi";
+    $("fareApproach").textContent = money(approachFare);
+    $("fareTotal").textContent = money(round2(RATES.flag_drop + tripFare + approachFare));
+    $("fareNote").textContent = "Driver leg measured from the test driver parked at " + DEMO_DRIVER.label + ".";
     $("requestBtn").disabled = false;
-    $("requestBtn").textContent = "Request " + TIERS[0].name;
     $("optMsg").textContent = "";
-  }
-
-  function selectTier(key) {
-    state.selected = key;
-    Array.prototype.forEach.call(document.querySelectorAll(".option"), function (el) {
-      el.classList.toggle("sel", el.dataset.key === key);
-    });
-    var t = TIERS.filter(function (x) { return x.key === key; })[0];
-    $("requestBtn").textContent = "Request " + t.name;
   }
 
   function backToSearch() {
@@ -336,6 +359,7 @@
         rider_name: name,
         pickup: state.pickup.label, dropoff: state.dropoff.label,
         distance_mi: state.miles,
+        driver_to_pickup_mi: round2(state.approachMi || 0),
         pickup_coords: { lat: state.pickup.lat, lng: state.pickup.lng },
         dropoff_coords: { lat: state.dropoff.lat, lng: state.dropoff.lng }
       })
@@ -375,6 +399,12 @@
     $("stepMatching").hidden = true; $("stepSearch").hidden = true; $("stepOptions").hidden = true; $("stepTrip").hidden = false;
     $("tripStatus").textContent = statusWord(ride.status);
     $("tripFare").textContent = money(ride.fare);
+    var bits = ["Flag drop " + money(RATES.flag_drop),
+                "Trip " + money(round2(RATES.trip_per_mile * ride.distance_mi))];
+    if (ride.driver_to_pickup_mi > 0) {
+      bits.push("Driver to pickup " + money(round2(RATES.approach_per_mile * ride.driver_to_pickup_mi)));
+    }
+    $("tripBreakdown").textContent = bits.join("  \u00b7  ");
     $("driverName").textContent = ride.driver || "Pending";
     $("driverInitial").textContent = (ride.driver || "?").charAt(0).toUpperCase();
     $("driverCar").textContent = (ride.status === "completed" || ride.status === "cancelled") ? "Trip closed" : "NightRider vehicle \u00b7 " + ride.distance_mi + " mi";

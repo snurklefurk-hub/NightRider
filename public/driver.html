@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NightRider — Driver</title>
 <link rel="stylesheet" href="nightrider.css">
 </head>
@@ -21,6 +21,7 @@
     <label for="driverName">Your name</label>
     <input id="driverName" placeholder="e.g. Sam" autocomplete="name">
     <button type="button" id="refresh">Refresh open rides</button>
+    <button type="button" class="alt" id="useTestDriver">Use test driver (Savannah City Hall)</button>
     <p class="msg" id="msg"></p>
   </div>
   <div class="card">
@@ -55,6 +56,7 @@
       '<p class="muted">Pickup: ' + esc(ride.pickup) + "</p>" +
       '<p class="muted">Drop-off: ' + esc(ride.dropoff) + "</p>" +
       '<p class="num">' + ride.distance_mi + " mi \u00b7 " + money(ride.fare) + "</p>" +
+      (ride.driver_to_pickup_mi ? '<p class="muted">Driver to pickup: ' + ride.driver_to_pickup_mi + " mi</p>" : "") +
       (ride.driver ? '<p class="muted">Driver: ' + esc(ride.driver) + "</p>" : "");
     actions.forEach(function (a) {
       var b = document.createElement("button");
@@ -86,12 +88,54 @@
     }).catch(function () { $("msg").textContent = "Could not load rides."; });
   }
 
+  /* Share the driver's own position so the server can price the
+     $0.25/mile driver -> pickup leg. If the browser will not share it, we
+     still accept the ride; only that leg goes unpriced. */
+  function locate(done) {
+    var settled = false;
+    var finish = function (c) { if (!settled) { settled = true; done(c); } };
+    if (!navigator.geolocation) { finish(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      function (p) { finish({ lat: p.coords.latitude, lng: p.coords.longitude }); },
+      function () { finish(null); },
+      { enableHighAccuracy: true, timeout: 6000, maximumAge: 60000 }
+    );
+    setTimeout(function () { finish(null); }, 6500);
+  }
+
+  /* Test/engineering mode: accept as the stand-in driver that is always
+     parked at Savannah City Hall instead of using this device's position. */
+  var testDriver = false;
+
   function accept(id) {
     var d = driver();
     if (!d) { $("msg").textContent = "Enter your name before accepting."; return; }
-    api("/api/rides/" + id + "/accept", { driver: d }).then(load).catch(function () { $("msg").textContent = "Accept failed."; });
+    $("msg").textContent = "Accepting\u2026";
+    if (testDriver) {
+      api("/api/rides/" + id + "/accept", { driver: d, demo: true })
+        .then(load).catch(function () { $("msg").textContent = "Accept failed."; });
+      return;
+    }
+    locate(function (coords) {
+      api("/api/rides/" + id + "/accept", { driver: d, driver_coords: coords })
+        .then(load).catch(function () { $("msg").textContent = "Accept failed."; });
+    });
   }
   function advance(id) { api("/api/rides/" + id + "/advance", {}).then(load).catch(function () { $("msg").textContent = "Advance failed."; }); }
+
+  $("useTestDriver").addEventListener("click", function () {
+    testDriver = !testDriver;
+    if (testDriver) {
+      if (!driver()) { $("driverName").value = "Test Driver"; }
+      $("msg").textContent = "Test driver on \u2014 accepts will be priced from Savannah City Hall.";
+    } else {
+      $("msg").textContent = "Test driver off \u2014 accepts will use this device's location.";
+    }
+    $("useTestDriver").textContent = testDriver
+      ? "Test driver: ON (Savannah City Hall)"
+      : "Use test driver (Savannah City Hall)";
+    load();
+  });
 
   $("refresh").addEventListener("click", load);
   $("driverName").addEventListener("change", load);
