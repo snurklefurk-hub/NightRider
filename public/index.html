@@ -102,12 +102,31 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var map = L.map("map", { zoomControl: true }).setView([39.8283, -98.5795], 4);
+
   // Lyft-style clean light map: a near-monochrome grey base with just a couple
-  // of accent colors (blue water, green parks). Free, OSM-based, no API key.
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-    maxZoom: 19, subdomains: "abcd",
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
-  }).addTo(map);
+  // of accent colors (blue water, green parks), on OpenStreetMap data.
+  //
+  // The Voyager tiles come from CARTO, which now gates them behind an API key.
+  // The key is read at runtime from /api/config (set the CARTO key in the host
+  // environment, e.g. Render -> Environment) so it stays out of the source and
+  // out of Git. If no key is configured yet, we fall back to keyless
+  // OpenStreetMap tiles so the map still loads instead of going blank.
+  function addBaseMap(cartoKey) {
+    if (cartoKey) {
+      L.tileLayer("https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=" + encodeURIComponent(cartoKey), {
+        maxZoom: 20,
+        attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+      }).addTo(map);
+    } else {
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
+      }).addTo(map);
+    }
+  }
+  fetch("/api/config")
+    .then(function (r) { return r.json(); })
+    .then(function (cfg) { addBaseMap(cfg && cfg.cartoKey); })
+    .catch(function () { addBaseMap(""); });
 
   // Start point = solid teal dot. End point = solid dot in a DIFFERENT color (coral).
   var pickIcon = L.divIcon({ className: "", html: '<div class="pin pick"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });

@@ -28,7 +28,9 @@ Fare is a placeholder: base tier is max($7, $3 + $1.60/mile); XL is ×1.5 and Lu
 Checked by running the server and calling the API: create (201), validation (400), accept, double-accept (409), advance, cancel, and page/asset loads (200), unknown route (404). Visual layout has not been reviewed.
 
 ## Map and addresses (rider page)
-The rider page uses OpenStreetMap map tiles with Leaflet — free, and **no API key is needed**. Aim: as close to Lyft's rider flow as we can get in a web page.
+The rider page uses Leaflet with CARTO *Voyager* map tiles (OpenStreetMap data) — a clean, lightly polychrome style close to Lyft's rider map.
+
+CARTO now gates these tiles behind a free basemap key. A working key is built into `server.py` (`DEFAULT_CARTO_KEY`) so the map works out of the box, and `GET /api/config` passes it to the page at runtime. It is a public, client-side basemap key — it ships in every tile URL the browser requests — so it is not a secret. To rotate it, set `CARTO_API_KEY` in the host environment (see DEPLOY.md) to override the built-in value without changing code. If the key is ever blank, the page falls back to keyless OpenStreetMap tiles so the map still loads instead of going empty.
 
 - Type an address in the pickup or drop-off box and pick a match (Nominatim lookup).
 - Or tap **Use my location** for pickup, and click the map to drop the drop-off pin. Pins can be dragged.

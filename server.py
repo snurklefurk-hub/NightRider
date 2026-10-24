@@ -1,5 +1,12 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
 import json, os, threading, time, uuid
+
+# CARTO basemap key used for the rider map's Voyager tiles. This is a public,
+# client-side basemap key -- it ships in every tile URL the browser requests --
+# so a working default is included to make the map work out of the box. Set the
+# CARTO_API_KEY environment variable on the host to override/rotate it without
+# touching this file.
+DEFAULT_CARTO_KEY = "cb1_4ty9_1_b9153d194e9b53019d1d5bbe"
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -60,6 +67,11 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         if self.path.startswith("/api/"):
+            if self.path == "/api/config":
+                # Host environment variable wins (lets you rotate the key
+                # without a code change); otherwise use the built-in key.
+                key = os.environ.get("CARTO_API_KEY", DEFAULT_CARTO_KEY).strip()
+                return self.send_json(200, {"cartoKey": key})
             if self.path == "/api/rides":
                 with LOCK:
                     rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)

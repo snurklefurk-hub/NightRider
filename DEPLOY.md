@@ -36,7 +36,8 @@ Upload the newest `render.yaml` (from the newest nightrider.zip) to GitHub, repl
 - **Free plan sleeps.** After about 15 minutes with no visitors, the site goes to sleep. The first visit afterward can take ~30 seconds to load.
 - **Ride data resets.** Rides are saved to a file on the server. Render's free plan can erase that file on restarts and redeploys. This is fine for testing. Real ride storage needs a database, which we can add later.
 - **Updating the site.** Change files on GitHub (or upload new ones), and Render redeploys automatically.
-- **No API key needed.** The map uses OpenStreetMap, which is free. If an old copy of your site ever asks for a Google key, that page is out of date — re-upload the current files from `nightrider.zip` and redeploy.
+- **Map key — works out of the box.** The map uses CARTO's clean "Voyager" tiles. A working basemap key is already built into the code, so you do **not** need to do anything: deploy and the map works. It is a public client-side basemap key (it is visible in any tile request the browser makes), not an account secret.
+- **Optional: rotate the key.** If you ever get a new key and want to use it without editing code, open your Render service → **Environment** → **Add Environment Variable** → name `CARTO_API_KEY`, value = your new key → save. Render redeploys automatically and the server hands the new key to the page. If an old copy of your site ever asks for a Google key, that page is out of date — re-upload the current files from `nightrider.zip` and redeploy.
 - **Not for real riders yet.** There is no login or payment. Anyone with the link can see the dispatch and driver pages.
 
 ## Running it on your own computer (optional)

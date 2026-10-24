@@ -72,6 +72,21 @@ class NightRiderAPI(unittest.TestCase):
         self.assertEqual(self.call(f"/api/rides/{rid}/cancel", {})[1]["status"], "cancelled")
         self.assertEqual(self.call(f"/api/rides/{rid}/cancel", {})[0], 409)
 
+    def test_config_endpoint_returns_builtin_carto_key(self):
+        os.environ.pop("CARTO_API_KEY", None)
+        s, j = self.call("/api/config")
+        self.assertEqual(s, 200)
+        self.assertTrue(j["cartoKey"], "a default CARTO key should be configured")
+        self.assertTrue(j["cartoKey"].startswith("cb1_"))
+
+    def test_config_endpoint_env_var_overrides_builtin_key(self):
+        os.environ["CARTO_API_KEY"] = "test-key-123"
+        try:
+            s, j = self.call("/api/config")
+            self.assertEqual((s, j["cartoKey"]), (200, "test-key-123"))
+        finally:
+            os.environ.pop("CARTO_API_KEY", None)
+
     def test_missing_ride_and_route(self):
         self.assertEqual(self.call("/api/rides/nope")[0], 404)
         self.assertEqual(self.call("/api/nope")[0], 404)
