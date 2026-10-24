@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NightRider · Request a Ride</title><link rel="stylesheet" href="nightrider.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"></head>
+<body>
+<header><a class="brand" href="/">Night<span>Rider</span></a>
+<nav><a href="/" aria-current="page">Ride</a><a href="driver.html">Driver</a><a href="dispatch.html">Dispatch</a></nav></header>
+<main>
+<h1>Where to tonight?</h1>
+<div class="grid">
+<section class="card" aria-labelledby="req">
+<h2 id="req" style="font-weight:400;margin-top:0">Request a ride</h2>
+<form id="rideForm" novalidate>
+<label for="name">Your name</label><input id="name" name="rider_name" autocomplete="name" placeholder="Jordan Reyes…" required>
+<label for="pickup">Pickup address</label><input id="pickup" name="pickup" autocomplete="street-address" placeholder="415 Mercer St…" required>
+<label for="dropoff">Drop-off address</label><input id="dropoff" name="dropoff" placeholder="Harbor Point Station…" required>
+<label for="miles">Distance (miles)</label><input id="miles" name="distance_mi" inputmode="decimal" placeholder="Filled in from the map, or type it…" required>
+<button type="button" id="routeBtn">Find addresses on map</button>
+<div id="map" style="height:260px;margin:12px 0;border:1px solid #ff2e9a"></div>
+<input type="hidden" id="pickup_coords" name="pickup_coords"><input type="hidden" id="dropoff_coords" name="dropoff_coords">
+<button type="submit" id="submitBtn">Request NightRider</button>
+<p id="msg" class="msg" aria-live="polite"></p>
+</form></section>
+<section class="card" aria-labelledby="stat">
+<h2 id="stat" style="font-weight:400;margin-top:0">Your ride</h2>
+<div id="rideStatus" class="muted">No ride requested yet.</div>
+</section>
+</div>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map').setView([39.5,-98.5],4);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap'}).addTo(map);
+let line=null;
+async function geocode(q){
+  const r=await fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+encodeURIComponent(q));
+  const j=await r.json(); if(!j.length) throw new Error('Address not found: '+q);
+  return {lat:+j[0].lat,lng:+j[0].lon};
+}
+function miles(a,b){
+  const R=3958.8,t=x=>x*Math.PI/180,dLat=t(b.lat-a.lat),dLng=t(b.lng-a.lng);
+  const h=Math.sin(dLat/2)**2+Math.cos(t(a.lat))*Math.cos(t(b.lat))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h))*1.2;
+}
+document.getElementById('routeBtn').addEventListener('click',async()=>{
+  const pu=document.getElementById('pickup').value.trim(),dr=document.getElementById('dropoff').value.trim();
+  if(!pu||!dr){msg.textContent='Enter pickup and drop-off first.';return;}
+  msg.textContent='Finding addresses…';
+  try{
+    const a=await geocode(pu); await new Promise(r=>setTimeout(r,1100)); const b=await geocode(dr);
+    document.getElementById('pickup_coords').value=JSON.stringify(a);
+    document.getElementById('dropoff_coords').value=JSON.stringify(b);
+    if(line) map.removeLayer(line);
+    line=L.polyline([[a.lat,a.lng],[b.lat,b.lng]],{color:'#ff2e9a'}).addTo(map);
+    L.circleMarker([a.lat,a.lng],{color:'#00e5ff'}).addTo(map).bindTooltip('Pickup');
+    L.circleMarker([b.lat,b.lng],{color:'#ff2e9a'}).addTo(map).bindTooltip('Drop-off');
+    map.fitBounds(line.getBounds(),{padding:[20,20]});
+    const mi=miles(a,b).toFixed(1);
+    document.getElementById('miles').value=mi;
+    msg.textContent='Estimated '+mi+' miles (straight-line × 1.2). Check it before requesting.';
+  }catch(err){msg.textContent=err.message;}
+});
+const form=document.getElementById('rideForm'),msg=document.getElementById('msg'),btn=document.getElementById('submitBtn'),out=document.getElementById('rideStatus');
+let rideId=localStorage.getItem('nr_ride');
+form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const d=Object.fromEntries(new FormData(form));
+  if(!d.rider_name.trim()||!d.pickup.trim()||!d.dropoff.trim()){msg.textContent='Please fill in name, pickup and drop-off.';form.querySelector(':invalid,input:placeholder-shown')?.focus();return;}
+  btn.disabled=true;msg.textContent='Requesting…';
+  try{
+    const r=await fetch('/api/rides',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error||'Request failed');
+    rideId=j.id;localStorage.setItem('nr_ride',rideId);msg.textContent='';form.reset();render(j);
+  }catch(err){msg.textContent=err.message;}
+  finally{btn.disabled=false;}
+});
+function render(r){
+  out.innerHTML='';
+  const p=document.createElement('p');p.innerHTML='<span class="status"></span>';
+  p.querySelector('.status').textContent=r.status.replace('_',' ');
+  const l=document.createElement('p');l.className='muted';
+  l.textContent=`Ride ${r.id} · ${r.pickup} → ${r.dropoff} · ${r.distance_mi} mi · $${r.fare.toFixed(2)}`+(r.driver?` · Driver: ${r.driver}`:'');
+  out.append(p,l);
+}
+async function poll(){
+  if(!rideId)return;
+  try{const r=await fetch('/api/rides/'+rideId);if(r.ok)render(await r.json());else{localStorage.removeItem('nr_ride');rideId=null;}}catch{}
+}
+poll();setInterval(poll,4000);
+</script>
+</body></html>

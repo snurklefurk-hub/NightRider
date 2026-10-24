@@ -69,8 +69,6 @@ class Handler(SimpleHTTPRequestHandler):
                 with LOCK:
                     ride = STORE["rides"].get(rid)
                 return self.send_json(200 if ride else 404, ride or {"error": "not found"})
-            if self.path == "/api/config":
-                return self.send_json(200, {"googleMapsKey": os.environ.get("GOOGLE_MAPS_API_KEY", "")})
             return self.send_json(404, {"error": "not found"})
         return super().do_GET()
 
