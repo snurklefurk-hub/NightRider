@@ -41,6 +41,13 @@ class NightRiderAPI(unittest.TestCase):
         self.assertEqual(j["status"], "requested")
         self.assertEqual(j["fare"], 13.4)  # 3 + 1.6 * 6.5
 
+    def test_map_coordinates_are_stored(self):
+        s, j = self.call("/api/rides", {"rider_name": "M", "pickup": "A", "dropoff": "B", "distance_mi": 2,
+                                        "pickup_coords": '{"lat": 40.7, "lng": -74.0}', "dropoff_coords": "bad"})
+        self.assertEqual(s, 201)
+        self.assertEqual(j["pickup_coords"], [40.7, -74.0])
+        self.assertIsNone(j["dropoff_coords"])
+
     def test_minimum_fare_applies(self):
         s, j = self.call("/api/rides", {"rider_name": "Q", "pickup": "A", "dropoff": "B", "distance_mi": 0.5})
         self.assertEqual(j["fare"], 7.0)
@@ -64,6 +71,11 @@ class NightRiderAPI(unittest.TestCase):
         rid = self.new_ride()
         self.assertEqual(self.call(f"/api/rides/{rid}/cancel", {})[1]["status"], "cancelled")
         self.assertEqual(self.call(f"/api/rides/{rid}/cancel", {})[0], 409)
+
+    def test_config_endpoint_returns_key_field(self):
+        s, j = self.call("/api/config")
+        self.assertEqual(s, 200)
+        self.assertIn("googleMapsKey", j)
 
     def test_missing_ride_and_route(self):
         self.assertEqual(self.call("/api/rides/nope")[0], 404)

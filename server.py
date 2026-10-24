@@ -69,6 +69,8 @@ class Handler(SimpleHTTPRequestHandler):
                 with LOCK:
                     ride = STORE["rides"].get(rid)
                 return self.send_json(200 if ride else 404, ride or {"error": "not found"})
+            if self.path == "/api/config":
+                return self.send_json(200, {"googleMapsKey": os.environ.get("GOOGLE_MAPS_API_KEY", "")})
             return self.send_json(404, {"error": "not found"})
         return super().do_GET()
 
@@ -90,8 +92,18 @@ class Handler(SimpleHTTPRequestHandler):
                 return self.send_json(400, {"error": "pickup, dropoff and rider_name are required"})
             if not (0 < miles <= 500):
                 return self.send_json(400, {"error": "distance_mi must be between 0 and 500"})
+            def coord(v):
+                try:
+                    if isinstance(v, str):
+                        v = json.loads(v or "{}")
+                    lat, lng = float(v["lat"]), float(v["lng"])
+                    return [lat, lng] if -90 <= lat <= 90 and -180 <= lng <= 180 else None
+                except (TypeError, KeyError, ValueError):
+                    return None
             ride = {
                 "id": uuid.uuid4().hex[:8], "rider_name": name, "pickup": pickup, "dropoff": dropoff,
+                "pickup_coords": coord(data.get("pickup_coords")),
+                "dropoff_coords": coord(data.get("dropoff_coords")),
                 "distance_mi": round(miles, 1), "fare": fare(miles), "status": "requested",
                 "driver": None, "created": time.time(),
             }

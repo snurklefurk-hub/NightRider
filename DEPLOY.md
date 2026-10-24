@@ -39,3 +39,9 @@ Upload the newest `render.yaml` (from the newest nightrider.zip) to GitHub, repl
 ## Running it on your own computer (optional)
 
 You need Python 3 installed. In the folder, run `python3 server.py`, then open http://localhost:8000.
+
+## Step 3: Turn on the map (Google key)
+
+1. In Google Cloud Console, create an API key and enable **Maps JavaScript API**, **Geocoding API** and **Directions API**. Google requires billing to be on, but has a monthly free credit.
+2. In Render, open your nightrider service, click **Environment**, and add `GOOGLE_MAPS_API_KEY` with the key as its value. Save. Render redeploys.
+3. Until this is set, the customer page shows a message that the map key is not set yet. Rides still work without it, but customers must type miles by hand.
