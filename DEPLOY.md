@@ -25,6 +25,10 @@ Your pages:
 - `/driver.html` is the driver page.
 - `/dispatch.html` is the dispatch page.
 
+## If Render shows "Failed to launch" or a Python error
+
+Upload the newest `render.yaml` (from the newest nightrider.zip) to GitHub, replacing the old one. Older versions pinned Python 3.11.2, which Render no longer has. Render redeploys automatically after the upload.
+
 ## Good to know
 
 - **Free plan sleeps.** After about 15 minutes with no visitors, the site goes to sleep. The first visit afterward can take ~30 seconds to load.
