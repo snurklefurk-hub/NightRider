@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NightRider · Request a Ride</title><link rel="stylesheet" href="nightrider.css"></head>
+<body>
+<header><a class="brand" href="/">Night<span>Rider</span></a>
+<nav><a href="/" aria-current="page">Ride</a><a href="driver.html">Driver</a><a href="dispatch.html">Dispatch</a></nav></header>
+<main>
+<h1>Where to tonight?</h1>
+<div class="grid">
+<section class="card" aria-labelledby="req">
+<h2 id="req" style="font-weight:400;margin-top:0">Request a ride</h2>
+<form id="rideForm" novalidate>
+<label for="name">Your name</label><input id="name" name="rider_name" autocomplete="name" placeholder="Jordan Reyes…" required>
+<label for="pickup">Pickup address</label><input id="pickup" name="pickup" autocomplete="street-address" placeholder="415 Mercer St…" required>
+<label for="dropoff">Drop-off address</label><input id="dropoff" name="dropoff" placeholder="Harbor Point Station…" required>
+<label for="miles">Estimated distance (miles)</label><input id="miles" name="distance_mi" inputmode="decimal" placeholder="6.5…" required>
+<button type="submit" id="submitBtn">Request NightRider</button>
+<p id="msg" class="msg" aria-live="polite"></p>
+</form></section>
+<section class="card" aria-labelledby="stat">
+<h2 id="stat" style="font-weight:400;margin-top:0">Your ride</h2>
+<div id="rideStatus" class="muted">No ride requested yet.</div>
+</section>
+</div>
+</main>
+<script>
+const form=document.getElementById('rideForm'),msg=document.getElementById('msg'),btn=document.getElementById('submitBtn'),out=document.getElementById('rideStatus');
+let rideId=localStorage.getItem('nr_ride');
+form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const d=Object.fromEntries(new FormData(form));
+  if(!d.rider_name.trim()||!d.pickup.trim()||!d.dropoff.trim()){msg.textContent='Please fill in name, pickup and drop-off.';form.querySelector(':invalid,input:placeholder-shown')?.focus();return;}
+  btn.disabled=true;msg.textContent='Requesting…';
+  try{
+    const r=await fetch('/api/rides',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.error||'Request failed');
+    rideId=j.id;localStorage.setItem('nr_ride',rideId);msg.textContent='';form.reset();render(j);
+  }catch(err){msg.textContent=err.message;}
+  finally{btn.disabled=false;}
+});
+function render(r){
+  out.innerHTML='';
+  const p=document.createElement('p');p.innerHTML='<span class="status"></span>';
+  p.querySelector('.status').textContent=r.status.replace('_',' ');
+  const l=document.createElement('p');l.className='muted';
+  l.textContent=`Ride ${r.id} · ${r.pickup} → ${r.dropoff} · ${r.distance_mi} mi · $${r.fare.toFixed(2)}`+(r.driver?` · Driver: ${r.driver}`:'');
+  out.append(p,l);
+}
+async function poll(){
+  if(!rideId)return;
+  try{const r=await fetch('/api/rides/'+rideId);if(r.ok)render(await r.json());else{localStorage.removeItem('nr_ride');rideId=null;}}catch{}
+}
+poll();setInterval(poll,4000);
+</script>
+</body></html>
