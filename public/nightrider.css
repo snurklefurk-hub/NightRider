@@ -88,11 +88,18 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .steps li.done::before{background:var(--ice);border-color:var(--ice)}
 .pulse{display:inline-block;width:9px;height:9px;background:var(--pink);box-shadow:0 0 10px var(--pink);margin-right:.5rem;vertical-align:middle}
 @media (prefers-reduced-motion:no-preference){.pulse{animation:p 1.1s ease-in-out infinite}@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}}
-.leaflet-container{background:#0b1020;font:inherit}
-.leaflet-bar a{background:rgba(10,15,29,.9)!important;color:var(--cyan)!important;border-color:var(--line)!important}
-.leaflet-popup-content-wrapper{background:rgba(10,15,29,.95);color:var(--ice);border:1px solid var(--line);border-radius:0}
-.leaflet-popup-tip{background:rgba(10,15,29,.95)}
-.leaflet-control-attribution{background:rgba(10,15,29,.7)!important;color:var(--mist)!important;font-size:.65rem!important}
-.pin{width:16px;height:16px;border-radius:50%;border:2px solid #04121a}
-.pin.pick{background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
-.pin.drop{background:var(--pink);box-shadow:0 0 12px var(--pink)}
+.leaflet-container{background:#e9e7e2;font:inherit}
+.leaflet-bar a{background:#fff!important;color:#2f3b52!important;border-color:#dfe3e8!important}
+.leaflet-bar a:hover{background:#f4f6f8!important}
+.leaflet-popup-content-wrapper{background:#fff;color:#1b2233;border:1px solid #dfe3e8;border-radius:0}
+.leaflet-popup-tip{background:#fff}
+.leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:#5a6473!important;font-size:.65rem!important}
+/* Map markers are plain dots (like Lyft): start and end share the shape but
+   use clearly different colors, each with a white ring so they read on light tiles. */
+.pin{width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-sizing:border-box;box-shadow:0 1px 5px rgba(10,15,29,.45)}
+.pin.pick{background:#0f7ea8}
+.pin.drop{background:#e8467c}
+
+/* Keep the map completely clear: drop the decorative scanline overlay on the
+   rider page so nothing is drawn on top of the map. */
+body.rider::before{display:none}

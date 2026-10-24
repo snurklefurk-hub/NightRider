@@ -102,12 +102,16 @@
   var $ = function (id) { return document.getElementById(id); };
 
   var map = L.map("map", { zoomControl: true }).setView([39.8283, -98.5795], 4);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
+  // Lyft-style clean light map: a near-monochrome grey base with just a couple
+  // of accent colors (blue water, green parks). Free, OSM-based, no API key.
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+    maxZoom: 19, subdomains: "abcd",
+    attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
   }).addTo(map);
 
-  var pickIcon = L.divIcon({ className: "", html: '<div class="pin pick"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
-  var dropIcon = L.divIcon({ className: "", html: '<div class="pin drop"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+  // Start point = solid teal dot. End point = solid dot in a DIFFERENT color (coral).
+  var pickIcon = L.divIcon({ className: "", html: '<div class="pin pick"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
+  var dropIcon = L.divIcon({ className: "", html: '<div class="pin drop"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
 
   var state = {
     pickup: null,      // {lat,lng,label}
@@ -166,7 +170,7 @@
 
   function setRoute(pts, miles, minutes) {
     if (state.routeLine) { map.removeLayer(state.routeLine); }
-    state.routeLine = L.polyline(pts, { color: "#00f0ff", weight: 5, opacity: .9, dashArray: "1 10", lineCap: "round" }).addTo(map);
+    state.routeLine = L.polyline(pts, { color: "#2f3b52", weight: 6, opacity: .95, lineCap: "round" }).addTo(map);
     map.fitBounds(state.routeLine.getBounds(), { padding: [50, 90] });
     state.miles = Math.round(miles * 10) / 10;
     state.minutes = Math.max(1, Math.round(minutes));
