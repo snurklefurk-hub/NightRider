@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>NightRider — Request a ride</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="nightrider.css">
+</head>
+<body class="rider">
+<header>
+  <a class="brand" href="/">Night<span>Rider</span></a>
+  <nav>
+    <a href="/" aria-current="page">Ride</a>
+    <a href="/driver.html">Driver</a>
+    <a href="/dispatch.html">Dispatch</a>
+  </nav>
+</header>
+
+<div id="map" role="application" aria-label="Ride map"></div>
+
+<section class="sheet" aria-live="polite">
+  <div class="grab" aria-hidden="true"></div>
+
+  <!-- STEP 1: destination -->
+  <div id="stepSearch">
+    <p class="prompt">Where to?</p>
+    <div class="field">
+      <span class="dot pick" aria-hidden="true"></span>
+      <label for="pickup" class="sr-only" style="position:absolute;left:-9999px">Pickup</label>
+      <input id="pickup" autocomplete="off" placeholder="Pickup address" aria-label="Pickup address">
+    </div>
+    <div class="field">
+      <span class="dot drop" aria-hidden="true"></span>
+      <input id="dropoff" autocomplete="off" placeholder="Drop-off address" aria-label="Drop-off address">
+    </div>
+    <ul class="results" id="results" role="listbox" aria-label="Address matches"></ul>
+    <div class="row">
+      <button type="button" id="useLocation">Use my location</button>
+      <button type="button" class="alt" id="clearPins">Clear</button>
+    </div>
+    <p class="muted" id="searchMsg">Type an address, then pick a match. Or click the map to drop the drop-off pin.</p>
+  </div>
+
+  <!-- STEP 2: choose ride -->
+  <div id="stepOptions" hidden>
+    <div class="tripbar">
+      <span class="muted" id="routeLabel">—</span>
+      <span class="num" id="routeStats">—</span>
+    </div>
+    <div id="options"></div>
+    <div class="row">
+      <button type="button" class="cta" id="requestBtn" disabled>Request NightRide</button>
+      <button type="button" class="alt" id="backBtn" style="flex:0 0 auto;margin-left:0">Edit trip</button>
+    </div>
+    <label for="riderName">Name for the driver</label>
+    <input id="riderName" autocomplete="name" placeholder="Your name">
+    <p class="msg" id="optMsg"></p>
+  </div>
+
+  <!-- STEP 3: matching -->
+  <div id="stepMatching" hidden>
+    <p class="prompt"><span class="pulse" aria-hidden="true"></span>Finding your driver</p>
+    <p class="muted">Matching you with a nearby NightRider. Keep this page open.</p>
+    <div class="row">
+      <button type="button" class="alt" id="cancelMatch" style="margin-left:0">Cancel request</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: driver on the way / trip -->
+  <div id="stepTrip" hidden>
+    <div class="tripbar">
+      <span class="muted" id="tripStatus">—</span>
+      <span class="num" id="tripFare">—</span>
+    </div>
+    <div class="driverline">
+      <div class="avatar" id="driverInitial">?</div>
+      <div>
+        <span class="option" style="all:unset"><span class="name" id="driverName" style="display:block;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan)">—</span></span>
+        <span class="muted" id="driverCar">NightRider vehicle</span>
+      </div>
+    </div>
+    <ul class="steps" id="steps">
+      <li data-s="requested">Request sent</li>
+      <li data-s="accepted">Driver assigned</li>
+      <li data-s="arrived">Driver arrived</li>
+      <li data-s="in_progress">On the way to drop-off</li>
+      <li data-s="completed">Completed</li>
+    </ul>
+    <div class="row">
+      <button type="button" class="alt" id="cancelTrip" style="margin-left:0">Cancel ride</button>
+      <button type="button" id="newRide" hidden>Book another</button>
+    </div>
+    <p class="msg" id="tripMsg"></p>
+  </div>
+</section>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+
+  var map = L.map("map", { zoomControl: true }).setView([39.8283, -98.5795], 4);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+
+  var pickIcon = L.divIcon({ className: "", html: '<div class="pin pick"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+  var dropIcon = L.divIcon({ className: "", html: '<div class="pin drop"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+
+  var state = {
+    pickup: null,      // {lat,lng,label}
+    dropoff: null,
+    miles: 0,
+    minutes: 0,
+    pickupMarker: null,
+    dropoffMarker: null,
+    routeLine: null,
+    activeField: "pickup",
+    options: [],
+    selected: null,
+    rideId: null,
+    poll: null
+  };
+
+  var TIERS = [
+    { key: "night", name: "NightRider", car: "\uD83D\uDE95", seats: 4, mult: 1.0, eta: 3 },
+    { key: "xl",    name: "NightRider XL", car: "\uD83D\uDE90", seats: 6, mult: 1.5, eta: 5 },
+    { key: "lux",   name: "NightRider Lux", car: "\uD83C\uDFCE\uFE0F", seats: 4, mult: 2.0, eta: 7 }
+  ];
+
+  function fareFor(miles, mult) { return Math.round(Math.max(7, 3 + 1.6 * miles) * mult * 100) / 100; }
+  function money(n) { return "$" + n.toFixed(2); }
+
+  function setMarker(kind, latlng) {
+    if (kind === "pick") {
+      if (state.pickupMarker) { state.pickupMarker.setLatLng(latlng); }
+      else { state.pickupMarker = L.marker(latlng, { icon: pickIcon, draggable: true }).addTo(map); state.pickupMarker.on("dragend", onPinDrag); }
+    } else {
+      if (state.dropoffMarker) { state.dropoffMarker.setLatLng(latlng); }
+      else { state.dropoffMarker = L.marker(latlng, { icon: dropIcon, draggable: true }).addTo(map); state.dropoffMarker.on("dragend", onPinDrag); }
+    }
+  }
+
+  function onPinDrag(e) {
+    var ll = e.target.getLatLng();
+    var which = (e.target === state.pickupMarker) ? "pickup" : "dropoff";
+    reverseGeocode(ll.lat, ll.lng, which);
+  }
+
+  function drawRoute() {
+    if (!state.pickup || !state.dropoff) { return; }
+    var a = state.pickup, b = state.dropoff;
+    var url = "https://router.project-osrm.org/route/v1/driving/" +
+      a.lng + "," + a.lat + ";" + b.lng + "," + b.lat + "?overview=full&geometries=geojson";
+    fetch(url).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.routes || !d.routes.length) { throw new Error("no route"); }
+      var pts = d.routes[0].geometry.coordinates.map(function (c) { return [c[1], c[0]]; });
+      setRoute(pts, d.routes[0].distance / 1609.344, d.routes[0].duration / 60);
+    }).catch(function () {
+      var miles = straightMiles(a, b) * 1.2;
+      setRoute([[a.lat, a.lng], [b.lat, b.lng]], miles, miles / 0.45);
+    });
+  }
+
+  function setRoute(pts, miles, minutes) {
+    if (state.routeLine) { map.removeLayer(state.routeLine); }
+    state.routeLine = L.polyline(pts, { color: "#00f0ff", weight: 5, opacity: .9, dashArray: "1 10", lineCap: "round" }).addTo(map);
+    map.fitBounds(state.routeLine.getBounds(), { padding: [50, 90] });
+    state.miles = Math.round(miles * 10) / 10;
+    state.minutes = Math.max(1, Math.round(minutes));
+    showOptions();
+  }
+
+  function straightMiles(a, b) {
+    var R = 3958.8, dLat = (b.lat - a.lat) * Math.PI / 180, dLng = (b.lng - a.lng) * Math.PI / 180;
+    var la1 = a.lat * Math.PI / 180, la2 = b.lat * Math.PI / 180;
+    var h = Math.sin(dLat / 2) * Math.sin(dLat / 2) + Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+
+  /* -------- address search (Nominatim, no key) -------- */
+  var searchTimer = null;
+  function wireField(inputId, which) {
+    var input = $(inputId);
+    input.addEventListener("focus", function () { state.activeField = which; });
+    input.addEventListener("input", function () {
+      state.activeField = which;
+      clearTimeout(searchTimer);
+      var q = input.value.trim();
+      if (q.length < 4) { $("results").innerHTML = ""; return; }
+      searchTimer = setTimeout(function () { geocode(q); }, 350);
+    });
+  }
+
+  function geocode(q) {
+    var url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=" + encodeURIComponent(q);
+    fetch(url, { headers: { "Accept": "application/json" } }).then(function (r) { return r.json(); }).then(function (list) {
+      var ul = $("results"); ul.innerHTML = "";
+      if (!list.length) { ul.innerHTML = '<li class="muted">No matches. Try adding a city or ZIP.</li>'; return; }
+      list.forEach(function (item, i) {
+        var li = document.createElement("li");
+        li.setAttribute("role", "option");
+        li.dataset.lat = item.lat; li.dataset.lng = item.lon;
+        li.innerHTML = '<span>' + escapeHtml(item.display_name.split(",")[0]) + '</span><span class="sub">' + escapeHtml(item.display_name) + "</span>";
+        if (i === 0) { li.classList.add("active"); }
+        li.addEventListener("click", function () { chooseResult(item, li); });
+        ul.appendChild(li);
+      });
+    }).catch(function () { $("searchMsg").textContent = "Address lookup failed. Check your connection or click the map."; });
+  }
+
+  function chooseResult(item, li) {
+    var pt = { lat: parseFloat(item.lat), lng: parseFloat(item.lon), label: item.display_name };
+    applyPoint(pt);
+    $("results").innerHTML = "";
+  }
+
+  function applyPoint(pt) {
+    if (state.activeField === "pickup") {
+      state.pickup = pt; $("pickup").value = pt.label; setMarker("pick", [pt.lat, pt.lng]);
+      if (!state.dropoff) { map.setView([pt.lat, pt.lng], 14); }
+    } else {
+      state.dropoff = pt; $("dropoff").value = pt.label; setMarker("drop", [pt.lat, pt.lng]);
+    }
+    afterPoint();
+  }
+
+  function reverseGeocode(lat, lng, which) {
+    var url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lng;
+    fetch(url, { headers: { "Accept": "application/json" } }).then(function (r) { return r.json(); }).then(function (d) {
+      var label = d.display_name || (lat.toFixed(5) + ", " + lng.toFixed(5));
+      var pt = { lat: lat, lng: lng, label: label };
+      if (which === "pickup") { state.pickup = pt; $("pickup").value = label; }
+      else { state.dropoff = pt; $("dropoff").value = label; }
+      afterPoint();
+    }).catch(function () {
+      var pt = { lat: lat, lng: lng, label: lat.toFixed(5) + ", " + lng.toFixed(5) };
+      if (which === "pickup") { state.pickup = pt; $("pickup").value = pt.label; }
+      else { state.dropoff = pt; $("dropoff").value = pt.label; }
+      afterPoint();
+    });
+  }
+
+  function afterPoint() {
+    if (state.pickup && state.dropoff) { drawRoute(); }
+    else { $("searchMsg").textContent = state.pickup ? "Now set your drop-off." : "Set your pickup."; }
+  }
+
+  /* -------- ride options -------- */
+  function showOptions() {
+    $("stepSearch").hidden = true;
+    $("stepMatching").hidden = true;
+    $("stepTrip").hidden = true;
+    $("stepOptions").hidden = false;
+    $("routeLabel").textContent = shorten(state.pickup.label) + " \u2192 " + shorten(state.dropoff.label);
+    $("routeStats").textContent = state.miles + " mi \u00b7 ~" + state.minutes + " min";
+    var box = $("options"); box.innerHTML = "";
+    var firstKey = TIERS[0].key;
+    state.options = TIERS.map(function (t) {
+      var price = fareFor(state.miles, t.mult);
+      var el = document.createElement("button");
+      el.type = "button";
+      el.className = "option" + (t.key === firstKey ? " sel" : "");
+      el.dataset.key = t.key;
+      el.innerHTML =
+        '<span class="car" aria-hidden="true">' + t.car + "</span>" +
+        '<span class="info"><span class="name">' + t.name + "</span>" +
+        '<span class="meta">' + t.seats + " seats \u00b7 " + t.eta + " min away</span></span>" +
+        '<span class="price">' + money(price) + "</span>";
+      el.addEventListener("click", function () { selectTier(t.key); });
+      box.appendChild(el);
+      return { key: t.key, name: t.name, price: price };
+    });
+    state.selected = firstKey;
+    $("requestBtn").disabled = false;
+    $("requestBtn").textContent = "Request " + TIERS[0].name;
+    $("optMsg").textContent = "";
+  }
+
+  function selectTier(key) {
+    state.selected = key;
+    Array.prototype.forEach.call(document.querySelectorAll(".option"), function (el) {
+      el.classList.toggle("sel", el.dataset.key === key);
+    });
+    var t = TIERS.filter(function (x) { return x.key === key; })[0];
+    $("requestBtn").textContent = "Request " + t.name;
+  }
+
+  function backToSearch() {
+    $("stepOptions").hidden = true;
+    $("stepSearch").hidden = false;
+    $("searchMsg").textContent = "Adjust pickup or drop-off, or pick another match.";
+  }
+
+  /* -------- request + status -------- */
+  function requestRide() {
+    var name = $("riderName").value.trim();
+    if (!name) { $("optMsg").textContent = "Add your name so the driver knows who to look for."; $("riderName").focus(); return; }
+    if (!state.pickup || !state.dropoff) { $("optMsg").textContent = "Set both pickup and drop-off."; return; }
+    $("requestBtn").disabled = true;
+    $("optMsg").textContent = "";
+    fetch("/api/rides", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rider_name: name,
+        pickup: state.pickup.label, dropoff: state.dropoff.label,
+        distance_mi: state.miles,
+        pickup_coords: { lat: state.pickup.lat, lng: state.pickup.lng },
+        dropoff_coords: { lat: state.dropoff.lat, lng: state.dropoff.lng }
+      })
+    }).then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+      .then(function (res) {
+        if (!res.ok) { throw new Error(res.j.error || "request failed"); }
+        state.rideId = res.j.id;
+        showMatching();
+        startPolling();
+      })
+      .catch(function (e) {
+        $("requestBtn").disabled = false;
+        $("optMsg").textContent = "Could not send request: " + e.message;
+      });
+  }
+
+  function showMatching() {
+    $("stepSearch").hidden = true; $("stepOptions").hidden = true; $("stepTrip").hidden = true;
+    $("stepMatching").hidden = false;
+  }
+
+  function startPolling() {
+    stopPolling();
+    state.poll = setInterval(refresh, 3000);
+    refresh();
+  }
+  function stopPolling() { if (state.poll) { clearInterval(state.poll); state.poll = null; } }
+
+  function refresh() {
+    if (!state.rideId) { return; }
+    fetch("/api/rides/" + state.rideId).then(function (r) { return r.json(); }).then(renderRide).catch(function () {});
+  }
+
+  function renderRide(ride) {
+    if (!ride || ride.error) { return; }
+    if (ride.status === "requested") { showMatching(); return; }
+    $("stepMatching").hidden = true; $("stepSearch").hidden = true; $("stepOptions").hidden = true; $("stepTrip").hidden = false;
+    $("tripStatus").textContent = statusWord(ride.status);
+    $("tripFare").textContent = money(ride.fare);
+    $("driverName").textContent = ride.driver || "Pending";
+    $("driverInitial").textContent = (ride.driver || "?").charAt(0).toUpperCase();
+    $("driverCar").textContent = (ride.status === "completed" || ride.status === "cancelled") ? "Trip closed" : "NightRider vehicle \u00b7 " + ride.distance_mi + " mi";
+    var order = ["requested", "accepted", "arrived", "in_progress", "completed"];
+    var idx = order.indexOf(ride.status);
+    Array.prototype.forEach.call($("steps").children, function (li) {
+      var i = order.indexOf(li.dataset.s);
+      li.classList.toggle("on", i === idx);
+      li.classList.toggle("done", i < idx);
+    });
+    if (ride.status === "completed" || ride.status === "cancelled") {
+      $("cancelTrip").hidden = true; $("newRide").hidden = false;
+      stopPolling();
+    } else {
+      $("cancelTrip").hidden = false; $("newRide").hidden = true;
+    }
+  }
+
+  function statusWord(s) {
+    return { requested: "Requesting", accepted: "Driver assigned", arrived: "Driver arrived",
+      in_progress: "En route", completed: "Ride completed", cancelled: "Ride cancelled" }[s] || s;
+  }
+
+  function cancelRide() {
+    if (!state.rideId) { return; }
+    fetch("/api/rides/" + state.rideId + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .then(function () { stopPolling(); resetAll(); });
+  }
+  function cancelMatch() { cancelRide(); }
+
+  function resetAll() {
+    if (state.routeLine) { map.removeLayer(state.routeLine); state.routeLine = null; }
+    if (state.pickupMarker) { map.removeLayer(state.pickupMarker); state.pickupMarker = null; }
+    if (state.dropoffMarker) { map.removeLayer(state.dropoffMarker); state.dropoffMarker = null; }
+    state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
+    state.selected = null; $("pickup").value = ""; $("dropoff").value = ""; $("results").innerHTML = "";
+    $("stepTrip").hidden = true; $("stepOptions").hidden = true; $("stepMatching").hidden = true; $("stepSearch").hidden = false;
+    $("searchMsg").textContent = "Type an address, then pick a match. Or click the map to drop the drop-off pin.";
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { $("searchMsg").textContent = "This browser cannot share location. Type your pickup instead."; return; }
+    $("searchMsg").textContent = "Getting your location\u2026";
+    navigator.geolocation.getCurrentPosition(function (p) {
+      state.activeField = "pickup";
+      reverseGeocode(p.coords.latitude, p.coords.longitude, "pickup");
+      map.setView([p.coords.latitude, p.coords.longitude], 15);
+    }, function () { $("searchMsg").textContent = "Location blocked. Type your pickup address instead."; }, { enableHighAccuracy: true, timeout: 8000 });
+  }
+
+  function shorten(s) { s = String(s || ""); return s.length > 34 ? s.slice(0, 32) + "\u2026" : s; }
+  function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
+
+  map.on("click", function (e) {
+    state.activeField = "dropoff";
+    reverseGeocode(e.latlng.lat, e.latlng.lng, "dropoff");
+  });
+
+  wireField("pickup", "pickup");
+  wireField("dropoff", "dropoff");
+  $("useLocation").addEventListener("click", useMyLocation);
+  $("clearPins").addEventListener("click", resetAll);
+  $("requestBtn").addEventListener("click", requestRide);
+  $("backBtn").addEventListener("click", backToSearch);
+  $("cancelMatch").addEventListener("click", cancelMatch);
+  $("cancelTrip").addEventListener("click", cancelRide);
+  $("newRide").addEventListener("click", resetAll);
+
+  setTimeout(function () { map.invalidateSize(); }, 200);
+})();
+</script>
+</body>
+</html>

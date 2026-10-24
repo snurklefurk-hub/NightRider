@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NightRider — Dispatch</title>
+<link rel="stylesheet" href="nightrider.css">
+</head>
+<body>
+<header>
+  <a class="brand" href="/">Night<span>Rider</span></a>
+  <nav>
+    <a href="/">Ride</a>
+    <a href="/driver.html">Driver</a>
+    <a href="/dispatch.html" aria-current="page">Dispatch</a>
+  </nav>
+</header>
+<main>
+  <h1>Dispatch</h1>
+  <div class="card">
+    <p class="muted">Live view of every ride in the system. Updated every 4 seconds.</p>
+    <button type="button" id="refresh">Refresh now</button>
+    <p class="msg" id="msg"></p>
+  </div>
+  <div class="card">
+    <h2>Counts</h2>
+    <div class="grid" id="counts"></div>
+  </div>
+  <div class="card">
+    <h2>All rides</h2>
+    <div style="overflow:auto">
+      <table>
+        <thead><tr><th>ID</th><th>Rider</th><th>Route</th><th class="num">Mi</th><th class="num">Fare</th><th>Driver</th><th>Status</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var STATUSES = ["requested", "accepted", "arrived", "in_progress", "completed", "cancelled"];
+  function money(n) { return "$" + Number(n).toFixed(2); }
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
+
+  function load() {
+    fetch("/api/rides").then(function (r) { return r.json(); }).then(function (d) {
+      var rides = d.rides || [];
+      var counts = {}; STATUSES.forEach(function (s) { counts[s] = 0; });
+      rides.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+      $("counts").innerHTML = STATUSES.map(function (s) {
+        return '<div class="tripbar"><span class="muted">' + s + '</span><span class="num">' + counts[s] + "</span></div>";
+      }).join("");
+      var body = $("rows"); body.innerHTML = "";
+      if (!rides.length) { body.innerHTML = '<tr><td colspan="8" class="muted">No rides yet.</td></tr>'; }
+      rides.forEach(function (r) {
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + esc(r.id) + "</td>" + "<td>" + esc(r.rider_name) + "</td>" +
+          '<td><span class="muted">' + esc(r.pickup) + "</span><br>" + esc(r.dropoff) + "</td>" +
+          '<td class="num">' + r.distance_mi + "</td>" + '<td class="num">' + money(r.fare) + "</td>" +
+          "<td>" + esc(r.driver || "\u2014") + "</td>" + '<td><span class="status">' + esc(r.status) + "</span></td>";
+        var td = document.createElement("td");
+        if (r.status !== "completed" && r.status !== "cancelled") {
+          var b = document.createElement("button"); b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Cancel";
+          b.addEventListener("click", function () { cancel(r.id); });
+          td.appendChild(b);
+        }
+        tr.appendChild(td);
+        body.appendChild(tr);
+      });
+      $("msg").textContent = "";
+    }).catch(function () { $("msg").textContent = "Could not load rides."; });
+  }
+
+  function cancel(id) {
+    fetch("/api/rides/" + id + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .then(load).catch(function () { $("msg").textContent = "Cancel failed."; });
+  }
+
+  $("refresh").addEventListener("click", load);
+  load();
+  setInterval(load, 4000);
+})();
+</script>
+</body>
+</html>
