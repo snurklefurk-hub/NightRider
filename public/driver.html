@@ -255,7 +255,7 @@
         var label = CFG.stageAction[r.status];
         if (label) { acts.push({ label: label, run: function () { advance(r.id); } }); }
         if (r.status !== "completed" && r.status !== "cancelled") {
-          acts.push({ label: "Cancel ride", alt: true, run: function () { cancelRide(r.id); } });
+          acts.push({ label: "Release ride to Dispatch", alt: true, run: function () { cancelRide(r.id); } });
         }
         myBox.appendChild(rideCard(r, acts));
       });
