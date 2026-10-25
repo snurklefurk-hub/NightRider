@@ -129,6 +129,17 @@ class NightRiderAPI(unittest.TestCase):
         self.assertEqual(j["rates"], {"flag_drop": 5.0, "trip_per_mile": 1.0, "approach_per_mile": 0.25})
         self.assertEqual(j["demoDriver"]["coords"], [32.08111, -81.09111])
         self.assertEqual(j["demoDriver"]["label"], "Savannah City Hall")
+        self.assertEqual(j["country"], "us")
+
+    def test_config_endpoint_env_var_overrides_address_country(self):
+        os.environ.pop("ADDRESS_COUNTRY", None)
+        self.assertEqual(self.call("/api/config")[1]["country"], "us")
+        os.environ["ADDRESS_COUNTRY"] = "CA"
+        try:
+            # Normalised to lowercase for the Nominatim countrycodes parameter.
+            self.assertEqual(self.call("/api/config")[1]["country"], "ca")
+        finally:
+            os.environ.pop("ADDRESS_COUNTRY", None)
 
     def test_config_endpoint_env_var_overrides_builtin_key(self):
         os.environ["CARTO_API_KEY"] = "test-key-123"

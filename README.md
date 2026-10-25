@@ -108,7 +108,10 @@ The rider page uses Leaflet with CARTO *Dark Matter* map tiles (OpenStreetMap da
 
 CARTO now gates these tiles behind a free basemap key. A working key is built into `server.py` (`DEFAULT_CARTO_KEY`) so the map works out of the box, and `GET /api/config` passes it to the page at runtime. It is a public, client-side basemap key — it ships in every tile URL the browser requests — so it is not a secret. To rotate it, set `CARTO_API_KEY` in the host environment (see DEPLOY.md) to override the built-in value without changing code. If the key is ever blank, the page falls back to keyless OpenStreetMap tiles so the map still loads instead of going empty.
 
-- Type an address in the pickup or drop-off box and pick a match (Nominatim lookup).
+- Type an address in the pickup or drop-off box, then tap **Search** (or press Enter) and pick a match (Nominatim lookup).
+- Address results are kept **local to the rider's area**: the lookup is boxed around the current area and filtered to one country, so a common street name no longer returns matches in other states or abroad. The area starts at the configured home region, switches to the device location when the rider allows it, and follows the map when they zoom in somewhere. Each match shows how many miles away it is, and the nearest match is listed first.
+- If nothing matches inside the local box, the page widens the search once and says so ("showing wider results") instead of leaving the rider stuck. To change the country, set `ADDRESS_COUNTRY` in the host environment (default `us`).
+- The lookup runs on **Search / Enter**, not as you type — this follows the Nominatim usage policy and keeps the number of requests down.
 - Or tap **Use my location** for pickup, and click the map to drop the drop-off pin. Pins can be dragged.
 - The route line and distance come from OSRM's public routing service (real road distance and time). If that service is unavailable, the page falls back to a straight-line estimate × 1.2.
 - The fare box shows only the **total** — riders do not see the rate breakdown. Press **Request NightRide**.

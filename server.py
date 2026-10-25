@@ -550,6 +550,8 @@ class Handler(SimpleHTTPRequestHandler):
                 key = os.environ.get("CARTO_API_KEY", DEFAULT_CARTO_KEY).strip()
                 return self.send_json(200, {
                     "cartoKey": key,
+                    # Country filter for address lookup, so results stay local.
+                    "country": os.environ.get("ADDRESS_COUNTRY", "us").strip().lower(),
                     # One source of truth: the client prices the preview with
                     # these rates instead of hard-coding its own copy.
                     "rates": {

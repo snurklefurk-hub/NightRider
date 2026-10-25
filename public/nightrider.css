@@ -64,6 +64,7 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .results li:last-child{border-bottom:0}
 .results li:hover,.results li.active{background:rgba(0,240,255,.12);color:var(--cyan)}
 .results .sub{display:block;color:var(--mist);font-size:.72rem}
+.results .dist{display:block;color:var(--cyan);font-size:.72rem;opacity:.8}
 
 .option{display:flex;align-items:center;gap:.9rem;width:100%;text-align:left;border:1px solid rgba(0,240,255,.18);background:rgba(10,15,29,.6);padding:.7rem .8rem;margin:0 0 .5rem;cursor:pointer;box-shadow:none;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ice)}
 .option:hover{background:rgba(0,240,255,.08);box-shadow:none}

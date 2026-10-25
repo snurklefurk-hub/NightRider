@@ -36,10 +36,11 @@
     </div>
     <ul class="results" id="results" role="listbox" aria-label="Address matches"></ul>
     <div class="row">
-      <button type="button" id="useLocation">Use my location</button>
+      <button type="button" id="searchBtn">Search</button>
+      <button type="button" class="alt" id="useLocation">Use my location</button>
       <button type="button" class="alt" id="clearPins">Clear</button>
     </div>
-    <p class="muted" id="searchMsg">Type an address, then pick a match. Or click the map to drop the drop-off pin.</p>
+    <p class="muted" id="searchMsg">Type an address, then tap Search (or press Enter) to see nearby matches. You can also click the map to drop the drop-off pin.</p>
   </div>
 
   <!-- STEP 2: choose ride -->
@@ -162,6 +163,7 @@
     .then(function (cfg) {
       addBaseMap(cfg && cfg.cartoKey);
       if (cfg && cfg.rates) { RATES = cfg.rates; }
+      if (cfg && cfg.country) { state.country = String(cfg.country).toLowerCase(); }
       if (cfg && cfg.demoDriver) { DEMO_DRIVER = cfg.demoDriver; addDemoDriver(); }
     })
     .catch(function () { addBaseMap(""); });
@@ -210,7 +212,9 @@
     cursor: 0,
     approachMi: 0,
     payMethod: null,
-    demoMarker: null
+    demoMarker: null,
+    bias: null,        // {lat,lng} rider area that keeps address results local
+    country: "us"      // ISO country filter for address search (from /api/config)
   };
 
   // Fare rates come from the server (/api/config) so the formula lives in one
@@ -270,35 +274,85 @@
     return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
   }
 
-  /* -------- address search (Nominatim, no key) -------- */
-  var searchTimer = null;
+  /* -------- address search (Nominatim, no key) --------
+     Results are biased to the rider's area: the query is boxed around the
+     current area and filtered to one country, so a common street name does
+     not return matches hundreds of miles away or abroad. The search runs on
+     an explicit Search / Enter (not as you type), which the Nominatim usage
+     policy allows and which also cuts the number of requests. */
+  function toQuery(params) {
+    return Object.keys(params).map(function (k) {
+      return encodeURIComponent(k) + "=" + encodeURIComponent(params[k]);
+    }).join("&");
+  }
+
+  function biasPoint() { return state.bias || HOME; }
+
+  // ~0.35 degrees (~25 mi) box around the rider's area, as left,top,right,bottom.
+  function areaBox() {
+    var b = biasPoint();
+    return [b.lng - 0.35, b.lat + 0.35, b.lng + 0.35, b.lat - 0.35].join(",");
+  }
+
   function wireField(inputId, which) {
     var input = $(inputId);
     input.addEventListener("focus", function () { state.activeField = which; });
     input.addEventListener("input", function () {
       state.activeField = which;
-      clearTimeout(searchTimer);
-      var q = input.value.trim();
-      if (q.length < 4) { $("results").innerHTML = ""; return; }
-      searchTimer = setTimeout(function () { geocode(q); }, 350);
+      if (input.value.trim().length < 4) { $("results").innerHTML = ""; }
+    });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); state.activeField = which; runSearch(input.value); }
     });
   }
 
+  function runSearch(raw) {
+    var q = String(raw || "").trim();
+    if (q.length < 4) { $("searchMsg").textContent = "Type at least a few characters, then search."; return; }
+    geocode(q);
+  }
+
   function geocode(q) {
-    var url = "https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=" + encodeURIComponent(q);
-    fetch(url, { headers: { "Accept": "application/json" } }).then(function (r) { return r.json(); }).then(function (list) {
-      var ul = $("results"); ul.innerHTML = "";
-      if (!list.length) { ul.innerHTML = '<li class="muted">No matches. Try adding a city or ZIP.</li>'; return; }
-      list.forEach(function (item, i) {
-        var li = document.createElement("li");
-        li.setAttribute("role", "option");
-        li.dataset.lat = item.lat; li.dataset.lng = item.lon;
-        li.innerHTML = '<span>' + escapeHtml(item.display_name.split(",")[0]) + '</span><span class="sub">' + escapeHtml(item.display_name) + "</span>";
-        if (i === 0) { li.classList.add("active"); }
-        li.addEventListener("click", function () { chooseResult(item, li); });
-        ul.appendChild(li);
-      });
-    }).catch(function () { $("searchMsg").textContent = "Address lookup failed. Check your connection or click the map."; });
+    var ul = $("results");
+    ul.innerHTML = '<li class="muted">Searching near your area\u2026</li>';
+    $("searchMsg").textContent = "Searching near your area\u2026";
+    var params = { format: "json", limit: 5, addressdetails: 1, q: q, viewbox: areaBox(), bounded: 1 };
+    if (state.country) { params.countrycodes = state.country; }
+    fetch("https://nominatim.openstreetmap.org/search?" + toQuery(params), { headers: { "Accept": "application/json" } })
+      .then(function (r) { return r.json(); })
+      .then(function (list) {
+        if (list && list.length) { renderResults(list, true); return; }
+        // Nothing inside the local box: widen once so the rider is not stuck,
+        // still preferring the local area and the same country filter.
+        params.bounded = 0;
+        return fetch("https://nominatim.openstreetmap.org/search?" + toQuery(params), { headers: { "Accept": "application/json" } })
+          .then(function (r) { return r.json(); })
+          .then(function (wide) { renderResults(wide, false); });
+      })
+      .catch(function () { ul.innerHTML = ""; $("searchMsg").textContent = "Address lookup failed. Check your connection or click the map."; });
+  }
+
+  function renderResults(list, local) {
+    var ul = $("results"); ul.innerHTML = "";
+    if (!list || !list.length) { ul.innerHTML = '<li class="muted">No matches. Try adding a city or ZIP.</li>'; return; }
+    var b = biasPoint();
+    list.map(function (item) {
+      return { item: item, d: haversineMiles(b.lat, b.lng, parseFloat(item.lat), parseFloat(item.lon)) };
+    }).sort(function (a, c) { return a.d - c.d; }).forEach(function (row, i) {
+      var item = row.item;
+      var li = document.createElement("li");
+      li.setAttribute("role", "option");
+      li.dataset.lat = item.lat; li.dataset.lng = item.lon;
+      li.innerHTML = '<span>' + escapeHtml(item.display_name.split(",")[0]) + '</span>' +
+        '<span class="sub">' + escapeHtml(item.display_name) + "</span>" +
+        '<span class="dist">' + row.d.toFixed(1) + " mi away</span>";
+      if (i === 0) { li.classList.add("active"); }
+      li.addEventListener("click", function () { chooseResult(item, li); });
+      ul.appendChild(li);
+    });
+    $("searchMsg").textContent = local
+      ? "Results near your area."
+      : "No exact match nearby \u2014 showing wider results.";
   }
 
   function chooseResult(item, li) {
@@ -519,7 +573,7 @@
     state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
     state.selected = null; $("pickup").value = ""; $("dropoff").value = ""; $("results").innerHTML = "";
     $("stepTrip").hidden = true; $("stepOptions").hidden = true; $("stepMatching").hidden = true; $("stepSearch").hidden = false;
-    $("searchMsg").textContent = "Type an address, then pick a match. Or click the map to drop the drop-off pin.";
+    $("searchMsg").textContent = "Type an address, then tap Search (or press Enter) to see nearby matches.";
   }
 
   function useMyLocation() {
@@ -540,8 +594,28 @@
     reverseGeocode(e.latlng.lat, e.latlng.lng, "dropoff");
   });
 
+  // --- rider-area context for address search -------------------------------
+  // The area starts at the configured home region, switches to the device
+  // location when the rider allows it, and follows the map when they zoom in
+  // somewhere. Whichever the rider acted on last wins.
+  var HOME = {
+    lat: (DEMO_DRIVER.coords && DEMO_DRIVER.coords[0]) || 32.08111,
+    lng: (DEMO_DRIVER.coords && DEMO_DRIVER.coords[1]) || -81.09111
+  };
+  state.bias = HOME;
+  map.on("moveend", function () {
+    if (map.getZoom() >= 9) { var c = map.getCenter(); state.bias = { lat: c.lat, lng: c.lng }; }
+  });
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function (p) {
+      state.bias = { lat: p.coords.latitude, lng: p.coords.longitude };
+      if (!state.pickup && !state.dropoff) { map.setView([p.coords.latitude, p.coords.longitude], 13); }
+    }, function () { /* declined: keep the default area */ }, { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 });
+  }
+
   wireField("pickup", "pickup");
   wireField("dropoff", "dropoff");
+  $("searchBtn").addEventListener("click", function () { runSearch($(state.activeField).value); });
   $("useLocation").addEventListener("click", useMyLocation);
   $("clearPins").addEventListener("click", resetAll);
   $("requestBtn").addEventListener("click", requestRide);
