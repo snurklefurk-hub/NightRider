@@ -24,14 +24,10 @@
       the rider as a handshake, so nothing is silently dropped.</p>
     <div class="row">
       <button type="button" id="refresh">Force refresh</button>
+      <button type="button" class="alt" id="sound" aria-pressed="true">Sound: On</button>
     </div>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
     <p class="tiny muted" id="conn">Connecting…</p>
-  </div>
-
-  <div class="card">
-    <h2>Incoming requests</h2>
-    <div id="pending"></div>
   </div>
 
   <div class="card">
@@ -43,26 +39,7 @@
 
   <div class="card">
     <h2>Recent rides <span class="tiny muted">(last 5)</span></h2>
-    <div style="overflow:auto">
-      <table>
-        <thead><tr><th>ID</th><th>Rider</th><th>Hidden ID</th><th>Route</th><th class="num">Mi</th><th class="num">Fare</th><th>Driver</th><th>Status</th><th>Ack</th><th>Rate rider</th><th></th></tr></thead>
-        <tbody id="rows"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="card">
-    <h2>Export ride log</h2>
-    <p class="muted">Choose a period (leave blank for everything) and download a plain-text log of
-      every ride, with the hidden rider IDs, dispatch acknowledgments and ratings.</p>
-    <div class="row">
-      <label class="muted" for="from">From</label>
-      <input id="from" type="date">
-      <label class="muted" for="to">To</label>
-      <input id="to" type="date">
-      <button type="button" id="export">Export .txt</button>
-    </div>
-    <p class="msg" id="exportmsg" role="status" aria-live="polite"></p>
+    <div id="rows" class="ridecards"></div>
   </div>
 
   <div class="card">
@@ -78,6 +55,10 @@
   <div class="card counts">
     <h3>Counts <span class="tiny muted">by status</span></h3>
     <div class="counts-strip" id="counts"></div>
+  </div>
+
+  <div class="exportbar">
+    <button type="button" class="alt" id="exportOpen">Export ride log…</button>
   </div>
 </main>
 
@@ -95,6 +76,28 @@
   </div>
 </div>
 
+<!-- Export ride log pop-up -->
+<div id="exportModal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <p class="prompt" id="exportTitle">Export ride log</p>
+    <p class="tiny muted">Choose a period (leave blank for everything) and download a plain-text log of
+      every ride, with the hidden rider IDs, dispatch acknowledgments and ratings.</p>
+    <div class="field">
+      <label for="from">From</label>
+      <input id="from" type="date">
+    </div>
+    <div class="field">
+      <label for="to">To</label>
+      <input id="to" type="date">
+    </div>
+    <div class="row">
+      <button type="button" id="export">Export .txt</button>
+      <button type="button" class="alt" id="exportClose">Close</button>
+    </div>
+    <p class="msg" id="exportmsg" role="status" aria-live="polite"></p>
+  </div>
+</div>
+
 <script>
 (function () {
   "use strict";
@@ -102,13 +105,18 @@
   var STATUSES = ["requested", "accepted", "arrived", "in_progress", "completed", "cancelled"];
   var ISSUES = ["No-show", "Rude", "Messy", "Unsafe", "Payment issue", "Other"];
   var cursor = 0;          /* last event seq we have seen */
-  var pending = {};        /* ride id -> the request we still owe an ack */
   var ridesById = {};
   var polling = false;
   var seenRides = false;
   var chatDriver = null;   /* driver whose thread is open */
   var chatSeen = 0;        /* newest message timestamp we have rendered */
   var chatTimer = null;
+  var driverNames = [];    /* names currently listed on the board */
+  var msgCursor = {};      /* driver -> newest message timestamp dispatch has seen */
+  var msgInit = {};        /* driver -> true once we have set a baseline */
+  var unread = {};         /* driver -> true when a new driver message is waiting */
+  var soundOn = true;      /* audio cue on/off */
+  var audioCtx = null;
 
   function money(n) { return "$" + Number(n).toFixed(2); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
@@ -143,13 +151,9 @@
 
   function handle(ev) {
     if (ev.type === "ride_requested") {
-      /* The handshake: acknowledge the moment we have the request in hand. */
-      pending[ev.ride] = ev.snapshot || { id: ev.ride };
+      /* The handshake: acknowledge the moment we have the request in hand.
+         The request itself lands in Recent rides via refresh(). */
       ack(ev.ride, true);
-      renderPending();
-    } else if (ev.type === "ride_acknowledged") {
-      delete pending[ev.ride];
-      renderPending();
     }
     refresh();
   }
@@ -161,8 +165,6 @@
       body: JSON.stringify({ by: "dispatch" })
     }).then(function (r) { return r.json(); }).then(function (d) {
       if (d && d.ack) {
-        delete pending[id];
-        renderPending();
         $("msg").textContent = "Request " + id + " acknowledged at " + clock(d.ack.at) +
           " (" + d.ack.latency_s + "s after the request).";
         refresh();
@@ -172,31 +174,7 @@
     });
   }
 
-  function renderPending() {
-    var ids = Object.keys(pending);
-    var box = $("pending");
-    if (!ids.length) {
-      box.innerHTML = '<p class="muted">No requests waiting. New requests appear here the moment they arrive.</p>';
-      return;
-    }
-    box.innerHTML = "";
-    ids.forEach(function (id) {
-      var r = pending[id] || {};
-      var wrap = document.createElement("div");
-      wrap.className = "tripbar handshake";
-      wrap.innerHTML =
-        '<div><span class="status pulse">new</span> <strong>' + esc(id) + "</strong> " +
-        '<span class="muted">' + esc(r.rider_name || "rider") + " · " + esc(r.pickup || "") +
-        " → " + esc(r.dropoff || "") + "</span></div>";
-      var b = document.createElement("button");
-      b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Acknowledge";
-      b.addEventListener("click", function () { ack(id, false); });
-      wrap.appendChild(b);
-      box.appendChild(wrap);
-    });
-  }
-
-  /* ---- ride table (last five) ------------------------------------------ */
+  /* ---- recent rides (last five, one full-width card each) --------------- */
   function refresh() {
     api("/api/dispatch/rides", { cache: "no-store" }).then(function (r) {
       return r.json();
@@ -222,34 +200,38 @@
 
   function renderRows(rides) {
     var body = $("rows"); body.innerHTML = "";
-    if (!rides.length) { body.innerHTML = '<tr><td colspan="11" class="muted">No rides yet.</td></tr>'; return; }
+    if (!rides.length) { body.innerHTML = '<p class="muted">No rides yet.</p>'; return; }
     rides.forEach(function (r) {
-      var tr = document.createElement("tr");
-      tr.innerHTML =
-        "<td>" + esc(r.id) + "</td>" + "<td>" + esc(r.rider_name) + "</td>" +
-        '<td class="tiny">' + esc(r.rider_id || "—") + "</td>" +
-        '<td><span class="muted">' + esc(r.pickup) + "</span><br>" + esc(r.dropoff) + "</td>" +
-        '<td class="num">' + r.distance_mi + "</td>" + '<td class="num">' + money(r.fare) + "</td>" +
-        "<td>" + esc(r.driver || "\u2014") + "</td>" + '<td><span class="status">' + esc(r.status) + "</span></td>" +
-        "<td>" + ackCell(r) + "</td>";
-      tr.appendChild(ratingCell(r));
-      var td = document.createElement("td");
+      var card = document.createElement("div");
+      card.className = "ridecard";
+      card.innerHTML =
+        '<div class="ridehead"><strong class="rid">' + esc(r.id) + "</strong>" +
+        '<span class="status">' + esc(r.status) + "</span></div>" +
+        '<p class="riderline"><strong>' + esc(r.rider_name) + '</strong> ' +
+        '<span class="tiny muted">rider ' + esc(r.rider_id || "—") + "</span></p>" +
+        '<p class="routeline"><span class="muted">From</span> ' + esc(r.pickup) +
+        '<br><span class="muted">To</span> ' + esc(r.dropoff) + "</p>" +
+        '<div class="metaline"><span>' + r.distance_mi + ' mi</span><span>' + money(r.fare) + "</span>" +
+        "<span>" + esc(r.driver || "\u2014") + "</span><span>" + ackCell(r) + "</span></div>";
+      card.appendChild(ratingBlock(r));
       if (r.status !== "completed" && r.status !== "cancelled") {
         var b = document.createElement("button"); b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Cancel";
         b.addEventListener("click", function () { cancel(r.id); });
-        td.appendChild(b);
+        card.appendChild(b);
       }
-      tr.appendChild(td);
-      body.appendChild(tr);
+      body.appendChild(card);
     });
   }
 
-  function ratingCell(r) {
-    var td = document.createElement("td");
-    td.className = "tiny";
+  function ratingBlock(r) {
+    var wrap = document.createElement("div");
+    wrap.className = "tiny";
     var s = r.rider_summary || {};
-    td.innerHTML = '<span class="muted">' + (s.avg != null ? s.avg + "★ avg" : "no score") +
-      (s.issues ? " · " + s.issues + " issue(s)" : "") + "</span><br>";
+    var score = document.createElement("p");
+    score.className = "scoreline muted";
+    score.textContent = (s.avg != null ? s.avg + "\u2605 avg" : "no score") +
+      (s.issues ? " · " + s.issues + " issue(s)" : "");
+    wrap.appendChild(score);
     var box = document.createElement("div");
     box.className = "rate";
     for (var n = 1; n <= 5; n++) {
@@ -261,12 +243,12 @@
         box.appendChild(b);
       })(n);
     }
-    td.appendChild(box);
+    wrap.appendChild(box);
     var issues = document.createElement("div");
     issues.className = "issues";
     issues.innerHTML = issuePicker();
-    td.appendChild(issues);
-    return td;
+    wrap.appendChild(issues);
+    return wrap;
   }
 
   function rate(r, stars, box) {
@@ -326,6 +308,7 @@
     api("/api/dispatch/drivers", { cache: "no-store" }).then(function (r) { return r.json(); })
       .then(function (d) {
         var ds = d.drivers || [];
+        driverNames = ds.map(function (x) { return x.name; });
         var active = ds.filter(function (x) { return x.active; });
         $("drivercount").textContent = "(" + active.length + " active of " + ds.length + ")";
         var box = $("drivers");
@@ -334,23 +317,101 @@
         ds.forEach(function (dr) {
           var el = document.createElement("div");
           el.className = "tripbar driverrow" + (dr.active ? "" : " idle");
+          el.setAttribute("data-driver", dr.name);
           el.innerHTML = "<div><span class=\"status" + (dr.active ? " ok" : "") + "\">" +
             (dr.active ? "active" : "idle") + "</span> <strong>" + esc(dr.name) + "</strong> " +
             '<span class="muted">' + esc(dr.status) +
             (dr.active ? " \u00b7 seen " + Math.round(dr.idle_s) + "s ago" : " \u00b7 last seen " + clock(dr.last_seen)) +
             "</span></div>";
           var b = document.createElement("button");
-          b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Text";
+          b.type = "button"; b.className = "alt textbtn"; b.style.marginLeft = "0"; b.textContent = "Text";
+          b.setAttribute("aria-label", "Text " + dr.name);
           b.addEventListener("click", function () { openChat(dr.name); });
           el.appendChild(b);
           box.appendChild(el);
         });
+        applyUnread();
       }).catch(function () {});
+  }
+
+  /* ---- unread text cues: pulse the button, chime on arrival ------------- */
+  function applyUnread() {
+    var rows = document.querySelectorAll("#drivers .driverrow");
+    Array.prototype.forEach.call(rows, function (row) {
+      var name = row.getAttribute("data-driver");
+      var btn = row.querySelector(".textbtn");
+      if (!btn) { return; }
+      var on = !!unread[name];
+      btn.classList.toggle("unread", on);
+      btn.textContent = on ? "Text \u2022" : "Text";
+      row.classList.toggle("hasunread", on);
+    });
+  }
+
+  function beep() {
+    if (!soundOn) { return; }
+    try {
+      if (!audioCtx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) { return; }
+        audioCtx = new AC();
+      }
+      if (audioCtx.state === "suspended") { audioCtx.resume(); }
+      var t = audioCtx.currentTime;
+      [880, 1180].forEach(function (f, i) {
+        var o = audioCtx.createOscillator();
+        var g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = f;
+        var start = t + i * 0.12;
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        o.start(start);
+        o.stop(start + 0.12);
+      });
+    } catch (e) { /* audio is a nicety, never break the board */ }
+  }
+
+  /* Watch every driver thread so dispatch hears about a text even when the
+     chat window is closed. The first look only sets a baseline, so old
+     history does not chime on page load. */
+  function pollMessages() {
+    driverNames.forEach(function (name) {
+      var since = msgCursor[name] || 0;
+      api("/api/dispatch/drivers/" + encodeURIComponent(name) + "/messages?since=" + since, { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          var msgs = d.messages || [];
+          if (!msgs.length) { return; }
+          var newest = since;
+          var fromDriver = false;
+          msgs.forEach(function (m) {
+            if (m.at > newest) { newest = m.at; }
+            if (m.from === "driver" && m.at > since) { fromDriver = true; }
+          });
+          if (!msgInit[name]) {
+            msgInit[name] = true;
+            msgCursor[name] = newest;
+            return;
+          }
+          msgCursor[name] = newest;
+          if (fromDriver && chatDriver !== name && !unread[name]) {
+            unread[name] = true;
+            beep();
+            applyUnread();
+          }
+        }).catch(function () {});
+    });
   }
 
   function openChat(name) {
     chatDriver = name;
-    chatSeen = 0;
+    chatSeen = msgCursor[name] || 0;
+    unread[name] = false;
+    applyUnread();
     $("chatWho").textContent = name;
     $("chatLog").innerHTML = "";
     $("chatMsg").textContent = "";
@@ -375,6 +436,7 @@
         var log = $("chatLog");
         (d.messages || []).forEach(function (m) {
           if (m.at > chatSeen) { chatSeen = m.at; }
+          if (chatDriver) { msgCursor[chatDriver] = chatSeen; }
           var div = document.createElement("div");
           div.className = "chatline " + (m.from === "dispatch" ? "me" : "them");
           div.innerHTML = '<span class="who">' + esc(m.from) + "</span> " + esc(m.text) +
@@ -430,7 +492,15 @@
   }
 
   /* ---- wiring ----------------------------------------------------------- */
-  $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); });
+  $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); pollMessages(); });
+  $("sound").addEventListener("click", function () {
+    soundOn = !soundOn;
+    $("sound").textContent = "Sound: " + (soundOn ? "On" : "Off");
+    $("sound").setAttribute("aria-pressed", soundOn ? "true" : "false");
+    if (soundOn) { beep(); }   /* also unlocks audio on the first click */
+  });
+  $("exportOpen").addEventListener("click", function () { $("exportModal").hidden = false; $("exportmsg").textContent = ""; });
+  $("exportClose").addEventListener("click", function () { $("exportModal").hidden = true; });
   $("export").addEventListener("click", doExport);
   $("chatSend").addEventListener("click", sendChat);
   $("chatClose").addEventListener("click", closeChat);
@@ -438,10 +508,10 @@
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
 
-  renderPending();
   refresh();
   refreshDrivers();
   setInterval(refreshDrivers, 10000);
+  setInterval(pollMessages, 6000);
   listen();
 })();
 </script>

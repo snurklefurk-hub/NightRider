@@ -174,8 +174,36 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .driverrow.idle{opacity:.6}
 .driverrow .status{text-transform:uppercase;letter-spacing:.1em;font-size:.72rem;color:var(--mist)}
 .driverrow .status.ok{color:var(--ok)}
-.chatlog{max-height:240px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;background:var(--void);padding:10px;margin:8px 0;display:flex;flex-direction:column;gap:6px}
-.chatline{font-size:.9rem;line-height:1.35}
-.chatline .who{text-transform:uppercase;letter-spacing:.08em;font-size:.68rem;color:var(--mist);margin-right:.35rem}
-.chatline.me{color:var(--ice)}
-.chatline.them{color:var(--cyan)}
+.chatlog{max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;background:var(--void);padding:12px;margin:8px 0;display:flex;flex-direction:column;gap:8px}
+.chatline{font-size:.9rem;line-height:1.35;max-width:82%;padding:.45rem .7rem;border-radius:12px;overflow-wrap:anywhere;word-break:break-word}
+.chatline .who{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:.64rem;color:var(--mist);margin-bottom:.15rem}
+.chatline.me{align-self:flex-end;background:rgba(0,240,255,.12);border:1px solid rgba(0,240,255,.28);color:var(--ice);border-bottom-right-radius:3px}
+.chatline.them{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--cyan);border-bottom-left-radius:3px}
+
+/* Unread-text cue: a breathing Text button plus a lit row. */
+.driverrow.hasunread{border-color:var(--plum);box-shadow:0 0 12px rgba(196,100,177,.25)}
+.textbtn.unread{color:var(--plum);border-color:var(--plum)}
+@media (prefers-reduced-motion:no-preference){
+  .textbtn.unread{animation:textpulse 1.6s ease-in-out infinite}
+  @keyframes textpulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(196,100,177,.55)}
+    50%{box-shadow:0 0 0 7px rgba(196,100,177,0)}
+  }
+}
+
+/* Recent rides: one full-width card per ride so long text wraps. */
+.ridecards{display:flex;flex-direction:column;gap:1rem}
+.ridecard{border:1px solid rgba(0,240,255,.18);background:rgba(10,15,29,.6);border-radius:12px;padding:1rem 1.1rem;min-width:0}
+.ridecard .ridehead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.45rem}
+.ridecard .rid{font-family:'Poppins',system-ui,sans-serif;letter-spacing:.04em;overflow-wrap:anywhere}
+.ridecard p{margin:.35rem 0;overflow-wrap:anywhere;word-break:break-word}
+.ridecard .scoreline{margin:.5rem 0 .2rem}
+.ridecard .metaline{display:flex;flex-wrap:wrap;gap:.35rem 1.1rem;font-size:.9rem}
+.ridecard .issues{max-width:100%}
+
+/* Small export control pinned at the bottom of the board. */
+.exportbar{display:flex;justify-content:flex-end;margin:1.1rem 0 .3rem}
+.exportbar button{font-size:.8rem;padding:.45rem .9rem;letter-spacing:.08em;text-transform:uppercase}
+.field{display:flex;flex-direction:column;gap:.25rem;margin:.6rem 0}
+.field label{text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;color:var(--mist)}
+.field input{width:100%}
