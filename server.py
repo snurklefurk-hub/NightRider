@@ -70,6 +70,7 @@ def ensure_store(store):
     store.setdefault("riders", {})
     store.setdefault("drivers", {})
     store.setdefault("messages", [])
+    store.setdefault("ride_messages", [])
     return store
 
 
@@ -234,6 +235,45 @@ def thread_messages(store, viewer, since=0.0):
     return out
 
 
+def add_ride_message(store, ride_id, user, data):
+    """Save a ride conversation message with a rider/dispatch privacy boundary."""
+    text = clean_text((data or {}).get("text"), 1000)
+    if not text:
+        return None, "Message text is required."
+    audience = clean_text((data or {}).get("audience"), 20) or "shared"
+    if audience not in ("shared", "dispatch"):
+        return None, "Choose the driver or dispatch conversation."
+    role = user["role"] if user else "rider"
+    if role == "driver" and audience != "shared":
+        return None, "Drivers can message the rider and dispatch together."
+    sender = user["display_name"] if user else "Rider"
+    message = {
+        "id": uuid.uuid4().hex[:12], "ride_id": ride_id,
+        "from": sender, "role": role, "audience": audience,
+        "text": text, "at": time.time(),
+    }
+    store.setdefault("ride_messages", []).append(message)
+    if len(store["ride_messages"]) > 2000:
+        del store["ride_messages"][:-2000]
+    return message, None
+
+
+def visible_ride_messages(store, ride_id, viewer, since=0.0):
+    out = []
+    for message in store.get("ride_messages", []):
+        if message.get("ride_id") != ride_id:
+            continue
+        if viewer == "driver" and message.get("audience") != "shared":
+            continue
+        try:
+            if since and float(message.get("at") or 0) <= float(since):
+                continue
+        except (TypeError, ValueError):
+            continue
+        out.append(message)
+    return out
+
+
 def touch_rider(store, rid, signals, name):
     """Create or update the backend record for this hidden rider id."""
     riders = store.setdefault("riders", {})
@@ -313,7 +353,7 @@ def dispatch_rider(rec, store, detail=False):
 def build_rating(data):
     """Build a rating entry, or return an error string."""
     by = clean_text(data.get("by"), 20)
-    if by not in ("driver", "dispatch"):
+    if by not in ("driver", "dispatch", "rider"):
         return "by must be driver or dispatch"
     try:
         stars = float(data.get("stars"))
@@ -933,6 +973,11 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(404, {"error": "not found"})
                     if user and user["role"] == "driver" and ride.get("status") != "requested" and ride.get("driver_account_id") != user["id"]:
                         return self.send_json(404, {"error": "not found"})
+                    if path.endswith("/messages"):
+                        since = _num(urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query), "since", 0)
+                        viewer = user["role"] if user else "dispatch"
+                        messages = visible_ride_messages(STORE, rid, viewer, since)
+                        return self.send_json(200, {"ride_id": rid, "messages": messages, "now": time.time()})
                     if path.endswith("/ratings"):
                         if user and user["role"] == "rider":
                             return self.send_json(403, {"error": "not allowed"})
@@ -1090,12 +1135,30 @@ class Handler(SimpleHTTPRequestHandler):
                 ride = STORE["rides"].get(rid)
                 if not ride:
                     return self.send_json(404, {"error": "not found"})
-                if user and user["role"] == "rider" and action != "cancel":
+                if user and user["role"] == "rider" and action not in ("cancel", "rating"):
                     return self.send_json(403, {"error": "not allowed"})
                 if user and user["role"] == "driver" and action not in ("accept", "advance", "rating", "cancel"):
                     return self.send_json(403, {"error": "not allowed"})
+                if action == "message":
+                    if user and user["role"] == "rider" and ride.get("rider_account_id") != user["id"]:
+                        return self.send_json(403, {"error": "not allowed"})
+                    if user and user["role"] == "driver" and ride.get("driver_account_id") != user["id"]:
+                        return self.send_json(403, {"error": "not allowed"})
+                    if user and user["role"] == "rider":
+                        if ride.get("rider_account_id") != user["id"]:
+                            return self.send_json(403, {"error": "not allowed"})
+                        if ride.get("status") != "completed" or not ride.get("driver_account_id"):
+                            return self.send_json(409, {"error": "Rate your driver after the ride is completed."})
+                        if any(r.get("by") == "rider" for r in ride.get("ratings") or []):
+                            return self.send_json(409, {"error": "You already rated this driver."})
+                    message, error = add_ride_message(STORE, rid, user, data)
+                    if error:
+                        return self.send_json(400, {"error": error})
+                    save(STORE)
+                    record_event("ride_message", ride=rid, message=message)
+                    return self.send_json(201, {"ok": True, "message": message})
                 if action == "rating":
-                    if user and user["role"] not in ("driver", "dispatch"):
+                    if user and user["role"] not in ("driver", "dispatch", "rider"):
                         return self.send_json(403, {"error": "not allowed"})
                     if user and user["role"] == "driver" and ride.get("driver_account_id") != user["id"]:
                         return self.send_json(403, {"error": "not allowed"})
@@ -1110,7 +1173,7 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(400, {"error": entry})
                     ride.setdefault("ratings", []).append(entry)
                     rec = (STORE.get("riders") or {}).get(ride.get("rider_id"))
-                    if rec is not None:
+                    if entry["by"] in ("driver", "dispatch") and rec is not None:
                         rec.setdefault("ratings", []).append(dict(entry, ride=rid))
                     save(STORE)
                     snapshot = public_ride(ride, STORE)
