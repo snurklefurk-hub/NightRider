@@ -5,10 +5,12 @@ The live website is served by Render from this GitHub repository. Review
 
 ## Render Blueprint resources
 
-The Blueprint configures the Python service and links it to a Render Postgres
-database named `nightrider-db`. The database uses Render's `basic-256mb` plan,
-which is paid. Check the plan, cost, and database region in Render before
-syncing the Blueprint. Keep the web service and database in the same region.
+The Blueprint configures the Python service and links it to a free Render
+Postgres database named `nightrider-db`. This is for development only. Render's
+free databases have 1 GB of storage, expire after 30 days, and have no backups.
+There is a 14-day grace period to upgrade after expiration; after that Render
+deletes the database and its data. Export anything you want to keep before
+that deadline. Keep the web service and database in the same region.
 
 The Blueprint sets `DATABASE_URL` from the database's private connection and
 requires the database at startup. It enables secure cookies for the HTTPS
