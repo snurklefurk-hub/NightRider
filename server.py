@@ -734,6 +734,62 @@ class Handler(SimpleHTTPRequestHandler):
         record_event("ride_acknowledged", ride=rid, ack=ack, snapshot=snapshot)
         return self.send_json(200, {"ok": True, "ack": ack, "ride": snapshot})
 
+    def dispatch_assign(self, ride_id, data):
+        """Push a ride to a driver or recall it to the open queue."""
+        driver_id = clean_text((data or {}).get("driver_account_id"), 80)
+        driver = None
+        if driver_id:
+            driver = next((u for u in auth.list_users("driver")
+                           if u["id"] == driver_id and u["enabled"]), None)
+            if not driver:
+                return self.send_json(400, {"error": "Choose an enabled driver account."})
+
+        with LOCK:
+            ride = STORE["rides"].get(ride_id)
+            if not ride:
+                return self.send_json(404, {"error": "ride not found"})
+            if ride.get("status") in ("completed", "cancelled"):
+                return self.send_json(409, {"error": "Closed rides cannot be assigned."})
+            previous_id = ride.get("driver_account_id")
+            previous_name = ride.get("driver")
+            if driver and previous_id == driver_id:
+                return self.send_json(200, public_ride(ride, STORE))
+            if not driver and not previous_id:
+                return self.send_json(409, {"error": "This ride is already in the open queue."})
+
+            now = time.time()
+            if driver:
+                ride["driver"] = driver["display_name"]
+                ride["driver_account_id"] = driver_id
+                ride["status"] = "accepted"
+                ride.pop("driver_coords", None)
+                ride["driver_to_pickup_mi"] = 0.0
+                ride["fare"] = fare(ride["distance_mi"], 0.0)
+                log_status(ride, "accepted")
+                action = "assigned" if not previous_id else "reassigned"
+                new_name = driver["display_name"]
+            else:
+                ride["driver"] = None
+                ride["driver_account_id"] = None
+                ride["status"] = "requested"
+                ride.pop("driver_coords", None)
+                ride["driver_to_pickup_mi"] = 0.0
+                ride["fare"] = fare(ride["distance_mi"], 0.0)
+                log_status(ride, "requested")
+                action = "recalled"
+                new_name = None
+
+            ride.setdefault("assignment_log", []).append({
+                "action": action, "at": now,
+                "from_driver": previous_name, "to_driver": new_name,
+            })
+            save(STORE)
+            snapshot = public_ride(ride, STORE)
+
+        record_event("ride_" + action, ride=ride_id, status=snapshot.get("status"),
+                     snapshot=snapshot)
+        return self.send_json(200, snapshot)
+
     def dispatch_get(self, path, qs):
         if path == "/api/dispatch/users":
             return self.send_json(200, {"users": auth.list_users("driver")})
@@ -1005,6 +1061,8 @@ class Handler(SimpleHTTPRequestHandler):
                 if not auth.reset_password(parts[3], data.get("password")):
                     return self.send_json(400, {"error": "Password must be at least 8 characters."})
                 return self.send_json(200, {"ok": True})
+            if len(parts) == 5 and parts[2] == "rides" and parts[4] == "assign":
+                return self.dispatch_assign(parts[3], data)
             if len(parts) == 5 and parts[2] == "rides" and parts[4] == "ack":
                 return self.ack_ride(parts[3], data, user["display_name"] if user else None)
             if len(parts) == 3 and parts[2] == "message":
@@ -1034,7 +1092,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json(404, {"error": "not found"})
                 if user and user["role"] == "rider" and action != "cancel":
                     return self.send_json(403, {"error": "not allowed"})
-                if user and user["role"] == "driver" and action not in ("accept", "advance", "rating"):
+                if user and user["role"] == "driver" and action not in ("accept", "advance", "rating", "cancel"):
                     return self.send_json(403, {"error": "not allowed"})
                 if action == "rating":
                     if user and user["role"] not in ("driver", "dispatch"):
@@ -1095,10 +1153,16 @@ class Handler(SimpleHTTPRequestHandler):
                     ride["status"] = nxt
                     log_status(ride, nxt)
                 elif action == "cancel":
-                    if user and user["role"] != "dispatch" and ride.get("rider_account_id") != user["id"]:
+                    if user and user["role"] == "rider" and ride.get("rider_account_id") != user["id"]:
+                        return self.send_json(403, {"error": "not allowed"})
+                    if user and user["role"] == "driver" and ride.get("driver_account_id") != user["id"]:
                         return self.send_json(403, {"error": "not allowed"})
                     if ride["status"] in ("completed", "cancelled"):
                         return self.send_json(409, {"error": "ride already closed"})
+                    actor = user["role"] if user else "rider"
+                    ride["cancelled_by"] = actor
+                    ride["cancelled_by_name"] = user["display_name"] if user else ride.get("rider_name")
+                    ride["cancelled_at"] = time.time()
                     ride["status"] = "cancelled"
                     log_status(ride, "cancelled")
                 else:
