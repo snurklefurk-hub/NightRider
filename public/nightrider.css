@@ -144,6 +144,10 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
    rider page so nothing is drawn on top of the map. */
 body.rider::before{display:none}
 
+/* Dispatch uses the driver's plain-color treatment without decorative art. */
+body.dispatch{background:var(--paper-2);background-image:none;background-attachment:scroll}
+body.dispatch::before{display:none}
+
 /* ---------- Fare breakdown (single fare, no ride types) ---------- */
 .farebox{border:var(--frame-soft);border-radius:6px;background:var(--panel);margin:.2rem 0 .9rem}
 .farerow{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.55rem .8rem;border-bottom:1px solid rgba(143,174,179,.14);font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mist)}
