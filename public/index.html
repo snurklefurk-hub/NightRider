@@ -136,8 +136,8 @@
   var TILE_MAX = 19;
   var map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: TILE_MAX }).setView([39.8283, -98.5795], 4);
 
-  // Dark "nightwave" map: CARTO's Dark Matter base, a near-monochrome dark grey
-  // with muted accents, on OpenStreetMap data. It matches the site's night
+  // Washi map: CARTO's Voyager base, a warm pale base with soft grey and green
+  // accents, on OpenStreetMap data. It matches the site's paper-and-ink
   // aesthetic instead of fighting it.
   //
   // These tiles come from CARTO, which gates them behind a key. The key is read
@@ -146,10 +146,10 @@
   // a code change. If no key is available, we fall back to keyless
   // OpenStreetMap tiles so the map still loads instead of going blank.
   //
-  // Want a light map again? Swap "dark_all" below for "voyager".
+  // Want the old night basemap back? Swap "voyager" below for "dark_all".
   function addBaseMap(cartoKey) {
     if (cartoKey) {
-      L.tileLayer("https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=" + encodeURIComponent(cartoKey), {
+      L.tileLayer("https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=" + encodeURIComponent(cartoKey), {
         maxZoom: TILE_MAX, maxNativeZoom: TILE_MAX,
         attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
       }).addTo(map);
@@ -261,8 +261,8 @@
 
   function setRoute(pts, miles, minutes) {
     if (state.routeLine) { map.removeLayer(state.routeLine); }
-    // Bright route line: a dark line would vanish against the dark basemap.
-    state.routeLine = L.polyline(pts, { color: "#7fe6d2", weight: 5, opacity: .95, lineCap: "round" }).addTo(map);
+    // Ink route line: a bold teal stroke reads clearly on the pale basemap.
+    state.routeLine = L.polyline(pts, { color: "#0d6f68", weight: 5, opacity: .95, lineCap: "round" }).addTo(map);
     map.fitBounds(state.routeLine.getBounds(), { padding: [50, 90] });
     state.miles = Math.round(miles * 10) / 10;
     state.minutes = Math.max(1, Math.round(minutes));

@@ -1,137 +1,145 @@
-/* NightRider shared skin — "ink & lumen", after the illustrator Hiromu。: diffused
-   night ink, luminous aquatic teal, coral-blossom pink and warm lamp gold, with
-   soft inked edges instead of hard neon frames. (--cyan / --plum / --rose keep
-   their old names so every rule below still resolves.) */
+/* NightRider shared skin — "washi ink & blossom", after the illustrator Hiromu。:
+   a warm washi-paper ground, charcoal ink line work, aquatic teal and indigo,
+   coral-blossom pink and lamp gold, and hard woodblock offset shadows instead of
+   neon glow. (--cyan / --plum / --rose keep their old names so every rule and
+   script below still resolves.) */
 :root{
-  --void:#07131b; --indigo:#0d2436; --panel:rgba(10,30,42,.82);
-  --cyan:#7fe6d2; --cyan-rgb:127,230,210;   /* luminous aquatic teal */
-  --plum:#e791b8; --plum-rgb:231,145,184;   /* coral-blossom pink */
-  --rose:#e08a6b; --rose-rgb:224,138,107;   /* warm coral */
-  --lamp:#f2c46b;                            /* street-lamp gold */
-  --ice:#e8f5f2; --mist:#8ba7b6;
-  --line:rgba(var(--cyan-rgb),.3); --danger:var(--rose); --ok:#8fe3a8;
-  --sheet:rgba(7,19,27,.93);
+  --paper:#f1e8d6; --paper-2:#e7dcc5; --indigo:#22304e;
+  --void:#fffdf7;                            /* wells: inputs, logs, recesses */
+  --panel:#fbf5e8; --sheet:#f7efdd;          /* cards, sheets */
+  --ink:#1a1c20; --ink-soft:#3a3f46;
+  --cyan:#0d6f68; --cyan-rgb:13,111,104;     /* aquatic teal ink */
+  --plum:#c2467f; --plum-rgb:194,70,127;     /* coral-blossom pink */
+  --rose:#cf5f43; --rose-rgb:207,95,67;      /* warm coral */
+  --lamp:#a5771a;                            /* lamp gold */
+  --ice:#1a1c20; --mist:#6d6455;             /* primary / secondary text */
+  --line:#c4b79c; --danger:#ab2b22; --ok:#2f7a4d;
+  --frame:1px solid rgba(26,28,32,.5);
+  --frame-soft:1px solid rgba(26,28,32,.26);
+  --block:3px 3px 0 rgba(26,28,32,.16);
+  --block-lift:5px 5px 0 rgba(26,28,32,.22);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;min-height:100vh;color:var(--ice);
   background:
-    radial-gradient(120% 85% at 14% -12%,#1e5568 0%,rgba(13,36,54,0) 58%),
-    radial-gradient(95% 75% at 90% 6%,rgba(231,145,184,.22) 0%,rgba(231,145,184,0) 62%),
-    radial-gradient(80% 60% at 8% 96%,rgba(242,196,107,.12) 0%,rgba(242,196,107,0) 60%),
-    linear-gradient(180deg,#0b2130 0%,var(--indigo) 42%,var(--void) 100%);
+    radial-gradient(115% 80% at 12% -14%,#fffbf1 0%,rgba(255,251,241,0) 58%),
+    radial-gradient(90% 70% at 92% 4%,rgba(194,70,127,.10) 0%,rgba(194,70,127,0) 60%),
+    radial-gradient(85% 65% at 6% 98%,rgba(165,119,26,.12) 0%,rgba(165,119,26,0) 62%),
+    linear-gradient(180deg,var(--paper) 0%,var(--paper-2) 100%);
   background-attachment:fixed;
   font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
 /* Hand-inked drift: a whale and two blossoms hang in the air behind the page,
-   like Hiromu。's Tokyo where the sea floats between the buildings. The rider
-   map hides this layer (body.rider::before). */
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 110'%3E%3Cg fill='%23e8f5f2'%3E%3Cellipse cx='88' cy='56' rx='62' ry='28'/%3E%3Cpath d='M146,56L192,30L182,56L192,82Z'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23e08a6b' stroke-width='3'%3E%3Ccircle cx='60' cy='60' r='8'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(60,60,60)'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(120,60,60)'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23e791b8' stroke-width='3'%3E%3Ccircle cx='60' cy='60' r='8'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(60,60,60)'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(120,60,60)'/%3E%3C/g%3E%3C/svg%3E");
-  background-repeat:no-repeat,no-repeat,no-repeat;
-  background-position:10% 16%,84% 60%,26% 90%;
-  background-size:min(48vw,440px),min(30vw,300px),min(20vw,200px)}
+   like Hiromu。's Tokyo where the sea floats between the buildings, plus a faint
+   paper fibre. The rider map hides this layer (body.rider::before). */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.55;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 110'%3E%3Cg fill='none' stroke='%231a1c20' stroke-opacity='.3' stroke-width='2.5' stroke-linecap='round'%3E%3Cellipse cx='86' cy='56' rx='60' ry='26'/%3E%3Cpath d='M142,56L190,30L180,56L190,82Z'/%3E%3Cpath d='M70,40c6-10 22-12 30-4'/%3E%3Cpath d='M108,74c8,8 22,8 30,0'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23c2467f' stroke-opacity='.45' stroke-width='3'%3E%3Ccircle cx='60' cy='60' r='8'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(60,60,60)'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(120,60,60)'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23cf5f43' stroke-opacity='.4' stroke-width='3'%3E%3Ccircle cx='60' cy='60' r='8'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(60,60,60)'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(120,60,60)'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%231a1c20' fill-opacity='.05'%3E%3Ccircle cx='12' cy='18' r='1.1'/%3E%3Ccircle cx='58' cy='9' r='.9'/%3E%3Ccircle cx='96' cy='40' r='1.2'/%3E%3Ccircle cx='30' cy='62' r='1'/%3E%3Ccircle cx='74' cy='78' r='1.1'/%3E%3Ccircle cx='16' cy='104' r='.9'/%3E%3Ccircle cx='104' cy='112' r='1'/%3E%3Ccircle cx='46' cy='34' r='.8'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat:no-repeat,no-repeat,no-repeat,repeat;
+  background-position:10% 15%,86% 62%,24% 88%,0 0;
+  background-size:min(52vw,520px),min(28vw,280px),min(18vw,180px),120px 120px}
 @media (prefers-reduced-motion:no-preference){
   body::before{animation:inkdrift 46s ease-in-out infinite alternate}
   @keyframes inkdrift{
-    from{background-position:10% 16%,84% 60%,26% 90%}
-    to{background-position:15% 24%,78% 52%,31% 82%}}
+    from{background-position:10% 15%,86% 62%,24% 88%,0 0}
+    to{background-position:15% 23%,80% 54%,29% 80%,0 0}}
 }
 header,main{position:relative;z-index:1}
-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:1px solid var(--line);background:rgba(7,19,27,.7);flex-wrap:wrap}
-.brand{font:700 1.5rem/1 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;letter-spacing:.16em;text-transform:uppercase;color:var(--cyan);text-decoration:none;text-shadow:0 0 10px rgba(var(--cyan-rgb),.55),0 0 26px rgba(var(--cyan-rgb),.22)}
-.brand span{color:var(--plum);text-shadow:0 0 10px rgba(var(--plum-rgb),.55),0 0 26px rgba(var(--plum-rgb),.2)}
-nav a{color:var(--mist);margin-left:1rem;text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:.8rem}
-nav a[aria-current="page"],nav a:hover,nav a:focus-visible{color:var(--cyan);outline:none;text-shadow:0 0 6px rgba(var(--cyan-rgb),.8)}
+header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:4px solid var(--ink);background:var(--ink);flex-wrap:wrap}
+.brand{font:700 1.5rem/1 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;letter-spacing:.16em;text-transform:uppercase;color:#fdf8ec;text-decoration:none}
+.brand span{color:#f0a5c6}
+nav a{color:#c7bda6;margin-left:1rem;text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:.8rem}
+nav a[aria-current="page"],nav a:hover,nav a:focus-visible{color:#fdf8ec;outline:none;border-bottom:2px solid #f0a5c6}
 main{max-width:960px;margin:0 auto;padding:2rem 1.5rem}
-h1{font:700 1.6rem/1.2 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:.12em;margin:.2rem 0 1rem;color:var(--ice);text-shadow:0 0 14px rgba(var(--cyan-rgb),.28)}
+h1{font:700 1.6rem/1.2 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:.12em;margin:.2rem 0 1rem;color:var(--ice)}
 h2{font:700 1.05rem/1.2 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:.1em;margin:0 0 .6rem;color:var(--cyan)}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:1.25rem;margin-bottom:1rem;min-width:0;box-shadow:0 10px 34px rgba(0,0,0,.4),0 0 20px rgba(var(--cyan-rgb),.1),inset 0 0 24px rgba(var(--cyan-rgb),.05);backdrop-filter:blur(8px)}
+.card{background:var(--panel);border:var(--frame);border-radius:6px;padding:1.25rem;margin-bottom:1rem;min-width:0;box-shadow:var(--block)}
 label{display:block;margin:.7rem 0 .25rem;color:var(--cyan);font-size:.75rem;text-transform:uppercase;letter-spacing:.14em}
-input,select{width:100%;padding:.6rem .7rem;background:rgba(7,19,27,.9);border:0;border-bottom:1px solid var(--mist);color:var(--ice);border-radius:8px 8px 0 0;font:inherit}
-input:focus,select:focus{outline:none;border-bottom-color:var(--cyan);box-shadow:0 2px 10px rgba(var(--cyan-rgb),.35)}
+input,select{width:100%;padding:.6rem .7rem;background:var(--void);border:var(--frame-soft);color:var(--ice);border-radius:4px;font:inherit}
+input:focus,select:focus{outline:none;border-color:var(--cyan);box-shadow:2px 2px 0 rgba(var(--cyan-rgb),.28)}
 input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-button{margin-top:1rem;padding:.7rem 1.4rem;border:1px solid var(--cyan);border-radius:999px;background:rgba(var(--cyan-rgb),.06);color:var(--cyan);font:inherit;font-weight:700;text-transform:uppercase;letter-spacing:.14em;cursor:pointer;box-shadow:0 0 12px rgba(var(--cyan-rgb),.3),inset 0 0 12px rgba(var(--cyan-rgb),.12);transition:box-shadow .2s,background .2s}
-button:hover{background:rgba(var(--cyan-rgb),.14);box-shadow:0 0 22px rgba(var(--cyan-rgb),.5),inset 0 0 14px rgba(var(--cyan-rgb),.22)}
-button.alt{border-color:var(--plum);color:var(--plum);margin-left:.5rem;box-shadow:0 0 10px rgba(var(--plum-rgb),.35),inset 0 0 10px rgba(var(--plum-rgb),.15)}
-button.alt:hover{background:rgba(var(--plum-rgb),.12);box-shadow:0 0 18px rgba(var(--plum-rgb),.6)}
-button:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
-.status{display:inline-block;padding:.15rem .7rem;border:1px solid var(--plum);border-radius:999px;color:var(--plum);font-size:.75rem;text-transform:uppercase;letter-spacing:.12em;text-shadow:0 0 6px rgba(var(--plum-rgb),.55)}
+button{margin-top:1rem;padding:.7rem 1.4rem;border:1px solid var(--ink);border-radius:4px;background:var(--panel);color:var(--ice);font:inherit;font-weight:700;text-transform:uppercase;letter-spacing:.14em;cursor:pointer;box-shadow:var(--block);transition:box-shadow .15s,background .15s,transform .15s}
+button:hover{background:#fff8ea;box-shadow:var(--block-lift);transform:translate(-1px,-1px)}
+button.alt{border-color:var(--plum);color:var(--plum);margin-left:.5rem;background:#fff7fb}
+button.alt:hover{background:#fdeef5;box-shadow:5px 5px 0 rgba(var(--plum-rgb),.3);transform:translate(-1px,-1px)}
+button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
+.status{display:inline-block;padding:.15rem .7rem;border:1px solid var(--plum);border-radius:3px;color:var(--plum);background:#fff7fb;font-size:.75rem;text-transform:uppercase;letter-spacing:.12em}
 .muted{color:var(--mist);font-size:.85rem}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:1rem}
 .msg{min-height:1.5rem;color:var(--plum)}
 table{width:100%;border-collapse:collapse}
-th,td{text-align:left;padding:.55rem;border-bottom:1px solid rgba(var(--cyan-rgb),.2);vertical-align:top}
+th,td{text-align:left;padding:.55rem;border-bottom:1px solid rgba(26,28,32,.22);vertical-align:top}
 th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercase;letter-spacing:.14em}
-.num{font-variant-numeric:tabular-nums;color:var(--ice);text-shadow:0 0 6px rgba(232,245,242,.35)}
-@media (prefers-reduced-motion:no-preference){.card{transition:border-color .2s,box-shadow .2s}.card:hover{border-color:var(--cyan);box-shadow:0 0 22px rgba(var(--cyan-rgb),.3),inset 0 0 22px rgba(var(--cyan-rgb),.08)}}
+.num{font-variant-numeric:tabular-nums;color:var(--ice)}
+@media (prefers-reduced-motion:no-preference){.card{transition:border-color .2s,box-shadow .2s}.card:hover{border-color:var(--cyan);box-shadow:var(--block-lift)}}
 
 /* ---------- Rider (Lyft-style map app) ---------- */
 .rider{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
 .rider header{flex:0 0 auto;padding:.8rem 1.1rem}
 .rider .brand{font-size:1.15rem}
-#map{position:relative;flex:1 1 auto;min-height:0;z-index:1;background:#08192a}
-.sheet{position:relative;z-index:20;flex:0 0 auto;background:var(--sheet);border-top:1px solid var(--line);
-  box-shadow:0 -8px 30px rgba(0,0,0,.6),inset 0 1px 0 rgba(var(--cyan-rgb),.15);backdrop-filter:blur(10px);
+#map{position:relative;flex:1 1 auto;min-height:0;z-index:1;background:#e9e7e2}
+.sheet{position:relative;z-index:20;flex:0 0 auto;background:var(--sheet);border-top:3px solid var(--ink);
+  box-shadow:0 -10px 26px rgba(26,28,32,.28);
   padding:1rem 1.1rem calc(1rem + env(safe-area-inset-bottom));max-height:66vh;overflow:auto}
-.sheet .grab{width:52px;height:4px;border-radius:999px;background:rgba(232,245,242,.26);margin:0 auto .9rem}
+.sheet .grab{width:52px;height:4px;border-radius:999px;background:rgba(26,28,32,.28);margin:0 auto .9rem}
 .prompt{font:700 1.35rem/1.2 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:.06em;margin:.1rem 0 1rem;color:var(--ice)}
-.field{position:relative;display:flex;align-items:center;gap:.6rem;background:rgba(7,19,27,.85);border:1px solid rgba(var(--cyan-rgb),.22);border-radius:12px;padding:.35rem .6rem;margin-bottom:.5rem}
+.field{position:relative;display:flex;align-items:center;gap:.6rem;background:var(--void);border:var(--frame-soft);border-radius:6px;padding:.35rem .6rem;margin-bottom:.5rem}
 .field .dot{width:10px;height:10px;flex:0 0 auto}
-.field .dot.pick{background:var(--cyan);box-shadow:0 0 8px var(--cyan)}
-.field .dot.drop{background:var(--plum);box-shadow:0 0 8px var(--plum)}
+.field .dot.pick{background:var(--cyan);box-shadow:0 0 0 2px rgba(var(--cyan-rgb),.2)}
+.field .dot.drop{background:var(--plum);box-shadow:0 0 0 2px rgba(var(--plum-rgb),.2)}
 .field input{border-bottom:0;padding:.45rem .2rem;background:transparent}
 .field input:focus{box-shadow:none}
-.results{list-style:none;margin:0 0 .6rem;padding:0;border:1px solid var(--line);border-radius:12px;background:rgba(5,13,20,.97);max-height:230px;overflow:auto}
+.results{list-style:none;margin:0 0 .6rem;padding:0;border:var(--frame-soft);border-radius:6px;background:var(--void);max-height:230px;overflow:auto}
 .results:empty{display:none}
-.results li{padding:.55rem .7rem;border-bottom:1px solid rgba(var(--cyan-rgb),.14);cursor:pointer;font-size:.88rem}
+.results li{padding:.55rem .7rem;border-bottom:1px solid rgba(26,28,32,.14);cursor:pointer;font-size:.88rem}
 .results li:last-child{border-bottom:0}
-.results li:hover,.results li.active{background:rgba(var(--cyan-rgb),.12);color:var(--cyan)}
+.results li:hover,.results li.active{background:rgba(var(--cyan-rgb),.1);color:var(--cyan)}
 .results .sub{display:block;color:var(--mist);font-size:.72rem}
-.results .dist{display:block;color:var(--cyan);font-size:.72rem;opacity:.8}
+.results .dist{display:block;color:var(--cyan);font-size:.72rem;opacity:.85}
 
-.option{display:flex;align-items:center;gap:.9rem;width:100%;text-align:left;border:1px solid rgba(var(--cyan-rgb),.18);border-radius:12px;background:rgba(7,19,27,.6);padding:.7rem .8rem;margin:0 0 .5rem;cursor:pointer;box-shadow:none;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ice)}
-.option:hover{background:rgba(var(--cyan-rgb),.08);box-shadow:none}
-.option.sel{border-color:var(--cyan);box-shadow:0 0 14px rgba(var(--cyan-rgb),.35),inset 0 0 14px rgba(var(--cyan-rgb),.08)}
+.option{display:flex;align-items:center;gap:.9rem;width:100%;text-align:left;border:var(--frame-soft);border-radius:6px;background:var(--panel);padding:.7rem .8rem;margin:0 0 .5rem;cursor:pointer;box-shadow:none;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ice)}
+.option:hover{background:#fff9ec;box-shadow:none}
+.option.sel{border-color:var(--cyan);box-shadow:4px 4px 0 rgba(var(--cyan-rgb),.25)}
 .option .car{font-size:1.5rem;width:2rem;text-align:center}
 .option .info{flex:1 1 auto;min-width:0}
 .option .name{display:block;font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:.82rem;color:var(--cyan)}
 .option .meta{display:block;color:var(--mist);font-size:.75rem}
-.option .price{font-variant-numeric:tabular-nums;font-weight:700;color:var(--lamp);text-shadow:0 0 8px rgba(242,196,107,.4)}
-.cta{width:100%;background:var(--cyan);color:#062b2a;border-color:var(--cyan);font-size:1rem;padding:.95rem;margin-top:.5rem;text-shadow:none;box-shadow:0 0 22px rgba(var(--cyan-rgb),.55)}
-.cta:hover{background:#a9f2e5;color:#062b2a}
-.cta.pink{background:var(--plum);border-color:var(--plum);color:#1a0016;box-shadow:0 0 22px rgba(var(--plum-rgb),.55)}
-.cta.pink:hover{background:#d883c4;color:#1a0016}
+.option .price{font-variant-numeric:tabular-nums;font-weight:700;color:var(--lamp)}
+.cta{width:100%;background:var(--cyan);color:#fdf9ef;border-color:var(--ink);font-size:1rem;padding:.95rem;margin-top:.5rem;text-shadow:none;box-shadow:var(--block-lift)}
+.cta:hover{background:#0b5d57;color:#fdf9ef}
+.cta.pink{background:var(--plum);border-color:var(--ink);color:#fff6fb;box-shadow:var(--block-lift)}
+.cta.pink:hover{background:#ad3c71;color:#fff6fb}
 .row{display:flex;gap:.6rem}
 .row>*{flex:1 1 0}
-.tripbar{display:flex;justify-content:space-between;gap:1rem;align-items:center;border:1px solid rgba(var(--cyan-rgb),.18);border-radius:12px;padding:.6rem .8rem;margin-bottom:.8rem;background:rgba(7,19,27,.6)}
+.tripbar{display:flex;justify-content:space-between;gap:1rem;align-items:center;border:var(--frame-soft);border-radius:6px;padding:.6rem .8rem;margin-bottom:.8rem;background:var(--panel)}
 .tripbar .num{font-size:.9rem}
 .driverline{display:flex;align-items:center;gap:.9rem}
-.avatar{width:52px;height:52px;flex:0 0 auto;border:1px solid var(--cyan);border-radius:14px;display:flex;align-items:center;justify-content:center;font:700 1.2rem "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;color:var(--cyan);background:rgba(var(--cyan-rgb),.08);text-shadow:0 0 8px rgba(var(--cyan-rgb),.7)}
+.avatar{width:52px;height:52px;flex:0 0 auto;border:1px solid var(--cyan);border-radius:8px;display:flex;align-items:center;justify-content:center;font:700 1.2rem "Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;color:var(--cyan);background:rgba(var(--cyan-rgb),.07)}
 .steps{list-style:none;margin:.8rem 0 0;padding:0}
 .steps li{position:relative;padding:.15rem 0 .15rem 1.6rem;color:var(--mist);font-size:.82rem;text-transform:uppercase;letter-spacing:.08em}
 .steps li::before{content:"";position:absolute;left:.35rem;top:.55rem;width:8px;height:8px;border:1px solid var(--mist)}
 .steps li.on{color:var(--cyan)}
-.steps li.on::before{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 8px var(--cyan)}
+.steps li.on::before{background:var(--cyan);border-color:var(--cyan)}
 .steps li.done{color:var(--ice)}
-.steps li.done::before{background:var(--ice);border-color:var(--ice)}
-.pulse{display:inline-block;width:9px;height:9px;background:var(--plum);box-shadow:0 0 10px var(--plum);margin-right:.5rem;vertical-align:middle}
+.steps li.done::before{background:var(--ink);border-color:var(--ink)}
+.pulse{display:inline-block;width:9px;height:9px;background:var(--plum);box-shadow:0 0 0 2px rgba(var(--plum-rgb),.25);margin-right:.5rem;vertical-align:middle}
 @media (prefers-reduced-motion:no-preference){.pulse{animation:p 1.1s ease-in-out infinite}@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}}
 .leaflet-container{background:#e9e7e2;font:inherit}
-.leaflet-bar a{background:#fff!important;color:#2f3b52!important;border-color:#dfe3e8!important}
-.leaflet-bar a:hover{background:#f4f6f8!important}
-.leaflet-popup-content-wrapper{background:#fff;color:#1b2233;border:1px solid #dfe3e8;border-radius:12px}
-.leaflet-popup-tip{background:#fff}
-.leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:#5a6473!important;font-size:.65rem!important}
+.leaflet-bar a{background:#fffdf8!important;color:#2a2f36!important;border-color:#cfc5ad!important}
+.leaflet-bar a:hover{background:#f4eede!important}
+.leaflet-popup-content-wrapper{background:#fffdf8;color:#1a1c20;border:1px solid #cfc5ad;border-radius:6px}
+.leaflet-popup-tip{background:#fffdf8}
+.leaflet-control-attribution{background:rgba(255,253,248,.85)!important;color:#6d6455!important;font-size:.65rem!important}
 /* Map markers are plain dots (like Lyft): start and end share the shape but
-   use clearly different colors, each with a white ring so they read on light tiles. */
-.pin{width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-sizing:border-box;box-shadow:0 1px 5px rgba(7,19,27,.45)}
-.pin.pick{background:#0f7ea8}
+   use clearly different colors, each with a white ring so they read on the
+   pale tiles. */
+.pin{width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-sizing:border-box;box-shadow:0 1px 5px rgba(26,28,32,.4)}
+.pin.pick{background:var(--cyan)}
 .pin.drop{background:var(--plum)}
-/* Test driver parked at Savannah City Hall: a nightwave crosshair with a slow
+/* Test driver parked at Savannah City Hall: an inked crosshair with a slow
    pulsing halo, so it never reads as a round pickup/drop-off pin. */
 .driver-pin{position:relative;width:34px;height:34px;display:block}
-.driver-pin::before{content:"";position:absolute;inset:3px;border-radius:50%;border:1px solid rgba(var(--cyan-rgb),.5);box-shadow:0 0 8px rgba(var(--cyan-rgb),.4)}
-.driver-pin .driver-core{position:absolute;left:50%;top:50%;width:15px;height:15px;transform:translate(-50%,-50%);filter:drop-shadow(0 0 5px rgba(var(--cyan-rgb),.9))}
+.driver-pin::before{content:"";position:absolute;inset:3px;border-radius:50%;border:1px solid rgba(var(--cyan-rgb),.55)}
+.driver-pin .driver-core{position:absolute;left:50%;top:50%;width:15px;height:15px;transform:translate(-50%,-50%);filter:drop-shadow(0 1px 2px rgba(26,28,32,.45))}
 .driver-pin .driver-core::before,.driver-pin .driver-core::after{content:"";position:absolute;background:var(--cyan)}
 .driver-pin .driver-core::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
 .driver-pin .driver-core::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
@@ -139,18 +147,18 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 @media (prefers-reduced-motion:no-preference){.driver-pin .driver-halo{animation:driver-pulse 7s ease-out infinite}@keyframes driver-pulse{0%{transform:scale(.5);opacity:.85}100%{transform:scale(1.35);opacity:0}}}
 @media (prefers-reduced-motion:reduce){.driver-pin .driver-halo{opacity:.4}}
 
-/* Keep the map completely clear: drop the decorative scanline overlay on the
+/* Keep the map completely clear: drop the decorative ink overlay on the
    rider page so nothing is drawn on top of the map. */
 body.rider::before{display:none}
 
 /* ---------- Fare breakdown (single fare, no ride types) ---------- */
-.farebox{border:1px solid rgba(var(--cyan-rgb),.18);border-radius:12px;background:rgba(7,19,27,.6);margin:.2rem 0 .9rem}
-.farerow{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.55rem .8rem;border-bottom:1px solid rgba(var(--cyan-rgb),.10);font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mist)}
+.farebox{border:var(--frame-soft);border-radius:6px;background:var(--panel);margin:.2rem 0 .9rem}
+.farerow{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.55rem .8rem;border-bottom:1px solid rgba(26,28,32,.12);font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mist)}
 .farerow:last-child{border-bottom:0}
 .farerow .num{color:var(--ice);letter-spacing:.04em}
 .farerow .muted{text-transform:none;letter-spacing:.02em;font-size:.74rem}
-.farerow.total{border-top:1px solid rgba(var(--cyan-rgb),.34);color:var(--ice);font-weight:700}
-.farerow.total .num{color:var(--cyan);font-size:1.05rem;text-shadow:0 0 10px rgba(var(--cyan-rgb),.65)}
+.farerow.total{border-top:1px solid rgba(26,28,32,.4);color:var(--ice);font-weight:700}
+.farerow.total .num{color:var(--cyan);font-size:1.05rem}
 
 /* ---------- Android / iOS safe areas ----------
    Android's navigation bar (gesture pill or the 3-button bar) can sit over the
@@ -172,7 +180,7 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .counts-strip{display:flex;flex-wrap:wrap;gap:1.2rem}
 .counts-strip .count{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase}
 .counts-strip .count .num{font-size:.78rem}
-.handshake{border-color:var(--plum);box-shadow:0 0 12px rgba(var(--plum-rgb),.25)}
+.handshake{border-color:var(--plum);box-shadow:4px 4px 0 rgba(var(--plum-rgb),.22)}
 .rate{display:flex;gap:.25rem;margin:.3rem 0}
 .rate .star{padding:.1rem .35rem;font-size:.7rem;line-height:1.1}
 .issues{display:flex;flex-wrap:wrap;gap:.4rem;max-width:16rem}
@@ -180,14 +188,14 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .issues input{width:auto}
 
 /* Payment picker shown before a ride request is sent. */
-.modal{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(5,8,18,.72);backdrop-filter:blur(2px)}
+.modal{position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(26,28,32,.55)}
 .modal[hidden]{display:none}
-.modal-card{width:100%;max-width:420px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.55)}
+.modal-card{width:100%;max-width:420px;background:var(--panel);border:2px solid var(--ink);border-radius:6px;padding:18px;box-shadow:var(--block-lift)}
 .modal-card .prompt{font-family:'Poppins',system-ui,sans-serif;font-weight:600;font-size:1.05rem;margin:0 0 6px}
 .paylist{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
-.payopt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--void);color:var(--ice);cursor:pointer;text-align:left;font:inherit;transition:border-color .15s,box-shadow .15s}
+.payopt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 12px;border:var(--frame-soft);border-radius:5px;background:var(--void);color:var(--ice);cursor:pointer;text-align:left;font:inherit;transition:border-color .15s,box-shadow .15s}
 .payopt:hover{border-color:var(--cyan)}
-.payopt.on{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset,0 0 10px rgba(var(--cyan-rgb),.25)}
+.payopt.on{border-color:var(--cyan);box-shadow:2px 2px 0 rgba(var(--cyan-rgb),.3)}
 .payopt .payname{font-weight:600}
 .modal-card .row{display:flex;gap:8px;margin-top:6px}
 .modal-card .msg{min-height:1.1em;margin:6px 0 0;color:var(--danger)}
@@ -198,37 +206,36 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .driverrow.idle{opacity:.6}
 .driverrow .status{text-transform:uppercase;letter-spacing:.1em;font-size:.72rem;color:var(--mist)}
 .driverrow .status.ok{color:var(--ok)}
-.chatlog{max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;background:var(--void);padding:12px;margin:8px 0;display:flex;flex-direction:column;gap:8px}
+.chatlog{max-height:320px;overflow-y:auto;border:var(--frame-soft);border-radius:6px;background:var(--void);padding:12px;margin:8px 0;display:flex;flex-direction:column;gap:8px}
 /* Each message is a stack: an optional small "private" label sits above the
    bubble, never inline with the text. */
 .chatwrap{display:flex;flex-direction:column;gap:.22rem;max-width:82%}
 .chatwrap.me{align-self:flex-end;align-items:flex-end}
 .chatwrap.them{align-self:flex-start;align-items:flex-start}
-.chatline{font-size:.9rem;line-height:1.35;max-width:100%;padding:.45rem .7rem;border-radius:12px;overflow-wrap:anywhere;word-break:break-word}
+.chatline{font-size:.9rem;line-height:1.35;max-width:100%;padding:.45rem .7rem;border-radius:8px;overflow-wrap:anywhere;word-break:break-word}
 .chatline .who{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:.64rem;color:var(--mist);margin-bottom:.15rem}
-.chatline.me{align-self:flex-end;background:rgba(var(--cyan-rgb),.12);border:1px solid rgba(var(--cyan-rgb),.28);color:var(--ice);border-bottom-right-radius:3px}
-.chatline.them{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--cyan);border-bottom-left-radius:3px}
-/* Private dispatch<->driver texts share the window but read amber so they are
-   never mistaken for the group thread. */
-.chatline.private{border-style:dashed;box-shadow:0 0 12px rgba(255,196,90,.25)}
-.chatline.me.private{background:rgba(255,196,90,.20);border-color:rgba(255,196,90,.65);color:#ffe6b0}
-.chatline.them.private{background:rgba(255,196,90,.13);border-color:rgba(255,196,90,.55);color:#ffe0a3}
-/* Small amber label above a private bubble. */
-.chatwrap .privlabel{text-transform:uppercase;letter-spacing:.14em;font-size:.58rem;font-weight:700;color:#ffce6b;text-shadow:0 0 6px rgba(255,206,107,.6)}
+.chatline.me{align-self:flex-end;background:rgba(var(--cyan-rgb),.1);border:1px solid rgba(var(--cyan-rgb),.35);color:var(--ice);border-bottom-right-radius:2px}
+.chatline.them{align-self:flex-start;background:#fff9ec;border:1px solid var(--frame-soft);color:var(--ice);border-bottom-left-radius:2px}
+/* Private dispatch<->driver texts share the window but read gold with a dashed
+   frame so they are never mistaken for the group thread. */
+.chatline.private{border-style:dashed;box-shadow:3px 3px 0 rgba(165,119,26,.22)}
+.chatline.me.private{background:#fdf3d9;border-color:rgba(165,119,26,.75);color:#5c4108}
+.chatline.them.private{background:#fef7e4;border-color:rgba(165,119,26,.6);color:#5c4108}
+/* Small gold label above a private bubble. */
+.chatwrap .privlabel{text-transform:uppercase;letter-spacing:.14em;font-size:.58rem;font-weight:700;color:#8a5f10}
 /* Message row: the input grows, the two buttons stay equal and on-theme. */
 .chatrow{align-items:center}
 .chatrow button{margin-top:0;flex:0 0 auto;min-width:6.5rem;padding:.7rem 1rem;font-size:.8rem}
 .chatrow button.alt{margin-left:0}
-.chatrow button.alt[aria-pressed="true"]{background:rgba(255,196,90,.18);border-color:#ffce6b;color:#ffce6b;box-shadow:0 0 14px rgba(255,206,107,.5),inset 0 0 10px rgba(255,206,107,.2)}
+.chatrow button.alt[aria-pressed="true"]{background:#fdf3d9;border-color:#8a5f10;color:#5c4108;box-shadow:2px 2px 0 rgba(165,119,26,.35)}
 .privwrap{display:flex;align-items:center;gap:.4rem;margin-top:.5rem;font-size:.82rem;color:var(--mist)}
 .privwrap input{width:auto}
 .privwrap select{width:auto}
-
-/* Unread-text cue: a lit row plus a hard, eye-catching pulse on the Text
-   button. It scales and throws a bright ring so a waiting text is impossible
+/* A waiting text pulses ONCE per cycle with a hard ring and a slight scale on
+   the button. It scales and throws a ring so a waiting text is impossible
    to miss, rather than a soft breathing glow. */
-.driverrow.hasunread{border-color:var(--plum);box-shadow:0 0 14px rgba(var(--plum-rgb),.4)}
-.textbtn.unread{color:#fff;background:var(--plum);border-color:var(--plum);font-weight:600}
+.driverrow.hasunread{border-color:var(--plum);box-shadow:4px 4px 0 rgba(var(--plum-rgb),.3)}
+.textbtn.unread{color:#fff6fb;background:var(--plum);border-color:var(--ink);font-weight:600}
 @media (prefers-reduced-motion:no-preference){
   .textbtn.unread{animation:textpulse 1.05s cubic-bezier(.4,0,.6,1) infinite}
   @keyframes textpulse{
@@ -244,7 +251,7 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
    rides land on the board. Overflowing text scrolls inside the card. */
 .ridecards{display:grid;grid-template-columns:repeat(auto-fill,230px);gap:.7rem;align-items:start;justify-content:start}
 @media (max-width:520px){.ridecards{grid-template-columns:1fr}}
-.ridecard{display:flex;flex-direction:column;height:186px;overflow:auto;border:1px solid rgba(var(--cyan-rgb),.18);background:rgba(7,19,27,.6);border-radius:10px;padding:.6rem .7rem;min-width:0}
+.ridecard{display:flex;flex-direction:column;height:186px;overflow:auto;border:var(--frame-soft);background:var(--panel);border-radius:6px;padding:.6rem .7rem;min-width:0}
 .ridecard .ridehead{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.3rem}
 .ridecard .rid{font-family:'Poppins',system-ui,sans-serif;letter-spacing:.04em;font-size:.85rem;overflow-wrap:anywhere}
 .ridecard p{margin:.2rem 0;font-size:.82rem;line-height:1.3;overflow-wrap:anywhere;word-break:break-word}
