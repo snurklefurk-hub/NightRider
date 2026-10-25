@@ -5,11 +5,13 @@ or another identity provider.
 
 ## Before deploying
 
-The account system requires PostgreSQL. The Blueprint adds a Render Postgres
-database named `nightrider-db` on Render's `basic-256mb` plan, which is a paid
-database plan. Review the cost and planned database in Render before syncing
-the Blueprint. The web service must be in the same Render region as the
-database so it can use Render's private connection.
+The account system requires PostgreSQL. The Blueprint adds a free Render
+Postgres database named `nightrider-db` in the same region as the web service.
+This is for development only: Render's free databases have 1 GB of storage,
+expire after 30 days, have no backups, and are not suitable for production.
+After expiration, there is a 14-day grace period to upgrade before Render
+deletes the database and its data. Export anything you want to keep before
+that deadline.
 
 For an existing Render Blueprint service, add this secret in the service's
 **Environment** page before deploying the account-enabled revision:
