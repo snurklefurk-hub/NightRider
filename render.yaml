@@ -25,5 +25,5 @@ databases:
     region: oregon
     databaseName: nightrider
     user: nightrider
-    plan: basic-256mb
+    plan: free
 
