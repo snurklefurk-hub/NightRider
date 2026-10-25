@@ -17,17 +17,24 @@ Standard library only (Python 3.8+). No database; rides persist to rides.json.
 
 ## API
 - GET /api/rides, GET /api/rides/{id}
-- POST /api/rides  {rider_name, pickup, dropoff, distance_mi, pickup_coords?, driver_to_pickup_mi?, device?}
+- POST /api/rides  {rider_name, payment_method, pickup, dropoff, distance_mi, pickup_coords?, driver_to_pickup_mi?, device?}
 - POST /api/rides/{id}/accept  {driver, driver_coords?}  (or {driver, demo: true} for the test driver)
 - POST /api/rides/{id}/advance
 - POST /api/rides/{id}/cancel
 - GET /api/events?since=&ride=&wait=  long-poll event stream (rider screens)
 - POST /api/rides/{id}/rating  {by: "driver"|"dispatch", stars, issues?, note?}
 
-Dispatch-only routes (require the `X-Dispatch-Key` header):
+- POST /api/drivers/ping  {name, status?, coords?}  driver presence heartbeat
+- GET /api/drivers/{name}/messages?since=  driver's text thread with dispatch
+- POST /api/drivers/{name}/message  {text}  driver → dispatch text
+
+Dispatch routes:
 - GET /api/dispatch/rides, GET /api/dispatch/riders
+- GET /api/dispatch/drivers  active + known drivers (last_seen, status, idle seconds)
 - GET /api/dispatch/events?since=&wait=  (wakes the instant a ride is requested)
 - POST /api/dispatch/rides/{id}/ack  {by}  acknowledgment handshake
+- GET /api/dispatch/drivers/{name}/messages?since=  dispatch's text thread with a driver
+- POST /api/dispatch/drivers/{name}/message  {text}  dispatch → driver text
 - GET /api/dispatch/export?from=&to=  plain-text ride log
 
 ## Dispatch: push, not polling
@@ -39,10 +46,18 @@ refresh** button, and the board shows the five most recent rides plus a small co
 bottom. Event state is in memory only, so it resets when the server restarts; rides themselves
 persist to `rides.json`.
 
-## Dispatch key
-Dispatch routes expose hidden rider IDs, so they sit behind a key. A working default
-(`nightrider-dispatch`) ships so the board works out of the box; set `DISPATCH_KEY` in the host
-environment to make it private (see DEPLOY.md). The dispatch page has a key field for that value.
+## Active drivers and texting
+The driver page sends a heartbeat to `/api/drivers/ping` every 30 seconds. Any driver seen within
+the last 90 seconds is listed as **active** on the dispatch board (with its status and how long ago
+it checked in); older ones drop to **idle**. Dispatch and each driver can hold a direct text thread:
+the dispatcher presses **Text** next to a driver, the driver has a **Text dispatch** card, and both
+sides poll the thread every few seconds. Messages are kept in memory with the rest of the event
+state, so they clear on a server restart.
+
+## No dispatch key
+Dispatch routes are open, like the rest of this starter — there is no login anywhere yet. A
+dispatch key was removed because riders and drivers reach the same host; add real authentication
+before anything ships to paying customers.
 
 ## Hidden rider IDs, ratings and issues
 Every ride is stamped with a rider identity the rider can neither see nor change. It is derived on
@@ -83,9 +98,10 @@ device's GPS — handy for repeatable tests from anywhere.
 ## Verification
 Checked by running the server and calling the API: create (201), validation (400), accept,
 double-accept (409), advance, cancel, page/asset loads (200), unknown route (404), the event stream
-and acknowledgment handshake, dispatch-key authentication (401 without a key), ratings/issues
-validation, and plain-text export with date filters. The automated suite (`python3 -m unittest
-discover -s tests`) covers the same ground. Visual layout has not been reviewed.
+and acknowledgment handshake, driver presence and dispatch↔driver messaging, payment-method
+capture, map-zoom capping, ratings/issues validation, and plain-text export with date filters. The
+automated suite (`python3 -m unittest discover -s tests`) covers the same ground. Visual layout has
+not been reviewed.
 
 ## Map and addresses (rider page)
 The rider page uses Leaflet with CARTO *Dark Matter* map tiles (OpenStreetMap data) — a near-monochrome dark basemap that matches the NightRider night aesthetic. The pickup dot is teal, the drop-off dot is coral, and the route line is bright cyan so it stays visible on the dark base. Prefer a light map? Change `dark_all` to `voyager` in the tile URL in `public/index.html` — that one word switches the basemap.
@@ -95,7 +111,11 @@ CARTO now gates these tiles behind a free basemap key. A working key is built in
 - Type an address in the pickup or drop-off box and pick a match (Nominatim lookup).
 - Or tap **Use my location** for pickup, and click the map to drop the drop-off pin. Pins can be dragged.
 - The route line and distance come from OSRM's public routing service (real road distance and time). If that service is unavailable, the page falls back to a straight-line estimate × 1.2.
-- The fare box breaks out flag drop, trip, and driver approach, then shows one total. Press **Request NightRide**. (The pulsing crosshair is the test driver at Savannah City Hall.)
+- The fare box shows only the **total** — riders do not see the rate breakdown. Press **Request NightRide**.
+- A payment popup appears before the request is sent; pick Cash App, PayPal, Zelle, Venmo, or Cash
+  (all placeholders for now) and the choice is stored on the ride. (The pulsing crosshair is the test driver at Savannah City Hall.)
+- The map stops zooming at tile level 19, the deepest level the tiles actually render, so it never
+  goes blank from over-zooming.
 - The status view tracks Requesting → Driver assigned → Driver arrived → En route → Completed.
 
 Both OSM/Nominatim and OSRM are public services with fair-use limits, so lookups are throttled. For production we would host or pay for a routing/geocoding provider.

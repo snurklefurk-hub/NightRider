@@ -20,7 +20,6 @@ class NightRiderAPI(unittest.TestCase):
         if os.path.exists(server.DATA_FILE):
             os.remove(server.DATA_FILE)
 
-    KEY = {"X-Dispatch-Key": server.DEFAULT_DISPATCH_KEY}
 
     def call(self, path, body=None, headers=None):
         data = json.dumps(body).encode() if body is not None else None
@@ -155,7 +154,7 @@ class NightRiderAPI(unittest.TestCase):
     # ---- Push + acknowledgement handshake ----
     def test_ride_request_is_pushed_with_a_receipt_handshake(self):
         rid = self.new_ride()
-        s, j = self.call("/api/dispatch/events?since=0&wait=0", headers=self.KEY)
+        s, j = self.call("/api/dispatch/events?since=0&wait=0")
         self.assertEqual(s, 200)
         mine = [e for e in j["events"] if e.get("ride") == rid]
         types = [e["type"] for e in mine]
@@ -165,7 +164,7 @@ class NightRiderAPI(unittest.TestCase):
         self.assertEqual(requested["snapshot"]["status"], "requested")
         self.assertNotIn("rider_id", requested["snapshot"])
 
-        s, j = self.call(f"/api/dispatch/rides/{rid}/ack", {"by": "Alex"}, headers=self.KEY)
+        s, j = self.call(f"/api/dispatch/rides/{rid}/ack", {"by": "Alex"})
         self.assertEqual(s, 200)
         self.assertEqual(j["ack"]["by"], "Alex")
         self.assertGreaterEqual(j["ack"]["latency_s"], 0)
@@ -200,14 +199,67 @@ class NightRiderAPI(unittest.TestCase):
         self.assertEqual(accepted[0]["snapshot"]["status"], "accepted")
         self.assertEqual(accepted[0]["snapshot"]["driver"], "Sam")
 
-    def test_dispatch_routes_require_the_dispatch_key(self):
-        for path in ["/api/dispatch/rides", "/api/dispatch/riders", "/api/dispatch/events"]:
-            self.assertEqual(self.call(path)[0], 401)
-            self.assertEqual(self.call(path, headers={"X-Dispatch-Key": "wrong"})[0], 401)
-            self.assertEqual(self.call(path, headers=self.KEY)[0], 200)
-        self.assertEqual(self.call("/api/dispatch", headers=self.KEY)[0], 404)
-        self.assertEqual(self.call("/api/dispatch/nope", headers=self.KEY)[0], 404)
-        self.assertEqual(self.call("/api/dispatch/rides/nope/ack", {}, headers={})[0], 401)
+    def test_dispatch_routes_are_open_and_the_key_is_gone(self):
+        # The dispatch key was removed: every dispatch route answers without it.
+        for path in ["/api/dispatch/rides", "/api/dispatch/riders", "/api/dispatch/events",
+                     "/api/dispatch/drivers"]:
+            self.assertEqual(self.call(path)[0], 200, path)
+        self.assertEqual(self.call("/api/dispatch")[0], 404)
+        self.assertEqual(self.call("/api/dispatch/nope")[0], 404)
+        self.assertEqual(self.call("/api/dispatch/rides/nope/ack", {})[0], 404)
+        self.assertFalse(hasattr(server, "DEFAULT_DISPATCH_KEY"))
+        self.assertFalse(hasattr(server, "dispatch_ok"))
+
+    # ---- Active drivers + dispatch <-> driver texting ----
+    def test_driver_heartbeat_lists_active_drivers(self):
+        s, j = self.call("/api/drivers/ping", {"name": "Sam", "status": "available"})
+        self.assertEqual(s, 200)
+        self.assertTrue(j["ok"])
+        self.assertGreater(j["driver"]["last_seen"], 0)
+        listed = self.call("/api/dispatch/drivers")[1]["drivers"]
+        sam = [d for d in listed if d["name"] == "Sam"]
+        self.assertEqual(len(sam), 1)
+        self.assertTrue(sam[0]["active"])
+        self.assertEqual(sam[0]["status"], "available")
+        # An unknown status falls back to a sane default rather than erroring.
+        self.call("/api/drivers/ping", {"name": "Sam", "status": "nonsense"})
+        last = [d for d in self.call("/api/dispatch/drivers")[1]["drivers"] if d["name"] == "Sam"][0]
+        self.assertIn(last["status"], server.DRIVER_STATUSES)
+        self.assertEqual(self.call("/api/drivers/ping", {"name": ""})[0], 400)
+
+    def test_dispatch_and_driver_share_a_text_thread(self):
+        self.call("/api/drivers/ping", {"name": "Rosa"})
+        s, j = self.call("/api/drivers/Rosa/message", {"text": "On my way"})
+        self.assertEqual(s, 201)
+        self.assertEqual(j["message"]["from"], "driver")
+        self.assertEqual(j["message"]["text"], "On my way")
+        s, j = self.call("/api/dispatch/drivers/Rosa/message", {"text": "Copy that"})
+        self.assertEqual(s, 201)
+        self.assertEqual(j["message"]["from"], "dispatch")
+        # Each side reads the same thread and sees both messages.
+        driver_view = self.call("/api/drivers/Rosa/messages")[1]["messages"]
+        dispatch_view = self.call("/api/dispatch/drivers/Rosa/messages")[1]["messages"]
+        self.assertEqual([m["text"] for m in driver_view], ["On my way", "Copy that"])
+        self.assertEqual([m["text"] for m in dispatch_view], ["On my way", "Copy that"])
+        self.assertEqual([m["from"] for m in dispatch_view], ["driver", "dispatch"])
+        # The `since` cursor returns only newer messages.
+        cursor = driver_view[-1]["at"]
+        self.call("/api/dispatch/drivers/Rosa/message", {"text": "Ride is waiting"})
+        newer = self.call(f"/api/drivers/Rosa/messages?since={cursor}")[1]["messages"]
+        self.assertEqual([m["text"] for m in newer], ["Ride is waiting"])
+        # Empty text is refused on both sides.
+        self.assertEqual(self.call("/api/drivers/Rosa/message", {"text": "   "})[0], 400)
+        self.assertEqual(self.call("/api/dispatch/drivers/Rosa/message", {"text": ""})[0], 400)
+
+    def test_ride_records_the_chosen_payment_method(self):
+        s, j = self.call("/api/rides", {"rider_name": "Pat", "pickup": "A", "dropoff": "B",
+                                        "distance_mi": 3, "payment_method": "Venmo"})
+        self.assertEqual(s, 201)
+        self.assertEqual(j["payment_method"], "Venmo")
+        self.assertEqual(server.STORE["rides"][j["id"]]["payment_method"], "Venmo")
+        text = self.call_text("/api/dispatch/export")[1]
+        block = [b for b in text.split("-" * 68) if j["id"] in b][0]
+        self.assertIn("Payment:  Venmo", block)
 
     # ---- Hidden rider identifiers ----
     def test_rider_id_is_derived_hidden_and_not_client_settable(self):
@@ -234,9 +286,9 @@ class NightRiderAPI(unittest.TestCase):
         self.assertNotIn("rider_id", self.call(f"/api/rides/{rid}")[1])
         self.assertTrue(all("rider_id" not in r for r in self.call("/api/rides")[1]["rides"]))
         # Dispatch does see it, and so does the backend record.
-        found = [r for r in self.call("/api/dispatch/rides", headers=self.KEY)[1]["rides"] if r["id"] == rid]
+        found = [r for r in self.call("/api/dispatch/rides")[1]["rides"] if r["id"] == rid]
         self.assertEqual(found[0]["rider_id"], stored)
-        s, detail = self.call(f"/api/dispatch/riders/{stored}", headers=self.KEY)
+        s, detail = self.call(f"/api/dispatch/riders/{stored}")
         self.assertEqual(s, 200)
         self.assertIn("Casey", detail["names"])
         self.assertEqual(detail["signals"]["canvas"], "ab12")
@@ -248,7 +300,7 @@ class NightRiderAPI(unittest.TestCase):
                                                    "screen": {"nested": 1}, "cores": "4"}})
         self.assertEqual(s, 201)
         rid = server.STORE["rides"][j["id"]]["rider_id"]
-        sig = self.call(f"/api/dispatch/riders/{rid}", headers=self.KEY)[1]["signals"]
+        sig = self.call(f"/api/dispatch/riders/{rid}")[1]["signals"]
         self.assertEqual(sig, {"platform": "Linux", "cores": "4"})
 
     # ---- Ratings and issues ----
@@ -264,7 +316,7 @@ class NightRiderAPI(unittest.TestCase):
         self.assertEqual(s, 201)
         self.assertEqual(self.call(f"/api/rides/{rid}/ratings")[1]["ratings"][-1]["issues"], ["unreachable"])
         self.assertEqual(self.call(f"/api/riders/{hidden}/ratings")[0], 404)
-        s, detail = self.call(f"/api/dispatch/riders/{hidden}", headers=self.KEY)
+        s, detail = self.call(f"/api/dispatch/riders/{hidden}")
         self.assertEqual(len(detail["ratings"]), 2)
         self.assertEqual(detail["summary"]["avg"], 1.5)
         self.assertEqual(detail["summary"]["issues"], 2)
@@ -285,7 +337,7 @@ class NightRiderAPI(unittest.TestCase):
     def test_export_log_covers_a_period_and_includes_every_ride(self):
         ids = [self.new_ride({"rider_name": "Log%d" % n, "device": {"platform": "Exporter%d" % n}})
                for n in range(3)]
-        s, text, ctype = self.call_text("/api/dispatch/export", headers=self.KEY)
+        s, text, ctype = self.call_text("/api/dispatch/export")
         self.assertEqual(s, 200)
         self.assertIn("text/plain", ctype)
         self.assertIn("NightRider ride log", text)
@@ -297,22 +349,22 @@ class NightRiderAPI(unittest.TestCase):
             self.assertIn("Log%d" % n, text)
         self.assertIn("Status:   requested", text)
         # A window with no rides is empty but still a valid log.
-        s, text, ctype = self.call_text("/api/dispatch/export?from=2100-01-01&to=2100-01-02", headers=self.KEY)
+        s, text, ctype = self.call_text("/api/dispatch/export?from=2100-01-01&to=2100-01-02")
         self.assertEqual(s, 200)
         self.assertIn("Rides:     0", text)
         self.assertIn("No rides in this period.", text)
         # A date-only period includes all of that day.
         today = __import__("datetime").date.today().isoformat()
-        s, text, ctype = self.call_text("/api/dispatch/export?from=" + today + "&to=" + today, headers=self.KEY)
+        s, text, ctype = self.call_text("/api/dispatch/export?from=" + today + "&to=" + today)
         for i in ids:
             self.assertIn(i, text)
-        self.assertEqual(self.call_text("/api/dispatch/export")[0], 401)
+        self.assertEqual(self.call_text("/api/dispatch/export")[0], 200)
 
     def test_export_log_records_the_acknowledgement_and_rating(self):
         rid = self.new_ride({"rider_name": "Audit", "device": {"platform": "Audit1"}})
-        self.call(f"/api/dispatch/rides/{rid}/ack", {"by": "Alex"}, headers=self.KEY)
+        self.call(f"/api/dispatch/rides/{rid}/ack", {"by": "Alex"})
         self.call(f"/api/rides/{rid}/rating", {"by": "dispatch", "stars": 1, "issues": ["unreachable"]})
-        text = self.call_text("/api/dispatch/export", headers=self.KEY)[1]
+        text = self.call_text("/api/dispatch/export")[1]
         block = [b for b in text.split("-" * 68) if rid in b][0]
         self.assertIn("dispatch ack", block)
         self.assertIn("by Alex", block)

@@ -24,9 +24,6 @@
       the rider as a handshake, so nothing is silently dropped.</p>
     <div class="row">
       <button type="button" id="refresh">Force refresh</button>
-      <label class="muted" for="key" style="margin-left:1rem">Dispatch key</label>
-      <input id="key" type="password" autocomplete="off" placeholder="dispatch key" style="max-width:14rem">
-      <button type="button" class="alt" id="savekey">Use key</button>
     </div>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
     <p class="tiny muted" id="conn">Connecting…</p>
@@ -35,6 +32,13 @@
   <div class="card">
     <h2>Incoming requests</h2>
     <div id="pending"></div>
+  </div>
+
+  <div class="card">
+    <h2>Active drivers <span class="tiny muted" id="drivercount"></span></h2>
+    <p class="muted">Every driver page that checked in within the last 90 seconds shows here.
+      Press Text to open a direct message thread with that driver.</p>
+    <div id="drivers"></div>
   </div>
 
   <div class="card">
@@ -77,43 +81,46 @@
   </div>
 </main>
 
+<!-- Dispatch <-> driver texting window -->
+<div id="chatModal" class="modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="chatTitle">
+    <p class="prompt" id="chatTitle">Texting <span id="chatWho">driver</span></p>
+    <div class="chatlog" id="chatLog"></div>
+    <div class="row">
+      <input id="chatText" type="text" placeholder="Message the driver…" maxlength="1000" style="flex:1;min-width:0">
+      <button type="button" id="chatSend">Send</button>
+    </div>
+    <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
+    <div class="row"><button type="button" class="alt" id="chatClose" style="flex:0 0 auto;margin-left:0">Close</button></div>
+  </div>
+</div>
+
 <script>
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var STATUSES = ["requested", "accepted", "arrived", "in_progress", "completed", "cancelled"];
   var ISSUES = ["No-show", "Rude", "Messy", "Unsafe", "Payment issue", "Other"];
-  var DEFAULT_KEY = "nightrider-dispatch";   /* built-in default; change DISPATCH_KEY on the host */
-  var KEY = localStorage.getItem("nightrider.dispatchKey") || DEFAULT_KEY;
   var cursor = 0;          /* last event seq we have seen */
   var pending = {};        /* ride id -> the request we still owe an ack */
   var ridesById = {};
   var polling = false;
   var seenRides = false;
+  var chatDriver = null;   /* driver whose thread is open */
+  var chatSeen = 0;        /* newest message timestamp we have rendered */
+  var chatTimer = null;
 
   function money(n) { return "$" + Number(n).toFixed(2); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
   function clock(ts) { if (!ts) return "—"; return new Date(ts * 1000).toLocaleTimeString(); }
-  function headers(extra) {
-    var h = { "X-Dispatch-Key": KEY };
-    if (extra) for (var k in extra) h[k] = extra[k];
-    return h;
-  }
-  function api(path, opts) {
-    opts = opts || {};
-    opts.headers = headers(opts.headers);
-    return fetch(path, opts);
-  }
+  function api(path, opts) { return fetch(path, opts || {}); }
 
   /* ---- live push: one long request instead of a 4s timer ---------------- */
   function listen() {
     if (polling) { return; }
     polling = true;
     api("/api/dispatch/events?since=" + cursor + "&wait=25", { cache: "no-store" })
-      .then(function (r) {
-        if (r.status === 401) { throw new Error("dispatch key rejected"); }
-        return r.json();
-      })
+      .then(function (r) { return r.json(); })
       .then(function (d) {
         polling = false;
         (d.events || []).forEach(handle);
@@ -192,7 +199,6 @@
   /* ---- ride table (last five) ------------------------------------------ */
   function refresh() {
     api("/api/dispatch/rides", { cache: "no-store" }).then(function (r) {
-      if (r.status === 401) { throw new Error("dispatch key rejected"); }
       return r.json();
     }).then(function (d) {
       var all = d.rides || [];
@@ -315,6 +321,86 @@
     }).catch(function () {});
   }
 
+  /* ---- active drivers + texting ---------------------------------------- */
+  function refreshDrivers() {
+    api("/api/dispatch/drivers", { cache: "no-store" }).then(function (r) { return r.json(); })
+      .then(function (d) {
+        var ds = d.drivers || [];
+        var active = ds.filter(function (x) { return x.active; });
+        $("drivercount").textContent = "(" + active.length + " active of " + ds.length + ")";
+        var box = $("drivers");
+        box.innerHTML = "";
+        if (!ds.length) { box.innerHTML = '<p class="muted">No drivers have checked in yet.</p>'; return; }
+        ds.forEach(function (dr) {
+          var el = document.createElement("div");
+          el.className = "tripbar driverrow" + (dr.active ? "" : " idle");
+          el.innerHTML = "<div><span class=\"status" + (dr.active ? " ok" : "") + "\">" +
+            (dr.active ? "active" : "idle") + "</span> <strong>" + esc(dr.name) + "</strong> " +
+            '<span class="muted">' + esc(dr.status) +
+            (dr.active ? " \u00b7 seen " + Math.round(dr.idle_s) + "s ago" : " \u00b7 last seen " + clock(dr.last_seen)) +
+            "</span></div>";
+          var b = document.createElement("button");
+          b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Text";
+          b.addEventListener("click", function () { openChat(dr.name); });
+          el.appendChild(b);
+          box.appendChild(el);
+        });
+      }).catch(function () {});
+  }
+
+  function openChat(name) {
+    chatDriver = name;
+    chatSeen = 0;
+    $("chatWho").textContent = name;
+    $("chatLog").innerHTML = "";
+    $("chatMsg").textContent = "";
+    $("chatModal").hidden = false;
+    loadChat(true);
+    if (chatTimer) { clearInterval(chatTimer); }
+    chatTimer = setInterval(function () { loadChat(false); }, 4000);
+    $("chatText").focus();
+  }
+
+  function closeChat() {
+    $("chatModal").hidden = true;
+    if (chatTimer) { clearInterval(chatTimer); chatTimer = null; }
+    chatDriver = null;
+  }
+
+  function loadChat(scroll) {
+    if (!chatDriver) { return; }
+    api("/api/dispatch/drivers/" + encodeURIComponent(chatDriver) + "/messages?since=" + chatSeen, { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        var log = $("chatLog");
+        (d.messages || []).forEach(function (m) {
+          if (m.at > chatSeen) { chatSeen = m.at; }
+          var div = document.createElement("div");
+          div.className = "chatline " + (m.from === "dispatch" ? "me" : "them");
+          div.innerHTML = '<span class="who">' + esc(m.from) + "</span> " + esc(m.text) +
+            ' <span class="tiny muted">' + clock(m.at) + "</span>";
+          log.appendChild(div);
+        });
+        if (scroll) { log.scrollTop = log.scrollHeight; }
+      }).catch(function () {});
+  }
+
+  function sendChat() {
+    var text = $("chatText").value.trim();
+    if (!chatDriver || !text) { return; }
+    $("chatSend").disabled = true;
+    api("/api/dispatch/drivers/" + encodeURIComponent(chatDriver) + "/message", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: text })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      $("chatSend").disabled = false;
+      if (d && d.error) { $("chatMsg").textContent = d.error; return; }
+      $("chatText").value = "";
+      $("chatMsg").textContent = "";
+      loadChat(true);
+    }).catch(function () { $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
+  }
+
   function cancel(id) {
     api("/api/rides/" + id + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
       .then(refresh).catch(function () { $("msg").textContent = "Cancel failed."; });
@@ -344,18 +430,18 @@
   }
 
   /* ---- wiring ----------------------------------------------------------- */
-  $("refresh").addEventListener("click", function () { refresh(); renderRiders(); });
+  $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); });
   $("export").addEventListener("click", doExport);
-  $("savekey").addEventListener("click", function () {
-    KEY = $("key").value.trim() || DEFAULT_KEY;
-    localStorage.setItem("nightrider.dispatchKey", KEY);
-    cursor = 0; pending = {}; renderPending();
-    refresh(); listen();
-    $("msg").textContent = "Dispatch key saved.";
+  $("chatSend").addEventListener("click", sendChat);
+  $("chatClose").addEventListener("click", closeChat);
+  $("chatText").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
 
   renderPending();
   refresh();
+  refreshDrivers();
+  setInterval(refreshDrivers, 10000);
   listen();
 })();
 </script>

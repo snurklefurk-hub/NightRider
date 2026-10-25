@@ -49,12 +49,8 @@
       <span class="num" id="routeStats">—</span>
     </div>
     <div class="farebox">
-      <div class="farerow"><span>Flag drop</span><span class="num" id="fareBase">—</span></div>
-      <div class="farerow"><span id="fareTripLabel">Trip</span><span class="num" id="fareTrip">—</span></div>
-      <div class="farerow"><span id="fareApproachLabel">Driver to pickup</span><span class="num muted" id="fareApproach">—</span></div>
       <div class="farerow total"><span>Estimated total</span><span class="num" id="fareTotal">—</span></div>
     </div>
-    <p class="muted" id="fareNote"></p>
     <div class="row">
       <button type="button" class="cta" id="requestBtn" disabled>Request NightRide</button>
       <button type="button" class="alt" id="backBtn" style="flex:0 0 auto;margin-left:0">Edit trip</button>
@@ -62,6 +58,26 @@
     <label for="riderName">Name for the driver</label>
     <input id="riderName" autocomplete="name" placeholder="Your name">
     <p class="msg" id="optMsg"></p>
+  </div>
+
+  <!-- Payment picker: shown before a ride request is actually sent -->
+  <div id="payModal" class="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+      <p class="prompt" id="payTitle">Choose how you'll pay</p>
+      <p class="muted">Pick a payment method before sending your ride request.</p>
+      <div class="paylist" id="payList">
+        <button type="button" class="payopt" data-method="Cash App"><span class="payname">Cash App</span><span class="tiny muted">Placeholder</span></button>
+        <button type="button" class="payopt" data-method="PayPal"><span class="payname">PayPal</span><span class="tiny muted">Placeholder</span></button>
+        <button type="button" class="payopt" data-method="Zelle"><span class="payname">Zelle</span><span class="tiny muted">Placeholder</span></button>
+        <button type="button" class="payopt" data-method="Venmo"><span class="payname">Venmo</span><span class="tiny muted">Placeholder</span></button>
+        <button type="button" class="payopt" data-method="Cash"><span class="payname">Cash</span><span class="tiny muted">Pay the driver directly</span></button>
+      </div>
+      <p class="msg" id="payMsg"></p>
+      <div class="row">
+        <button type="button" class="cta" id="payConfirm" disabled>Send request</button>
+        <button type="button" class="alt" id="payCancel" style="flex:0 0 auto;margin-left:0">Back</button>
+      </div>
+    </div>
   </div>
 
   <!-- STEP 3: matching -->
@@ -110,7 +126,12 @@
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
 
-  var map = L.map("map", { zoomControl: true }).setView([39.8283, -98.5795], 4);
+  // Cap how far the map can zoom. Past a tile provider's deepest real zoom
+  // level Leaflet asks for tiles that do not exist and the map goes blank, so
+  // we stop at the highest level the tiles actually render and turn off
+  // over-zoom (Leaflet would otherwise stretch the last tile forever).
+  var TILE_MAX = 19;
+  var map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: TILE_MAX }).setView([39.8283, -98.5795], 4);
 
   // Dark "nightwave" map: CARTO's Dark Matter base, a near-monochrome dark grey
   // with muted accents, on OpenStreetMap data. It matches the site's night
@@ -126,12 +147,13 @@
   function addBaseMap(cartoKey) {
     if (cartoKey) {
       L.tileLayer("https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=" + encodeURIComponent(cartoKey), {
-        maxZoom: 20,
+        maxZoom: TILE_MAX, maxNativeZoom: TILE_MAX,
         attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
       }).addTo(map);
     } else {
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
+        maxZoom: TILE_MAX, maxNativeZoom: TILE_MAX,
+        attribution: "&copy; OpenStreetMap contributors"
       }).addTo(map);
     }
   }
@@ -187,6 +209,7 @@
     live: false,
     cursor: 0,
     approachMi: 0,
+    payMethod: null,
     demoMarker: null
   };
 
@@ -332,13 +355,8 @@
     var tripFare = round2(RATES.trip_per_mile * state.miles);
     state.approachMi = approachMiles(state.pickup);
     var approachFare = round2(RATES.approach_per_mile * state.approachMi);
-    $("fareBase").textContent = money(RATES.flag_drop);
-    $("fareTripLabel").textContent = money(RATES.trip_per_mile) + "/mi \u00d7 " + state.miles + " mi";
-    $("fareTrip").textContent = money(tripFare);
-    $("fareApproachLabel").textContent = money(RATES.approach_per_mile) + "/mi \u00d7 " + state.approachMi.toFixed(1) + " mi";
-    $("fareApproach").textContent = money(approachFare);
+    // Riders see the bottom line only — the rate breakdown is not shown.
     $("fareTotal").textContent = money(round2(RATES.flag_drop + tripFare + approachFare));
-    $("fareNote").textContent = "Driver leg measured from the test driver parked at " + DEMO_DRIVER.label + ".";
     $("requestBtn").disabled = false;
     $("optMsg").textContent = "";
   }
@@ -354,13 +372,36 @@
     var name = $("riderName").value.trim();
     if (!name) { $("optMsg").textContent = "Add your name so the driver knows who to look for."; $("riderName").focus(); return; }
     if (!state.pickup || !state.dropoff) { $("optMsg").textContent = "Set both pickup and drop-off."; return; }
-    $("requestBtn").disabled = true;
     $("optMsg").textContent = "";
+    openPayModal();
+  }
+
+  function openPayModal() {
+    state.payMethod = null;
+    $("payMsg").textContent = "";
+    $("payConfirm").disabled = true;
+    Array.prototype.forEach.call($("payList").children, function (b) { b.classList.remove("on"); });
+    $("payModal").hidden = false;
+  }
+  function closePayModal() { $("payModal").hidden = true; }
+  function pickPay(btn) {
+    state.payMethod = btn.dataset.method;
+    Array.prototype.forEach.call($("payList").children, function (b) { b.classList.toggle("on", b === btn); });
+    $("payConfirm").disabled = false;
+    $("payMsg").textContent = "";
+  }
+
+  function submitRide() {
+    var name = $("riderName").value.trim();
+    if (!name) { $("payMsg").textContent = "Add your name so the driver knows who to look for."; return; }
+    if (!state.payMethod) { $("payMsg").textContent = "Pick a payment method first."; return; }
+    $("payConfirm").disabled = true;
     fetch("/api/rides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         rider_name: name,
+        payment_method: state.payMethod,
         pickup: state.pickup.label, dropoff: state.dropoff.label,
         distance_mi: state.miles,
         driver_to_pickup_mi: round2(state.approachMi || 0),
@@ -371,12 +412,13 @@
       .then(function (res) {
         if (!res.ok) { throw new Error(res.j.error || "request failed"); }
         state.rideId = res.j.id;
+        closePayModal();
         showMatching();
         startLive();
       })
       .catch(function (e) {
-        $("requestBtn").disabled = false;
-        $("optMsg").textContent = "Could not send request: " + e.message;
+        $("payConfirm").disabled = false;
+        $("payMsg").textContent = "Could not send request: " + e.message;
       });
   }
 
@@ -428,12 +470,8 @@
     $("tripStatus").textContent = statusWord(ride.status);
     $("tripFare").textContent = money(ride.fare);
     $("tripAck").textContent = ackLine(ride);
-    var bits = ["Flag drop " + money(RATES.flag_drop),
-                "Trip " + money(round2(RATES.trip_per_mile * ride.distance_mi))];
-    if (ride.driver_to_pickup_mi > 0) {
-      bits.push("Driver to pickup " + money(round2(RATES.approach_per_mile * ride.driver_to_pickup_mi)));
-    }
-    $("tripBreakdown").textContent = bits.join("  \u00b7  ");
+    $("tripBreakdown").textContent = "Total fare " + money(ride.fare) +
+      (ride.payment_method ? "  \u00b7  Pay by " + ride.payment_method : "");
     $("driverName").textContent = ride.driver || "Pending";
     $("driverInitial").textContent = (ride.driver || "?").charAt(0).toUpperCase();
     $("driverCar").textContent = (ride.status === "completed" || ride.status === "cancelled") ? "Trip closed" : "NightRider vehicle \u00b7 " + ride.distance_mi + " mi";
@@ -475,6 +513,7 @@
     if (state.routeLine) { map.removeLayer(state.routeLine); state.routeLine = null; }
     if (state.pickupMarker) { map.removeLayer(state.pickupMarker); state.pickupMarker = null; }
     if (state.dropoffMarker) { map.removeLayer(state.dropoffMarker); state.dropoffMarker = null; }
+    closePayModal(); state.payMethod = null;
     stopLive(); state.live = false; state.cursor = 0;
     $("ackMsg").textContent = "Sending your request to dispatch\u2026"; $("tripAck").textContent = "";
     state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
@@ -507,6 +546,12 @@
   $("clearPins").addEventListener("click", resetAll);
   $("requestBtn").addEventListener("click", requestRide);
   $("backBtn").addEventListener("click", backToSearch);
+  $("payList").addEventListener("click", function (e) {
+    var b = e.target.closest ? e.target.closest(".payopt") : null;
+    if (b) { pickPay(b); }
+  });
+  $("payConfirm").addEventListener("click", submitRide);
+  $("payCancel").addEventListener("click", closePayModal);
   $("cancelMatch").addEventListener("click", cancelMatch);
   $("cancelTrip").addEventListener("click", cancelRide);
   $("newRide").addEventListener("click", resetAll);

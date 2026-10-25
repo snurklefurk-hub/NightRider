@@ -1,5 +1,5 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
-import datetime, hashlib, hmac, json, math, os, threading, time, urllib.parse, uuid
+import datetime, hashlib, json, math, os, threading, time, urllib.parse, uuid
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
 # driver -> pickup leg of the fare can be exercised without a real driver.
@@ -17,10 +17,6 @@ DEMO_DRIVER = {
 # touching this file.
 DEFAULT_CARTO_KEY = "cb1_4ty9_1_b9153d194e9b53019d1d5bbe"
 
-# Only the dispatch screens know a rider's hidden id, so the dispatch routes
-# are behind this key. A working default ships so dispatch works out of the
-# box; set DISPATCH_KEY on the host to make it private.
-DEFAULT_DISPATCH_KEY = "nightrider-dispatch"
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +34,15 @@ def load():
     return {"rides": {}}
 
 
+def ensure_store(store):
+    """Guarantee every collection the API writes to exists."""
+    store.setdefault("rides", {})
+    store.setdefault("riders", {})
+    store.setdefault("drivers", {})
+    store.setdefault("messages", [])
+    return store
+
+
 def save(store):
     tmp = DATA_FILE + ".tmp"
     with open(tmp, "w") as f:
@@ -45,7 +50,7 @@ def save(store):
     os.replace(tmp, DATA_FILE)
 
 
-STORE = load()
+STORE = ensure_store(load())
 
 
 def clean_text(v, n=120):
@@ -131,6 +136,72 @@ def rider_id_for(headers, signals):
     raw = [RIDER_SALT, headers.get("User-Agent", ""), headers.get("Accept-Language", "")]
     raw += [k + "=" + signals[k] for k in sorted(signals)]
     return "NR-" + hashlib.sha256("|".join(raw).encode("utf-8", "replace")).hexdigest()[:10].upper()
+
+
+# ---- Active drivers + dispatch/driver texting --------------------------
+# A driver page pings with its name (and, when it shares it, its location).
+# Anything seen inside DRIVER_ACTIVE_WINDOW counts as "active" on dispatch.
+DRIVER_ACTIVE_WINDOW = 90.0
+MESSAGE_LIMIT = 500
+DRIVER_STATUSES = ("available", "busy", "offline")
+
+
+def touch_driver(store, name, coords=None, status=None):
+    """Record a driver heartbeat and return the stored record."""
+    name = clean_text(name, 60)
+    if not name:
+        return None
+    rec = store.setdefault("drivers", {}).setdefault(
+        name, {"name": name, "first_seen": time.time()})
+    rec["last_seen"] = time.time()
+    if coords:
+        rec["coords"] = coords
+    if status in DRIVER_STATUSES:
+        rec["status"] = status
+    rec.setdefault("status", "available")
+    return rec
+
+
+def driver_is_active(rec, now=None):
+    now = time.time() if now is None else now
+    return (now - float(rec.get("last_seen") or 0)) <= DRIVER_ACTIVE_WINDOW
+
+
+def dispatch_driver(rec, now=None):
+    """Public driver shape for the dispatch screen."""
+    now = time.time() if now is None else now
+    return {
+        "name": rec.get("name"),
+        "status": rec.get("status") or "available",
+        "active": driver_is_active(rec, now),
+        "last_seen": rec.get("last_seen"),
+        "idle_s": round(max(0.0, now - float(rec.get("last_seen") or 0)), 1),
+        "coords": rec.get("coords"),
+    }
+
+
+def add_message(store, driver, sender, text):
+    """Append one message to a driver's thread and return it."""
+    text = clean_text(text, 1000)
+    if not text:
+        return None
+    msg = {"id": uuid.uuid4().hex[:8], "driver": clean_text(driver, 60),
+           "from": "driver" if sender == "driver" else "dispatch",
+           "text": text, "at": time.time()}
+    thread = store.setdefault("messages", [])
+    thread.append(msg)
+    if len(thread) > MESSAGE_LIMIT:
+        del thread[:-MESSAGE_LIMIT]
+    return msg
+
+
+def thread_messages(store, driver, since=0.0):
+    """Messages in one driver's thread newer than the `since` timestamp."""
+    driver = clean_text(driver, 60)
+    out = [m for m in store.get("messages", []) if m.get("driver") == driver]
+    if since:
+        out = [m for m in out if float(m.get("at") or 0) > float(since)]
+    return out
 
 
 def touch_rider(store, rid, signals, name):
@@ -287,6 +358,7 @@ def export_log(store, start=None, end=None):
         lines.append("  Route:    " + str(r.get("pickup")) + "  ->  " + str(r.get("dropoff")))
         lines.append("  Distance: " + str(r.get("distance_mi")) + " mi (driver leg "
                      + str(r.get("driver_to_pickup_mi")) + " mi)")
+        lines.append("  Payment:  " + str(r.get("payment_method") or "Unspecified"))
         lines.append("  Fare:     $" + "%.2f" % r.get("fare", 0))
         lines.append("  Driver:   " + str(r.get("driver") or "-"))
         lines.append("  Status:   " + str(r.get("status"))
@@ -390,10 +462,20 @@ class Handler(SimpleHTTPRequestHandler):
             raise ValueError("payload too large")
         return json.loads(self.rfile.read(n) or b"{}")
 
-    def dispatch_ok(self):
-        want = os.environ.get("DISPATCH_KEY", DEFAULT_DISPATCH_KEY)
-        got = self.headers.get("X-Dispatch-Key", "")
-        return hmac.compare_digest(str(want).encode(), str(got).encode())
+    def driver_message(self, name, sender, data):
+        """Store one dispatch<->driver text and wake the other side."""
+        name = clean_text(name, 60)
+        if not name:
+            return self.send_json(400, {"error": "driver name required"})
+        text = clean_text(data.get("text"), 1000)
+        if not text:
+            return self.send_json(400, {"error": "text required"})
+        with LOCK:
+            touch_driver(STORE, name)
+            msg = add_message(STORE, name, sender, text)
+            save(STORE)
+        record_event("driver_message", driver=name, message=msg)
+        return self.send_json(201, {"ok": True, "message": msg})
 
     def ack_ride(self, rid, data):
         """The handshake: dispatch confirms it really received the request."""
@@ -433,6 +515,18 @@ class Handler(SimpleHTTPRequestHandler):
                 if not rec:
                     return self.send_json(404, {"error": "not found"})
                 return self.send_json(200, dispatch_rider(rec, STORE, detail=True))
+        if path == "/api/dispatch/drivers":
+            now = time.time()
+            with LOCK:
+                out = [dispatch_driver(rec, now) for rec in STORE.get("drivers", {}).values()]
+            out.sort(key=lambda d: (not d["active"], -float(d.get("last_seen") or 0)))
+            return self.send_json(200, {"drivers": out, "window_s": DRIVER_ACTIVE_WINDOW, "now": now})
+        if path.startswith("/api/dispatch/drivers/") and path.endswith("/messages"):
+            name = urllib.parse.unquote(path.split("/")[4])
+            since = _num(qs, "since", 0)
+            with LOCK:
+                msgs = thread_messages(STORE, name, since)
+            return self.send_json(200, {"driver": name, "messages": msgs, "now": time.time()})
         if path == "/api/dispatch/export":
             start = parse_when(_first(qs, "from"), end_of_day=False)
             end = parse_when(_first(qs, "to"), end_of_day=True)
@@ -449,8 +543,6 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/dispatch/":
                 return self.send_json(404, {"error": "not found"})
             if path.startswith("/api/dispatch/"):
-                if not self.dispatch_ok():
-                    return self.send_json(401, {"error": "dispatch key required"})
                 return self.dispatch_get(path, qs)
             if path == "/api/config":
                 # Host environment variable wins (lets you rotate the key
@@ -472,6 +564,12 @@ class Handler(SimpleHTTPRequestHandler):
                 ride = _first(qs, "ride") or None
                 wait = min(55.0, max(0.0, _num(qs, "wait", 25)))
                 return self.send_json(200, read_events(since, ride, wait))
+            if path.startswith("/api/drivers/") and path.endswith("/messages"):
+                name = urllib.parse.unquote(path.split("/")[3])
+                since = _num(qs, "since", 0)
+                with LOCK:
+                    msgs = thread_messages(STORE, name, since)
+                return self.send_json(200, {"driver": name, "messages": msgs, "now": time.time()})
             if path == "/api/rides":
                 with LOCK:
                     rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
@@ -499,6 +597,9 @@ class Handler(SimpleHTTPRequestHandler):
             pickup = clean_text(data.get("pickup"))
             dropoff = clean_text(data.get("dropoff"))
             name = clean_text(data.get("rider_name"), 60)
+            # The rider picks a payment method in the popup before the request
+            # is sent; store it with the ride so dispatch and the driver see it.
+            payment = clean_text(data.get("payment_method"), 30) or "Unspecified"
             try:
                 miles = float(data.get("distance_mi", 0))
             except (TypeError, ValueError):
@@ -525,6 +626,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "dropoff_coords": parse_coords(data.get("dropoff_coords")),
                 "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
                 "fare": fare(miles, approach), "status": "requested",
+                "payment_method": payment,
                 "driver": None, "created": time.time(),
             }
             with LOCK:
@@ -547,13 +649,27 @@ class Handler(SimpleHTTPRequestHandler):
                          status="requested", snapshot=reply)
             return self.send_json(201, reply)
 
+        if path == "/api/drivers/ping":
+            name = clean_text(data.get("name"), 60)
+            if not name:
+                return self.send_json(400, {"error": "name required"})
+            coords = parse_coords(data.get("coords"))
+            with LOCK:
+                rec = touch_driver(STORE, name, coords, clean_text(data.get("status"), 20))
+                save(STORE)
+                out = dispatch_driver(rec)
+            return self.send_json(200, {"ok": True, "driver": out})
+
         parts = path.strip("/").split("/")
         if len(parts) >= 3 and parts[0] == "api" and parts[1] == "dispatch":
-            if not self.dispatch_ok():
-                return self.send_json(401, {"error": "dispatch key required"})
             if len(parts) == 5 and parts[2] == "rides" and parts[4] == "ack":
                 return self.ack_ride(parts[3], data)
+            if len(parts) == 5 and parts[2] == "drivers" and parts[4] == "message":
+                return self.driver_message(urllib.parse.unquote(parts[3]), "dispatch", data)
             return self.send_json(404, {"error": "not found"})
+
+        if len(parts) == 4 and parts[0] == "api" and parts[1] == "drivers" and parts[3] == "message":
+            return self.driver_message(urllib.parse.unquote(parts[2]), "driver", data)
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "rides":
             rid, action = parts[2], parts[3]

@@ -32,6 +32,16 @@
     <h2>Your active rides</h2>
     <div id="myRides" class="grid"></div>
   </div>
+  <div class="card">
+    <h2>Text dispatch</h2>
+    <p class="muted">Send a message to the dispatcher. Replies show up here.</p>
+    <div class="chatlog" id="chatLog"></div>
+    <div class="row">
+      <input id="chatText" type="text" placeholder="Message dispatch…" maxlength="1000" style="flex:1;min-width:0">
+      <button type="button" id="chatSend">Send</button>
+    </div>
+    <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
+  </div>
 </main>
 
 <script>
@@ -45,6 +55,54 @@
   function api(path, body) {
     return fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined)
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); });
+  }
+
+  /* ---- presence + dispatch texting -------------------------------------- */
+  var chatSeen = 0;
+  var chatName = "";
+
+  /* Heartbeat so dispatch can list this driver as active. */
+  function ping(status) {
+    var d = driver();
+    if (!d) { return; }
+    api("/api/drivers/ping", { name: d, status: status || "available" }).catch(function () {});
+  }
+
+  function loadChat() {
+    var d = driver();
+    if (!d) { return; }
+    if (d !== chatName) { chatName = d; chatSeen = 0; $("chatLog").innerHTML = ""; }
+    fetch("/api/drivers/" + encodeURIComponent(d) + "/messages?since=" + chatSeen, { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var log = $("chatLog");
+        (res.messages || []).forEach(function (m) {
+          if (m.at > chatSeen) { chatSeen = m.at; }
+          var div = document.createElement("div");
+          div.className = "chatline " + (m.from === "driver" ? "me" : "them");
+          div.innerHTML = '<span class="who">' + esc(m.from) + "</span> " + esc(m.text) +
+            ' <span class="tiny muted">' + new Date(m.at * 1000).toLocaleTimeString() + "</span>";
+          log.appendChild(div);
+        });
+        log.scrollTop = log.scrollHeight;
+      }).catch(function () {});
+  }
+
+  function sendChat() {
+    var d = driver();
+    var text = $("chatText").value.trim();
+    if (!d) { $("chatMsg").textContent = "Enter your name first."; return; }
+    if (!text) { return; }
+    $("chatSend").disabled = true;
+    api("/api/drivers/" + encodeURIComponent(d) + "/message", { text: text })
+      .then(function (res) {
+        $("chatSend").disabled = false;
+        if (!res.ok) { $("chatMsg").textContent = res.j.error || "Send failed."; return; }
+        $("chatText").value = "";
+        $("chatMsg").textContent = "";
+        loadChat();
+      })
+      .catch(function () { $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
   }
 
   function rideCard(ride, actions) {
@@ -188,8 +246,15 @@
 
   $("refresh").addEventListener("click", load);
   $("driverName").addEventListener("change", load);
+  $("chatSend").addEventListener("click", sendChat);
+  $("chatText").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); sendChat(); }
+  });
   load();
+  ping("available");
   setInterval(load, 5000);
+  setInterval(loadChat, 4000);
+  setInterval(function () { ping("available"); }, 30000);
 })();
 </script>
 </body>
