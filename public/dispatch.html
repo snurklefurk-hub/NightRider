@@ -53,17 +53,22 @@
 
   <div class="card" id="chatCard">
     <h2>Team text <span class="tiny muted" id="chatCue" hidden></span></h2>
-    <p class="muted">A group chat every driver and dispatch can see. Choose one driver under
-      <strong>To</strong> to send a private text that only that driver and dispatch will see — it still
-      appears here with a small private label above it, colour-coded amber.</p>
+    <p class="muted">Use this chat for the team or select a ride to view its conversation. Ride messages are visible to Dispatch; choose whether your reply goes to Dispatch only or to both the rider and driver.</p>
+    <label for="chatConversation">Conversation</label>
+    <select id="chatConversation"><option value="">Team chat</option></select>
     <div class="chatlog" id="chatLog"></div>
     <div class="row chatrow">
       <input id="chatText" type="text" placeholder="Message the team…" maxlength="1000" style="flex:1;min-width:0">
       <button type="button" id="chatSend">Send</button>
     </div>
-    <div class="row">
+    <div class="row" id="chatTeamOptions">
       <label class="privwrap" for="chatTo">To
         <select id="chatTo"><option value="all">Everyone (group)</option></select>
+      </label>
+    </div>
+    <div class="row" id="chatRideOptions" hidden>
+      <label for="chatRideAudience">Send to
+        <select id="chatRideAudience"><option value="dispatch">Rider + Dispatch only</option><option value="shared">Rider + driver + Dispatch</option></select>
       </label>
     </div>
     <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
@@ -135,6 +140,7 @@
   var polling = false;
   var seenRides = false;
   var chatSeen = 0;        /* newest message timestamp we have rendered */
+  var selectedRideChatId = "";
   var chatInit = false;
   var chatPolling = false;
   var chatSending = false;
@@ -225,6 +231,7 @@
       return r.json();
     }).then(function (d) {
       var all = d.rides || [];
+      syncChatConversations(all);
       ridesById = {};
       all.forEach(function (r) { ridesById[r.id] = r; });
       renderRows(all.slice(0, 5));
@@ -335,98 +342,6 @@
     return wrap;
   }
 
-  function addRideMessageToLog(log, message) {
-    if (!message || !message.id || log.querySelector('[data-message-id="' + message.id + '"]')) { return; }
-    var wrap = document.createElement("div");
-    wrap.className = "chatwrap " + (message.role === "dispatch" ? "me" : "them");
-    wrap.setAttribute("data-message-id", message.id);
-    var line = document.createElement("div");
-    line.className = "chatline " + (message.role === "dispatch" ? "me" : "them") +
-      (message.audience === "dispatch" ? " private" : "");
-    var who = document.createElement("span");
-    who.className = "who";
-    who.textContent = (message.role === "dispatch" ? "You" : message.from) +
-      (message.audience === "dispatch" ? " · Dispatch only" : " · Driver + rider");
-    line.appendChild(who);
-    line.appendChild(document.createTextNode(message.text));
-    wrap.appendChild(line);
-    log.appendChild(wrap);
-    log.scrollTop = log.scrollHeight;
-  }
-
-  function handleRideMessageEvent(ev) {
-    var panels = document.querySelectorAll(".ridechat[data-ride-id]");
-    Array.prototype.forEach.call(panels, function (panel) {
-      if (panel.getAttribute("data-ride-id") !== ev.ride) { return; }
-      if (panel.open) {
-        addRideMessageToLog(panel.querySelector(".chatlog"), ev.message);
-      } else {
-        panel.querySelector("summary").textContent = "Ride messages · new";
-      }
-    });
-  }
-
-  function rideMessagesPanel(ride) {
-    var details = document.createElement("details");
-    details.className = "ridechat";
-    details.setAttribute("data-ride-id", ride.id);
-    var summary = document.createElement("summary");
-    summary.textContent = "Ride messages";
-    details.appendChild(summary);
-    var log = document.createElement("div");
-    log.className = "chatlog";
-    details.appendChild(log);
-    var row = document.createElement("div");
-    row.className = "row chatrow";
-    var input = document.createElement("input");
-    input.type = "text";
-    input.maxLength = 1000;
-    input.placeholder = "Reply privately to rider…";
-    input.style.flex = "1";
-    input.style.minWidth = "0";
-    var send = document.createElement("button");
-    send.type = "button";
-    send.textContent = "Reply to rider";
-    var loadBusy = false;
-    function loadMessages() {
-      if (loadBusy) { return; }
-      loadBusy = true;
-      api("/api/rides/" + encodeURIComponent(ride.id) + "/messages", {cache:"no-store"})
-        .then(function (r) { return r.json().then(function (data) {
-          if (!r.ok) { throw new Error(data.error || "Could not load ride messages."); }
-          return data;
-        }); }).then(function (data) {
-          log.innerHTML = "";
-          (data.messages || []).forEach(function (message) { addRideMessageToLog(log, message); });
-        }).catch(function () {}).then(function () { loadBusy = false; });
-    }
-    function sendReply() {
-      var text = input.value.trim();
-      if (!text || send.disabled) { return; }
-      send.disabled = true;
-      api("/api/rides/" + encodeURIComponent(ride.id) + "/message", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({text:text,audience:"dispatch"})
-      }).then(function (r) { return r.json().then(function (data) {
-        if (!r.ok) { throw new Error(data.error || "Could not send reply."); }
-        return data;
-      }); }).then(function () {
-        input.value = "";
-        loadMessages();
-      }).catch(function (error) { window.alert(error.message); })
-        .then(function () { send.disabled = false; });
-    }
-    send.addEventListener("click", sendReply);
-    input.addEventListener("keydown", function (event) {
-      if (event.key === "Enter") { event.preventDefault(); sendReply(); }
-    });
-    row.appendChild(input);
-    row.appendChild(send);
-    details.appendChild(row);
-    details.addEventListener("toggle", function () { if (details.open) { loadMessages(); } });
-    return details;
-  }
-
   function renderRows(rides) {
     var body = $("rows"); body.innerHTML = "";
     if (!rides.length) { body.innerHTML = '<p class="muted">No rides yet.</p>'; return; }
@@ -444,7 +359,13 @@
         "<span>" + esc(r.driver || "\u2014") + "</span><span>" + ackCell(r) + "</span></div>";
       var stages = stageBlock(r);
       if (stages) { card.appendChild(stages); }
-      card.appendChild(rideMessagesPanel(r));
+      if (r.last_driver_release) {
+        var releaseNote = document.createElement("p");
+        releaseNote.className = "tiny muted";
+        releaseNote.textContent = (r.status === "requested" ? "Driver released this ride; it is back in the open queue. " : "Previously released by driver. ") +
+          r.last_driver_release.driver + " · " + clock(r.last_driver_release.at);
+        card.appendChild(releaseNote);
+      }
       var assignment = assignmentControls(r);
       if (assignment) { card.appendChild(assignment); }
       if (r.status !== "completed" && r.status !== "cancelled") {
@@ -640,62 +561,75 @@
   /* Render new messages into the one shared window. Group texts and the
      private texts dispatch is party to all appear here; private ones are
      amber and tagged so they are never mistaken for the group thread. */
+  function syncChatConversations(rides) {
+    var select = $("chatConversation"), previous = selectedRideChatId;
+    while (select.options.length > 1) { select.remove(1); }
+    (rides || []).slice(0, 40).forEach(function (ride) {
+      var option = document.createElement("option");
+      option.value = ride.id;
+      option.textContent = "Ride " + ride.id + " · " + (ride.rider_name || "Rider") + (ride.driver ? " · " + ride.driver : "");
+      select.appendChild(option);
+    });
+    if (previous && Array.prototype.some.call(select.options, function (o) { return o.value === previous; })) {
+      select.value = previous;
+    } else { selectedRideChatId = ""; select.value = ""; }
+  }
+
   function renderChat(msgs, scroll) {
     var log = $("chatLog");
     (msgs || []).forEach(function (m) {
       if (m.id && renderedChatIds[m.id]) { return; }
       if (m.id) { renderedChatIds[m.id] = true; }
-      var mine = m.from === "dispatch";
-      var priv = m.channel === "private";
+      var rideMode = !!selectedRideChatId;
+      var mine = rideMode ? m.role === "dispatch" : m.from === "dispatch";
+      var priv = rideMode ? m.audience === "dispatch" : m.channel === "private";
       var wrap = document.createElement("div");
       wrap.className = "chatwrap " + (mine ? "me" : "them");
       if (priv) {
         var label = document.createElement("span");
         label.className = "privlabel";
-        label.textContent = mine && m.driver ? "Private \u2192 " + m.driver : "Private";
+        label.textContent = rideMode ? "Dispatch only" : (mine && m.driver ? "Private → " + m.driver : "Private");
         wrap.appendChild(label);
       }
       var div = document.createElement("div");
       div.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
-      div.innerHTML = '<span class="who">' + (mine ? "You" : esc(m.from)) + "</span>" +
-        esc(m.text) +
-        ' <span class="tiny muted">' + clock(m.at) + "</span>";
+      var who = document.createElement("span");
+      who.className = "who";
+      who.textContent = mine ? "You" : (m.from || m.role || "Rider");
+      div.appendChild(who);
+      div.appendChild(document.createTextNode(m.text || ""));
+      var time = document.createElement("span");
+      time.className = "tiny muted";
+      time.textContent = " " + clock(m.at);
+      div.appendChild(time);
       wrap.appendChild(div);
       log.appendChild(wrap);
     });
     if (scroll) { log.scrollTop = log.scrollHeight; }
   }
 
-  /* Watch the shared conversation so dispatch hears a driver's PRIVATE text
-     even before the card is read. Group texts are deliberately silent, so the
-     cue means a driver needs dispatch specifically. The first look only sets a
-     baseline, so old history does not chime on page load. */
   function pollChat() {
     if (chatPolling) { return; }
     chatPolling = true;
-    api("/api/dispatch/messages?since=" + chatSeen, { cache: "no-store" })
+    var endpoint = selectedRideChatId
+      ? "/api/rides/" + encodeURIComponent(selectedRideChatId) + "/messages?since=" + chatSeen
+      : "/api/dispatch/messages?since=" + chatSeen;
+    api(endpoint, { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         var msgs = d.messages || [];
-        if (!chatInit) {
-          chatInit = true;
-          msgs.forEach(function (m) { if (m.at > chatSeen) { chatSeen = m.at; } });
-          renderChat(msgs, true);
-          return;
-        }
+        if (!chatInit) { chatInit = true; }
         var newest = chatSeen, privateIncoming = false;
         msgs.forEach(function (m) {
           if (m.at > newest) { newest = m.at; }
-          if (m.role === "driver" && m.channel === "private" && m.at > chatSeen) { privateIncoming = true; }
+          if (!selectedRideChatId && m.role === "driver" && m.channel === "private" && m.at > chatSeen) privateIncoming = true;
         });
         chatSeen = newest;
         renderChat(msgs, true);
         if (privateIncoming) {
           var last = msgs.filter(function (m) { return m.role === "driver" && m.channel === "private"; });
           if (last.length) { chatUnreadText = last[last.length - 1].text; }
-          chatUnread = true;
-          beep();
-          applyUnread();
+          chatUnread = true; beep(); applyUnread();
         }
       }).catch(function () {}).then(function () { chatPolling = false; });
   }
@@ -704,22 +638,24 @@
     var text = $("chatText").value.trim();
     if (!text || chatSending) { return; }
     chatSending = true;
-    var to = $("chatTo") ? $("chatTo").value : "all";
     $("chatSend").disabled = true;
-    api("/api/dispatch/message", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text, to: to })
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      $("chatSend").disabled = false;
-      chatSending = false;
+    var request = selectedRideChatId
+      ? api("/api/rides/" + encodeURIComponent(selectedRideChatId) + "/message", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text, audience: $("chatRideAudience").value })
+        })
+      : api("/api/dispatch/message", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text, to: $("chatTo") ? $("chatTo").value : "all" })
+        });
+    request.then(function (r) { return r.json(); }).then(function (d) {
+      $("chatSend").disabled = false; chatSending = false;
       if (d && d.error) { $("chatMsg").textContent = d.error; return; }
-      $("chatText").value = "";
-      $("chatMsg").textContent = "";
-      chatUnread = false;
-      chatUnreadText = "";
-      applyUnread();
-      pollChat();
-    }).catch(function () { chatSending = false; $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
+      $("chatText").value = ""; $("chatMsg").textContent = "";
+      chatUnread = false; chatUnreadText = ""; applyUnread(); pollChat();
+    }).catch(function () {
+      chatSending = false; $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed.";
+    });
   }
 
   function cancel(id) {
@@ -792,6 +728,14 @@
   $("exportClose").addEventListener("click", function () { $("exportModal").hidden = true; });
   $("export").addEventListener("click", doExport);
   $("chatSend").addEventListener("click", sendChat);
+  $("chatConversation").addEventListener("change", function () {
+    selectedRideChatId = $("chatConversation").value;
+    chatSeen = 0; chatInit = false; renderedChatIds = {}; $("chatLog").innerHTML = "";
+    $("chatTeamOptions").hidden = !!selectedRideChatId;
+    $("chatRideOptions").hidden = !selectedRideChatId;
+    $("chatText").placeholder = selectedRideChatId ? "Message this ride…" : "Message the team…";
+    pollChat();
+  });
   $("chatText").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
