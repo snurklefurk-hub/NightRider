@@ -191,6 +191,10 @@
   }
 
   function handle(ev) {
+    if (ev.type === "ride_message") {
+      handleRideMessageEvent(ev);
+      return;
+    }
     if (ev.type === "ride_requested") {
       /* The handshake: acknowledge the moment we have the request in hand.
          The request itself lands in Recent rides via refresh(). */
@@ -331,6 +335,98 @@
     return wrap;
   }
 
+  function addRideMessageToLog(log, message) {
+    if (!message || !message.id || log.querySelector('[data-message-id="' + message.id + '"]')) { return; }
+    var wrap = document.createElement("div");
+    wrap.className = "chatwrap " + (message.role === "dispatch" ? "me" : "them");
+    wrap.setAttribute("data-message-id", message.id);
+    var line = document.createElement("div");
+    line.className = "chatline " + (message.role === "dispatch" ? "me" : "them") +
+      (message.audience === "dispatch" ? " private" : "");
+    var who = document.createElement("span");
+    who.className = "who";
+    who.textContent = (message.role === "dispatch" ? "You" : message.from) +
+      (message.audience === "dispatch" ? " · Dispatch only" : " · Driver + rider");
+    line.appendChild(who);
+    line.appendChild(document.createTextNode(message.text));
+    wrap.appendChild(line);
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function handleRideMessageEvent(ev) {
+    var panels = document.querySelectorAll(".ridechat[data-ride-id]");
+    Array.prototype.forEach.call(panels, function (panel) {
+      if (panel.getAttribute("data-ride-id") !== ev.ride) { return; }
+      if (panel.open) {
+        addRideMessageToLog(panel.querySelector(".chatlog"), ev.message);
+      } else {
+        panel.querySelector("summary").textContent = "Ride messages · new";
+      }
+    });
+  }
+
+  function rideMessagesPanel(ride) {
+    var details = document.createElement("details");
+    details.className = "ridechat";
+    details.setAttribute("data-ride-id", ride.id);
+    var summary = document.createElement("summary");
+    summary.textContent = "Ride messages";
+    details.appendChild(summary);
+    var log = document.createElement("div");
+    log.className = "chatlog";
+    details.appendChild(log);
+    var row = document.createElement("div");
+    row.className = "row chatrow";
+    var input = document.createElement("input");
+    input.type = "text";
+    input.maxLength = 1000;
+    input.placeholder = "Reply privately to rider…";
+    input.style.flex = "1";
+    input.style.minWidth = "0";
+    var send = document.createElement("button");
+    send.type = "button";
+    send.textContent = "Reply to rider";
+    var loadBusy = false;
+    function loadMessages() {
+      if (loadBusy) { return; }
+      loadBusy = true;
+      api("/api/rides/" + encodeURIComponent(ride.id) + "/messages", {cache:"no-store"})
+        .then(function (r) { return r.json().then(function (data) {
+          if (!r.ok) { throw new Error(data.error || "Could not load ride messages."); }
+          return data;
+        }); }).then(function (data) {
+          log.innerHTML = "";
+          (data.messages || []).forEach(function (message) { addRideMessageToLog(log, message); });
+        }).catch(function () {}).then(function () { loadBusy = false; });
+    }
+    function sendReply() {
+      var text = input.value.trim();
+      if (!text || send.disabled) { return; }
+      send.disabled = true;
+      api("/api/rides/" + encodeURIComponent(ride.id) + "/message", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text:text,audience:"dispatch"})
+      }).then(function (r) { return r.json().then(function (data) {
+        if (!r.ok) { throw new Error(data.error || "Could not send reply."); }
+        return data;
+      }); }).then(function () {
+        input.value = "";
+        loadMessages();
+      }).catch(function (error) { window.alert(error.message); })
+        .then(function () { send.disabled = false; });
+    }
+    send.addEventListener("click", sendReply);
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") { event.preventDefault(); sendReply(); }
+    });
+    row.appendChild(input);
+    row.appendChild(send);
+    details.appendChild(row);
+    details.addEventListener("toggle", function () { if (details.open) { loadMessages(); } });
+    return details;
+  }
+
   function renderRows(rides) {
     var body = $("rows"); body.innerHTML = "";
     if (!rides.length) { body.innerHTML = '<p class="muted">No rides yet.</p>'; return; }
@@ -348,6 +444,7 @@
         "<span>" + esc(r.driver || "\u2014") + "</span><span>" + ackCell(r) + "</span></div>";
       var stages = stageBlock(r);
       if (stages) { card.appendChild(stages); }
+      card.appendChild(rideMessagesPanel(r));
       var assignment = assignmentControls(r);
       if (assignment) { card.appendChild(assignment); }
       if (r.status !== "completed" && r.status !== "cancelled") {
