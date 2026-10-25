@@ -12,14 +12,14 @@ Standard library only (Python 3.8+). No database; rides persist to rides.json.
 
 ## Pages
 - `/` (index.html): Lyft-style rider page — full-screen map, pickup/drop-off address search, one fare estimate, request and live status.
-- `/driver.html`: driver enters name, accepts open requests, moves ride through arrived → in progress → completed, and rates the rider.
+- `/driver.html`: driver enters name, accepts open requests, then moves the ride through five staged buttons — **Head to pickup → Arrive at pickup → Head to destination → Arrive at destination → Complete ride** — and rates the rider.
 - `/dispatch.html`: live dispatch board — see **Dispatch** below.
 
 ## API
 - GET /api/rides, GET /api/rides/{id}
 - POST /api/rides  {rider_name, payment_method, pickup, dropoff, distance_mi, pickup_coords?, driver_to_pickup_mi?, device?}
 - POST /api/rides/{id}/accept  {driver, driver_coords?}  (or {driver, demo: true} for the test driver)
-- POST /api/rides/{id}/advance
+- POST /api/rides/{id}/advance  moves the ride to its next stage (accepted → to_pickup → at_pickup → to_dropoff → at_dropoff → completed)
 - POST /api/rides/{id}/cancel
 - GET /api/events?since=&ride=&wait=  long-poll event stream (rider screens)
 - POST /api/rides/{id}/rating  {by: "driver"|"dispatch", stars, issues?, note?}
@@ -43,7 +43,8 @@ The dispatch board no longer polls on a timer. It holds one long-lived request o
 request is acknowledged back to the rider (`ride_acknowledged`) so the rider's screen can show
 "dispatch received your request" — a handshake that nothing was dropped. There is also a **Force
 refresh** button, and the board shows the five most recent rides plus a small counts strip at the
-bottom. Event state is in memory only, so it resets when the server restarts; rides themselves
+bottom. Each ride card shows its current stage label and how long the ride has spent in each stage,
+and the driver's status follows the same stage labels. Event state is in memory only, so it resets when the server restarts; rides themselves
 persist to `rides.json`.
 
 ## Active drivers and texting
@@ -53,6 +54,11 @@ it checked in); older ones drop to **idle**. Dispatch and each driver can hold a
 the dispatcher presses **Text** next to a driver, the driver has a **Text dispatch** card, and both
 sides poll the thread every few seconds. Messages are kept in memory with the rest of the event
 state, so they clear on a server restart.
+
+When a driver's message is waiting, dispatch flags it three ways: the **Text** button pulses, the
+row shows the first 25 characters of the newest unread text, and a quiet cue repeats every four
+seconds (toggle with the **Sound** button). The recent-ride cards are a fixed size and no longer
+carry a rider rating — rating a rider is the driver's job.
 
 ## No dispatch key
 Dispatch routes are open, like the rest of this starter — there is no login anywhere yet. A

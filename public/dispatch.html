@@ -102,8 +102,10 @@
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
-  var STATUSES = ["requested", "accepted", "arrived", "in_progress", "completed", "cancelled"];
-  var ISSUES = ["No-show", "Rude", "Messy", "Unsafe", "Payment issue", "Other"];
+  var STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
+    "at_dropoff", "completed", "cancelled"];
+  var CFG = { statusLabels: {}, stageAction: {} };
+  function statusWord(s) { return CFG.statusLabels[s] || s; }
   var cursor = 0;          /* last event seq we have seen */
   var ridesById = {};
   var polling = false;
@@ -115,10 +117,24 @@
   var msgCursor = {};      /* driver -> newest message timestamp dispatch has seen */
   var msgInit = {};        /* driver -> true once we have set a baseline */
   var unread = {};         /* driver -> true when a new driver message is waiting */
+  var unreadText = {};     /* driver -> first 25 chars of the newest waiting text */
   var soundOn = true;      /* audio cue on/off */
   var audioCtx = null;
+  var cueTimer = null;     /* repeats a quiet cue while texts wait */
+  var PREVIEW = 25;        /* characters shown in the unread preview */
+  function preview(s) {
+    s = String(s == null ? "" : s).replace(/\s+/g, " ").trim();
+    return s.length > PREVIEW ? s.slice(0, PREVIEW) + "\u2026" : s;
+  }
 
   function money(n) { return "$" + Number(n).toFixed(2); }
+  function dur(s) {
+    s = Math.max(0, Math.round(s));
+    if (s < 60) { return s + "s"; }
+    var m = Math.floor(s / 60), sec = s % 60;
+    if (m < 60) { return m + "m " + sec + "s"; }
+    return Math.floor(m / 60) + "h " + (m % 60) + "m";
+  }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
   function clock(ts) { if (!ts) return "—"; return new Date(ts * 1000).toLocaleTimeString(); }
   function api(path, opts) { return fetch(path, opts || {}); }
@@ -198,6 +214,39 @@
     return '<span class="tiny muted">' + clock(a.at) + " · " + a.latency_s + "s</span>";
   }
 
+  /* Time spent in each stage the ride has passed through, plus the running
+     clock on the stage it is in now. */
+  function stageTiming(r) {
+    var log = r.status_log || [];
+    var now = Date.now() / 1000;
+    return log.map(function (entry, i) {
+      var next = log[i + 1];
+      var secs = (next ? next.at : now) - entry.at;
+      var live = !next && r.status === entry.status &&
+        r.status !== "completed" && r.status !== "cancelled";
+      return { status: entry.status, secs: secs, live: live };
+    });
+  }
+
+  function stageBlock(r) {
+    var stages = stageTiming(r);
+    if (!stages.length) { return null; }
+    var wrap = document.createElement("div");
+    var current = document.createElement("p");
+    current.className = "stageline";
+    current.textContent = statusWord(r.status);
+    wrap.appendChild(current);
+    var clocks = document.createElement("div");
+    clocks.className = "stageclock";
+    stages.forEach(function (s) {
+      var span = document.createElement("span");
+      span.textContent = statusWord(s.status) + ": " + dur(s.secs) + (s.live ? "\u2026" : "");
+      clocks.appendChild(span);
+    });
+    wrap.appendChild(clocks);
+    return wrap;
+  }
+
   function renderRows(rides) {
     var body = $("rows"); body.innerHTML = "";
     if (!rides.length) { body.innerHTML = '<p class="muted">No rides yet.</p>'; return; }
@@ -206,14 +255,15 @@
       card.className = "ridecard";
       card.innerHTML =
         '<div class="ridehead"><strong class="rid">' + esc(r.id) + "</strong>" +
-        '<span class="status">' + esc(r.status) + "</span></div>" +
+        '<span class="status">' + esc(statusWord(r.status)) + "</span></div>" +
         '<p class="riderline"><strong>' + esc(r.rider_name) + '</strong> ' +
         '<span class="tiny muted">rider ' + esc(r.rider_id || "—") + "</span></p>" +
         '<p class="routeline"><span class="muted">From</span> ' + esc(r.pickup) +
         '<br><span class="muted">To</span> ' + esc(r.dropoff) + "</p>" +
         '<div class="metaline"><span>' + r.distance_mi + ' mi</span><span>' + money(r.fare) + "</span>" +
         "<span>" + esc(r.driver || "\u2014") + "</span><span>" + ackCell(r) + "</span></div>";
-      card.appendChild(ratingBlock(r));
+      var stages = stageBlock(r);
+      if (stages) { card.appendChild(stages); }
       if (r.status !== "completed" && r.status !== "cancelled") {
         var b = document.createElement("button"); b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Cancel";
         b.addEventListener("click", function () { cancel(r.id); });
@@ -221,57 +271,6 @@
       }
       body.appendChild(card);
     });
-  }
-
-  function ratingBlock(r) {
-    var wrap = document.createElement("div");
-    wrap.className = "tiny";
-    var s = r.rider_summary || {};
-    var score = document.createElement("p");
-    score.className = "scoreline muted";
-    score.textContent = (s.avg != null ? s.avg + "\u2605 avg" : "no score") +
-      (s.issues ? " · " + s.issues + " issue(s)" : "");
-    wrap.appendChild(score);
-    var box = document.createElement("div");
-    box.className = "rate";
-    for (var n = 1; n <= 5; n++) {
-      (function (n) {
-        var b = document.createElement("button");
-        b.type = "button"; b.className = "star"; b.textContent = n;
-        b.title = "Rate this rider " + n + "/5";
-        b.addEventListener("click", function () { rate(r, n, box); });
-        box.appendChild(b);
-      })(n);
-    }
-    wrap.appendChild(box);
-    var issues = document.createElement("div");
-    issues.className = "issues";
-    issues.innerHTML = issuePicker();
-    wrap.appendChild(issues);
-    return wrap;
-  }
-
-  function rate(r, stars, box) {
-    if (box.dataset.busy) { return; }
-    box.dataset.busy = "1";
-    var picked = [];
-    box.parentNode.querySelectorAll(".issuepick:checked").forEach(function (c) { picked.push(c.value); });
-    api("/api/rides/" + r.id + "/rating", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ by: "dispatch", stars: stars, issues: picked })
-    }).then(function (x) { return x.json(); }).then(function (d) {
-      box.dataset.busy = "";
-      if (d && d.error) { $("msg").textContent = "Rating not saved: " + d.error; return; }
-      $("msg").textContent = "Rated ride " + r.id + " " + stars + "/5 for rider " + (r.rider_id || "") + ".";
-      refresh();
-    }).catch(function () { box.dataset.busy = ""; $("msg").textContent = "Rating failed."; });
-  }
-
-  function issuePicker() {
-    return ISSUES.map(function (i) {
-      return '<label class="tiny"><input type="checkbox" class="issuepick" value="' + esc(i) + '"> ' + esc(i) + "</label>";
-    }).join(" ");
   }
 
   function renderCounts(rides) {
@@ -320,9 +319,10 @@
           el.setAttribute("data-driver", dr.name);
           el.innerHTML = "<div><span class=\"status" + (dr.active ? " ok" : "") + "\">" +
             (dr.active ? "active" : "idle") + "</span> <strong>" + esc(dr.name) + "</strong> " +
-            '<span class="muted">' + esc(dr.status) +
+            '<span class="muted">' + esc(statusWord(dr.status)) +
             (dr.active ? " \u00b7 seen " + Math.round(dr.idle_s) + "s ago" : " \u00b7 last seen " + clock(dr.last_seen)) +
-            "</span></div>";
+            "</span>" +
+            "<span class=\"textpreview\" hidden></span></div>";
           var b = document.createElement("button");
           b.type = "button"; b.className = "alt textbtn"; b.style.marginLeft = "0"; b.textContent = "Text";
           b.setAttribute("aria-label", "Text " + dr.name);
@@ -345,6 +345,12 @@
       btn.classList.toggle("unread", on);
       btn.textContent = on ? "Text \u2022" : "Text";
       row.classList.toggle("hasunread", on);
+      var pv = row.querySelector(".textpreview");
+      if (pv) {
+        var text = on ? preview(unreadText[name]) : "";
+        pv.textContent = text ? "\u201c" + text + "\u201d" : "";
+        pv.hidden = !text;
+      }
     });
   }
 
@@ -400,6 +406,10 @@
           msgCursor[name] = newest;
           if (fromDriver && chatDriver !== name && !unread[name]) {
             unread[name] = true;
+            var last = msgs.filter(function (m) {
+              return m.from === "driver" && m.at > since;
+            });
+            if (last.length) { unreadText[name] = last[last.length - 1].text; }
             beep();
             applyUnread();
           }
@@ -411,6 +421,7 @@
     chatDriver = name;
     chatSeen = msgCursor[name] || 0;
     unread[name] = false;
+    unreadText[name] = "";
     applyUnread();
     $("chatWho").textContent = name;
     $("chatLog").innerHTML = "";
@@ -493,6 +504,37 @@
 
   /* ---- wiring ----------------------------------------------------------- */
   $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); pollMessages(); });
+
+  /* A persistent, unobtrusive cue: while any text is waiting, replay a soft
+     single tone every few seconds until dispatch opens the thread. */
+  function softCue() {
+    if (!soundOn) { return; }
+    try {
+      if (!audioCtx) {
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) { return; }
+        audioCtx = new AC();
+      }
+      if (audioCtx.state === "suspended") { audioCtx.resume(); }
+      var t = audioCtx.currentTime;
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.value = 1040;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.05, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start(t);
+      o.stop(t + 0.18);
+    } catch (e) { /* audio is a nicety, never break the board */ }
+  }
+
+  cueTimer = setInterval(function () {
+    var waiting = Object.keys(unread).some(function (k) { return unread[k]; });
+    if (waiting) { softCue(); }
+  }, 4000);
   $("sound").addEventListener("click", function () {
     soundOn = !soundOn;
     $("sound").textContent = "Sound: " + (soundOn ? "On" : "Off");
@@ -508,8 +550,14 @@
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
 
-  refresh();
-  refreshDrivers();
+  api("/api/config", { cache: "no-store" }).then(function (r) { return r.json(); })
+    .then(function (d) {
+      CFG.statusLabels = d.statusLabels || {};
+      CFG.stageAction = d.stageAction || {};
+    }).catch(function () {}).then(function () {
+      refresh();
+      refreshDrivers();
+    });
   setInterval(refreshDrivers, 10000);
   setInterval(pollMessages, 6000);
   listen();

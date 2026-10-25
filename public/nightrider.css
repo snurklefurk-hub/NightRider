@@ -181,30 +181,49 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .chatline.me{align-self:flex-end;background:rgba(0,240,255,.12);border:1px solid rgba(0,240,255,.28);color:var(--ice);border-bottom-right-radius:3px}
 .chatline.them{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--cyan);border-bottom-left-radius:3px}
 
-/* Unread-text cue: a breathing Text button plus a lit row. */
-.driverrow.hasunread{border-color:var(--plum);box-shadow:0 0 12px rgba(196,100,177,.25)}
-.textbtn.unread{color:var(--plum);border-color:var(--plum)}
+/* Unread-text cue: a lit row plus a hard, eye-catching pulse on the Text
+   button. It scales and throws a bright ring so a waiting text is impossible
+   to miss, rather than a soft breathing glow. */
+.driverrow.hasunread{border-color:var(--plum);box-shadow:0 0 14px rgba(196,100,177,.4)}
+.textbtn.unread{color:#fff;background:var(--plum);border-color:var(--plum);font-weight:600}
 @media (prefers-reduced-motion:no-preference){
-  .textbtn.unread{animation:textpulse 1.6s ease-in-out infinite}
+  .textbtn.unread{animation:textpulse 1.05s cubic-bezier(.4,0,.6,1) infinite}
   @keyframes textpulse{
-    0%,100%{box-shadow:0 0 0 0 rgba(196,100,177,.55)}
-    50%{box-shadow:0 0 0 7px rgba(196,100,177,0)}
+    0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(196,100,177,.85),0 0 10px rgba(196,100,177,.6)}
+    50%{transform:scale(1.09);box-shadow:0 0 0 10px rgba(196,100,177,0),0 0 18px rgba(196,100,177,.95)}
   }
 }
+/* The 25-character preview of the newest unread driver text. */
+.textpreview{display:block;margin-top:.2rem;color:var(--plum);font-size:.74rem;letter-spacing:.02em;overflow-wrap:anywhere}
+.textpreview[hidden]{display:none}
 
-/* Recent rides: one full-width card per ride so long text wraps. */
-.ridecards{display:flex;flex-direction:column;gap:1rem}
-.ridecard{border:1px solid rgba(0,240,255,.18);background:rgba(10,15,29,.6);border-radius:12px;padding:1rem 1.1rem;min-width:0}
-.ridecard .ridehead{display:flex;align-items:center;justify-content:space-between;gap:.6rem;margin-bottom:.45rem}
-.ridecard .rid{font-family:'Poppins',system-ui,sans-serif;letter-spacing:.04em;overflow-wrap:anywhere}
-.ridecard p{margin:.35rem 0;overflow-wrap:anywhere;word-break:break-word}
-.ridecard .scoreline{margin:.5rem 0 .2rem}
-.ridecard .metaline{display:flex;flex-wrap:wrap;gap:.35rem 1.1rem;font-size:.9rem}
-.ridecard .issues{max-width:100%}
+/* Recent rides: compact, fixed-size cards that do not grow or shrink as more
+   rides land on the board. Overflowing text scrolls inside the card. */
+.ridecards{display:grid;grid-template-columns:repeat(auto-fill,230px);gap:.7rem;align-items:start;justify-content:start}
+@media (max-width:520px){.ridecards{grid-template-columns:1fr}}
+.ridecard{display:flex;flex-direction:column;height:186px;overflow:auto;border:1px solid rgba(0,240,255,.18);background:rgba(10,15,29,.6);border-radius:10px;padding:.6rem .7rem;min-width:0}
+.ridecard .ridehead{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.3rem}
+.ridecard .rid{font-family:'Poppins',system-ui,sans-serif;letter-spacing:.04em;font-size:.85rem;overflow-wrap:anywhere}
+.ridecard p{margin:.2rem 0;font-size:.82rem;line-height:1.3;overflow-wrap:anywhere;word-break:break-word}
+.ridecard .status{font-size:.66rem;padding:.1rem .45rem}
+.ridecard .metaline{display:flex;flex-wrap:wrap;gap:.2rem .8rem;font-size:.76rem;margin-top:auto}
+.ridecard .stageline{margin:.25rem 0 0;color:var(--mist)}
+.ridecard .stageclock{display:flex;flex-wrap:wrap;gap:.15rem .7rem;font-size:.7rem;color:var(--mist)}
+.ridecard button{margin-top:.4rem;font-size:.72rem;padding:.3rem .7rem}
 
 /* Small export control pinned at the bottom of the board. */
 .exportbar{display:flex;justify-content:flex-end;margin:1.1rem 0 .3rem}
 .exportbar button{font-size:.8rem;padding:.45rem .9rem;letter-spacing:.08em;text-transform:uppercase}
+
+/* Pressed-state flair on the driver's stage buttons. */
+@keyframes pressflair{
+  0%{transform:scale(1)}
+  35%{transform:scale(.93)}
+  70%{transform:scale(1.04)}
+  100%{transform:scale(1)}
+}
+button.pressed{animation:pressflair .4s ease-out}
+@media (prefers-reduced-motion:reduce){button.pressed{animation:none}}
 .efield{display:flex;flex-direction:column;gap:.25rem;margin:.6rem 0}
 .efield label{text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;color:var(--mist)}
 .efield input{width:100%}

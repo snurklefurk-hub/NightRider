@@ -48,6 +48,8 @@
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
+  var CFG = { statusLabels: {}, stageAction: {} };
+  function statusWord(s) { return CFG.statusLabels[s] || s; }
   function money(n) { return "$" + Number(n).toFixed(2); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
   function driver() { return $("driverName").value.trim(); }
@@ -61,11 +63,13 @@
   var chatSeen = 0;
   var chatName = "";
 
-  /* Heartbeat so dispatch can list this driver as active. */
+  /* Heartbeat so dispatch can list this driver as active. The status is the
+     ride stage this driver is currently in, or "available" when idle. */
+  var myStage = "available";
   function ping(status) {
     var d = driver();
     if (!d) { return; }
-    api("/api/drivers/ping", { name: d, status: status || "available" }).catch(function () {});
+    api("/api/drivers/ping", { name: d, status: status || myStage || "available" }).catch(function () {});
   }
 
   function loadChat() {
@@ -109,7 +113,7 @@
     var el = document.createElement("div");
     el.className = "card";
     el.innerHTML =
-      '<div class="tripbar"><span class="muted">' + esc(ride.id) + '</span><span class="status">' + esc(ride.status) + "</span></div>" +
+      '<div class="tripbar"><span class="muted">' + esc(ride.id) + '</span><span class="status">' + esc(statusWord(ride.status)) + "</span></div>" +
       '<p><strong>' + esc(ride.rider_name) + "</strong></p>" +
       '<p class="muted">Pickup: ' + esc(ride.pickup) + "</p>" +
       '<p class="muted">Drop-off: ' + esc(ride.dropoff) + "</p>" +
@@ -120,7 +124,14 @@
     actions.forEach(function (a) {
       var b = document.createElement("button");
       b.type = "button"; b.textContent = a.label; if (a.alt) { b.className = "alt"; b.style.marginLeft = "0"; }
-      b.addEventListener("click", a.run);
+      b.addEventListener("click", function (ev) {
+        // A short pressed-state flair, then run the action.
+        b.classList.remove("pressed");
+        void b.offsetWidth; /* restart the animation on repeat presses */
+        b.classList.add("pressed");
+        setTimeout(function () { b.classList.remove("pressed"); }, 420);
+        a.run(ev);
+      });
       el.appendChild(b);
     });
     return el;
@@ -180,6 +191,9 @@
       var rides = res.j.rides || [];
       var open = rides.filter(function (r) { return r.status === "requested"; });
       var mine = rides.filter(function (r) { return r.driver && r.driver === driver() && r.status !== "requested"; });
+      /* Report the stage of the ride we are on so dispatch shows it live. */
+      var live = mine.filter(function (r) { return r.status !== "completed" && r.status !== "cancelled"; });
+      myStage = live.length ? live[live.length - 1].status : "available";
       var openBox = $("openRides"), myBox = $("myRides");
       openBox.innerHTML = ""; myBox.innerHTML = "";
       if (!open.length) { openBox.innerHTML = '<p class="muted">No open requests right now.</p>'; }
@@ -189,7 +203,8 @@
       if (!mine.length) { myBox.innerHTML = '<p class="muted">No active rides for this name.</p>'; }
       mine.forEach(function (r) {
         var acts = [];
-        if (r.status !== "completed") { acts.push({ label: "Advance", run: function () { advance(r.id); } }); }
+        var label = CFG.stageAction[r.status];
+        if (label) { acts.push({ label: label, run: function () { advance(r.id); } }); }
         myBox.appendChild(rideCard(r, acts));
       });
     }).catch(function () { $("msg").textContent = "Could not load rides."; });
@@ -250,11 +265,16 @@
   $("chatText").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
-  load();
-  ping("available");
+  api("/api/config").then(function (res) {
+    if (res.ok) {
+      CFG.statusLabels = res.j.statusLabels || {};
+      CFG.stageAction = res.j.stageAction || {};
+    }
+  }).catch(function () {}).then(load);
+  ping();
   setInterval(load, 5000);
   setInterval(loadChat, 4000);
-  setInterval(function () { ping("available"); }, 30000);
+  setInterval(function () { ping(); }, 30000);
 })();
 </script>
 </body>

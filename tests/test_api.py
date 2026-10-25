@@ -100,10 +100,39 @@ class NightRiderAPI(unittest.TestCase):
         s, j = self.call(f"/api/rides/{rid}/accept", {"driver": "Sam"})
         self.assertEqual((s, j["status"], j["driver"]), (200, "accepted", "Sam"))
         self.assertEqual(self.call(f"/api/rides/{rid}/accept", {"driver": "X"})[0], 409)
-        self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "arrived")
-        self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "in_progress")
-        self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "completed")
+        self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "to_pickup")
+        self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "at_pickup")
+        self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "to_dropoff")
+        self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "at_dropoff")
+        s, j = self.call(f"/api/rides/{rid}/advance", {})
+        self.assertEqual(j["status"], "completed")
         self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[0], 409)
+
+    def test_status_log_records_each_stage_timestamp(self):
+        rid = self.new_ride()
+        self.call(f"/api/rides/{rid}/accept", {"driver": "Sam"})
+        for _ in range(4):
+            self.call(f"/api/rides/{rid}/advance", {})
+        j = self.call(f"/api/rides/{rid}")[1]
+        log = j["status_log"]
+        self.assertEqual([e["status"] for e in log],
+                         ["requested", "accepted", "to_pickup", "at_pickup",
+                          "to_dropoff", "at_dropoff"])
+        self.assertTrue(all(isinstance(e["at"], (int, float)) for e in log))
+        # Timestamps are non-decreasing so stage timing can be computed.
+        self.assertEqual(log, sorted(log, key=lambda e: e["at"]))
+
+    def test_config_exposes_stage_labels_and_actions(self):
+        s, j = self.call("/api/config")
+        self.assertEqual(s, 200)
+        self.assertEqual(j["stageAction"]["accepted"], "Head to pickup")
+        self.assertEqual(j["stageAction"]["at_dropoff"], "Complete ride")
+        self.assertEqual(j["statusLabels"]["to_pickup"], "Heading to pickup")
+
+    def test_driver_status_accepts_ride_stages(self):
+        s, j = self.call("/api/drivers/ping", {"name": "Sam", "status": "to_pickup"})
+        self.assertEqual(s, 200)
+        self.assertEqual(j["driver"]["status"], "to_pickup")
 
     def test_demo_flag_prices_acceptance_from_city_hall(self):
         s, j = self.call("/api/rides", {"rider_name": "J", "pickup": "A", "dropoff": "B", "distance_mi": 2.0,

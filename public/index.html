@@ -109,8 +109,10 @@
     <ul class="steps" id="steps">
       <li data-s="requested">Request sent</li>
       <li data-s="accepted">Driver assigned</li>
-      <li data-s="arrived">Driver arrived</li>
-      <li data-s="in_progress">On the way to drop-off</li>
+      <li data-s="to_pickup">Heading to pickup</li>
+      <li data-s="at_pickup">At pickup</li>
+      <li data-s="to_dropoff">Heading to destination</li>
+      <li data-s="at_dropoff">At destination</li>
       <li data-s="completed">Completed</li>
     </ul>
     <div class="row">
@@ -529,7 +531,7 @@
     $("driverName").textContent = ride.driver || "Pending";
     $("driverInitial").textContent = (ride.driver || "?").charAt(0).toUpperCase();
     $("driverCar").textContent = (ride.status === "completed" || ride.status === "cancelled") ? "Trip closed" : "NightRider vehicle \u00b7 " + ride.distance_mi + " mi";
-    var order = ["requested", "accepted", "arrived", "in_progress", "completed"];
+    var order = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff", "at_dropoff", "completed"];
     var idx = order.indexOf(ride.status);
     Array.prototype.forEach.call($("steps").children, function (li) {
       var i = order.indexOf(li.dataset.s);
@@ -552,8 +554,10 @@
   }
 
   function statusWord(s) {
-    return { requested: "Requesting", accepted: "Driver assigned", arrived: "Driver arrived",
-      in_progress: "En route", completed: "Ride completed", cancelled: "Ride cancelled" }[s] || s;
+    return { requested: "Requesting", accepted: "Driver assigned",
+      to_pickup: "Heading to pickup", at_pickup: "Driver at pickup",
+      to_dropoff: "Heading to destination", at_dropoff: "Driver at destination",
+      completed: "Ride completed", cancelled: "Ride cancelled" }[s] || s;
   }
 
   function cancelRide() {

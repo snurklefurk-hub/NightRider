@@ -23,8 +23,35 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 PUBLIC = os.path.join(BASE, "public")
 DATA_FILE = os.path.join(BASE, "rides.json")
 LOCK = threading.Lock()
-STATUSES = ["requested", "accepted", "arrived", "in_progress", "completed", "cancelled"]
-NEXT = {"accepted": "arrived", "arrived": "in_progress", "in_progress": "completed"}
+STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
+            "at_dropoff", "completed", "cancelled"]
+# The driver's ride workflow: each press moves the ride to the next stage.
+NEXT = {
+    "accepted": "to_pickup",
+    "to_pickup": "at_pickup",
+    "at_pickup": "to_dropoff",
+    "to_dropoff": "at_dropoff",
+    "at_dropoff": "completed",
+}
+# The label shown on the driver's next button, keyed by the ride's current stage.
+STAGE_ACTION = {
+    "accepted": "Head to pickup",
+    "to_pickup": "Arrive at pickup",
+    "at_pickup": "Head to destination",
+    "to_dropoff": "Arrive at destination",
+    "at_dropoff": "Complete ride",
+}
+# Human labels for every status, shared by the driver and dispatch boards.
+STATUS_LABELS = {
+    "requested": "Requested",
+    "accepted": "Assigned",
+    "to_pickup": "Heading to pickup",
+    "at_pickup": "At pickup",
+    "to_dropoff": "Heading to destination",
+    "at_dropoff": "At destination",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+}
 
 
 def load():
@@ -143,7 +170,10 @@ def rider_id_for(headers, signals):
 # Anything seen inside DRIVER_ACTIVE_WINDOW counts as "active" on dispatch.
 DRIVER_ACTIVE_WINDOW = 90.0
 MESSAGE_LIMIT = 500
-DRIVER_STATUSES = ("available", "busy", "offline")
+# A driver is available/idle/offline, or reports the ride stage they are in
+# ("accepted", "to_pickup", ...) so dispatch sees live stage status.
+DRIVER_STATUSES = ("available", "busy", "offline", "accepted", "to_pickup",
+                   "at_pickup", "to_dropoff", "at_dropoff", "completed")
 
 
 def touch_driver(store, name, coords=None, status=None):
@@ -235,6 +265,12 @@ def rider_summary(store, rid):
         "avg": round(sum(scored) / len(scored), 2) if scored else None,
         "issues": sum(1 for r in ratings if r.get("issues")),
     }
+
+
+def log_status(ride, status):
+    """Record a status change with a timestamp so stage timing can be shown."""
+    ride.setdefault("status_log", []).append({"status": status, "at": time.time()})
+    return ride
 
 
 def public_ride(ride, store=None):
@@ -560,6 +596,10 @@ class Handler(SimpleHTTPRequestHandler):
                         "approach_per_mile": APPROACH_PER_MILE,
                     },
                     "demoDriver": DEMO_DRIVER,
+                    # Shared status labels + driver stage actions so the
+                    # driver and dispatch boards never drift apart.
+                    "statusLabels": STATUS_LABELS,
+                    "stageAction": STAGE_ACTION,
                 })
             if path == "/api/events":
                 since = int(_num(qs, "since", 0))
@@ -630,6 +670,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "fare": fare(miles, approach), "status": "requested",
                 "payment_method": payment,
                 "driver": None, "created": time.time(),
+                "status_log": [{"status": "requested", "at": time.time()}],
             }
             with LOCK:
                 # The hidden rider id is derived here, on the server, from the
@@ -701,6 +742,7 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(400, {"error": "driver name required"})
                     ride["driver"] = driver
                     ride["status"] = "accepted"
+                    log_status(ride, "accepted")
                     # Price the driver -> pickup leg now that we know who is
                     # coming and (when the driver's page shares it) where from.
                     approach = None
@@ -721,10 +763,12 @@ class Handler(SimpleHTTPRequestHandler):
                     if not nxt:
                         return self.send_json(409, {"error": "ride cannot advance"})
                     ride["status"] = nxt
+                    log_status(ride, nxt)
                 elif action == "cancel":
                     if ride["status"] in ("completed", "cancelled"):
                         return self.send_json(409, {"error": "ride already closed"})
                     ride["status"] = "cancelled"
+                    log_status(ride, "cancelled")
                 else:
                     return self.send_json(404, {"error": "unknown action"})
                 save(STORE)
