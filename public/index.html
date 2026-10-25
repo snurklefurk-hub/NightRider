@@ -262,7 +262,7 @@
   function setRoute(pts, miles, minutes) {
     if (state.routeLine) { map.removeLayer(state.routeLine); }
     // Bright route line: a dark line would vanish against the dark basemap.
-    state.routeLine = L.polyline(pts, { color: "#7fe3ff", weight: 5, opacity: .95, lineCap: "round" }).addTo(map);
+    state.routeLine = L.polyline(pts, { color: "#7fe6d2", weight: 5, opacity: .95, lineCap: "round" }).addTo(map);
     map.fitBounds(state.routeLine.getBounds(), { padding: [50, 90] });
     state.miles = Math.round(miles * 10) / 10;
     state.minutes = Math.max(1, Math.round(minutes));
