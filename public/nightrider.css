@@ -180,6 +180,14 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .chatline .who{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:.64rem;color:var(--mist);margin-bottom:.15rem}
 .chatline.me{align-self:flex-end;background:rgba(0,240,255,.12);border:1px solid rgba(0,240,255,.28);color:var(--ice);border-bottom-right-radius:3px}
 .chatline.them{align-self:flex-start;background:rgba(255,255,255,.05);border:1px solid var(--line);color:var(--cyan);border-bottom-left-radius:3px}
+/* Private dispatch<->driver texts share the window but read amber so they are
+   never mistaken for the group thread. */
+.chatline.private{border-style:dashed}
+.chatline.me.private{background:rgba(255,196,90,.16);border-color:rgba(255,196,90,.5);color:#ffe6b0}
+.chatline.them.private{background:rgba(255,196,90,.08);border-color:rgba(255,196,90,.38);color:#ffe0a3}
+.chatline .privtag{text-transform:uppercase;letter-spacing:.08em;font-size:.6rem;color:#ffce6b;border:1px solid rgba(255,206,107,.5);border-radius:999px;padding:0 .35rem;margin-left:.3rem;vertical-align:middle}
+.privwrap{display:flex;align-items:center;gap:.4rem;margin-top:.5rem;font-size:.82rem;color:var(--mist)}
+.privwrap input{width:auto}
 
 /* Unread-text cue: a lit row plus a hard, eye-catching pulse on the Text
    button. It scales and throws a bright ring so a waiting text is impossible

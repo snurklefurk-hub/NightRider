@@ -41,6 +41,12 @@ class NightRiderAPI(unittest.TestCase):
         except u.HTTPError as e:
             return e.code, e.read().decode("utf-8"), e.headers.get("Content-Type", "")
 
+    def reset_messages(self):
+        """The suite shares one server, so start each text test from an empty
+        conversation instead of inheriting another test's messages."""
+        with server.LOCK:
+            server.STORE["messages"] = []
+
     def new_ride(self, body=None, headers=None):
         payload = {"rider_name": "Jordan", "pickup": "A", "dropoff": "B", "distance_mi": 6.5}
         payload.update(body or {})
@@ -267,29 +273,67 @@ class NightRiderAPI(unittest.TestCase):
         self.assertIn(last["status"], server.DRIVER_STATUSES)
         self.assertEqual(self.call("/api/drivers/ping", {"name": ""})[0], 400)
 
-    def test_dispatch_and_driver_share_a_text_thread(self):
+    def test_group_texts_are_seen_by_dispatch_and_every_driver(self):
+        self.reset_messages()
         self.call("/api/drivers/ping", {"name": "Rosa"})
+        self.call("/api/drivers/ping", {"name": "Sam"})
+        # A driver group text is one shared conversation, not a private thread.
         s, j = self.call("/api/drivers/Rosa/message", {"text": "On my way"})
         self.assertEqual(s, 201)
-        self.assertEqual(j["message"]["from"], "driver")
-        self.assertEqual(j["message"]["text"], "On my way")
-        s, j = self.call("/api/dispatch/drivers/Rosa/message", {"text": "Copy that"})
+        self.assertEqual(j["message"]["from"], "Rosa")
+        self.assertEqual(j["message"]["role"], "driver")
+        self.assertEqual(j["message"]["channel"], "group")
+        # Dispatch group text goes to everyone.
+        s, j = self.call("/api/dispatch/message", {"text": "Copy that", "to": "all"})
         self.assertEqual(s, 201)
-        self.assertEqual(j["message"]["from"], "dispatch")
-        # Each side reads the same thread and sees both messages.
-        driver_view = self.call("/api/drivers/Rosa/messages")[1]["messages"]
-        dispatch_view = self.call("/api/dispatch/drivers/Rosa/messages")[1]["messages"]
-        self.assertEqual([m["text"] for m in driver_view], ["On my way", "Copy that"])
-        self.assertEqual([m["text"] for m in dispatch_view], ["On my way", "Copy that"])
-        self.assertEqual([m["from"] for m in dispatch_view], ["driver", "dispatch"])
-        # The `since` cursor returns only newer messages.
-        cursor = driver_view[-1]["at"]
-        self.call("/api/dispatch/drivers/Rosa/message", {"text": "Ride is waiting"})
+        self.assertEqual(j["message"]["channel"], "group")
+        # Dispatch, Rosa and Sam all read the same two group texts.
+        dispatch_view = self.call("/api/dispatch/messages")[1]["messages"]
+        rosa_view = self.call("/api/drivers/Rosa/messages")[1]["messages"]
+        sam_view = self.call("/api/drivers/Sam/messages")[1]["messages"]
+        for view in (dispatch_view, rosa_view, sam_view):
+            self.assertEqual([m["text"] for m in view], ["On my way", "Copy that"])
+        self.assertEqual([m["from"] for m in dispatch_view], ["Rosa", "dispatch"])
+
+    def test_private_texts_are_visible_only_to_dispatch_and_the_named_driver(self):
+        self.reset_messages()
+        self.call("/api/drivers/ping", {"name": "Rosa"})
+        self.call("/api/drivers/ping", {"name": "Sam"})
+        # Dispatch sends a private note to Rosa only.
+        s, j = self.call("/api/dispatch/message", {"text": "Gate code 4821", "to": "Rosa"})
+        self.assertEqual(s, 201)
+        self.assertEqual(j["message"]["channel"], "private")
+        self.assertEqual(j["message"]["driver"], "Rosa")
+        # A driver marks a note private to dispatch.
+        s, j = self.call("/api/drivers/Rosa/message", {"text": "Car trouble", "private": True})
+        self.assertEqual(s, 201)
+        self.assertEqual(j["message"]["channel"], "private")
+        # Dispatch and Rosa see both private notes; Sam sees neither.
+        dispatch_view = self.call("/api/dispatch/messages")[1]["messages"]
+        rosa_view = self.call("/api/drivers/Rosa/messages")[1]["messages"]
+        sam_view = self.call("/api/drivers/Sam/messages")[1]["messages"]
+        self.assertEqual([m["text"] for m in dispatch_view], ["Gate code 4821", "Car trouble"])
+        self.assertEqual([m["text"] for m in rosa_view], ["Gate code 4821", "Car trouble"])
+        self.assertEqual(sam_view, [])
+        # A group text still reaches Sam, so the private filter is not a mute.
+        self.call("/api/dispatch/message", {"text": "All hands", "to": "all"})
+        sam_view = self.call("/api/drivers/Sam/messages")[1]["messages"]
+        self.assertEqual([m["text"] for m in sam_view], ["All hands"])
+        self.assertEqual(sam_view[0]["channel"], "group")
+
+    def test_message_cursor_and_empty_text_validation(self):
+        self.reset_messages()
+        self.call("/api/drivers/ping", {"name": "Rosa"})
+        self.call("/api/drivers/Rosa/message", {"text": "On my way"})
+        cursor = self.call("/api/drivers/Rosa/messages")[1]["messages"][-1]["at"]
+        self.call("/api/dispatch/message", {"text": "Ride is waiting", "to": "all"})
         newer = self.call(f"/api/drivers/Rosa/messages?since={cursor}")[1]["messages"]
         self.assertEqual([m["text"] for m in newer], ["Ride is waiting"])
-        # Empty text is refused on both sides.
+        # Empty text is refused on both sides, group and private.
         self.assertEqual(self.call("/api/drivers/Rosa/message", {"text": "   "})[0], 400)
-        self.assertEqual(self.call("/api/dispatch/drivers/Rosa/message", {"text": ""})[0], 400)
+        self.assertEqual(self.call("/api/drivers/Rosa/message", {"text": "", "private": True})[0], 400)
+        self.assertEqual(self.call("/api/dispatch/message", {"text": ""})[0], 400)
+        self.assertEqual(self.call("/api/dispatch/message", {"text": "", "to": "Rosa"})[0], 400)
 
     def test_ride_records_the_chosen_payment_method(self):
         s, j = self.call("/api/rides", {"rider_name": "Pat", "pickup": "A", "dropoff": "B",

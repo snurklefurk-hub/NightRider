@@ -25,16 +25,17 @@ Standard library only (Python 3.8+). No database; rides persist to rides.json.
 - POST /api/rides/{id}/rating  {by: "driver"|"dispatch", stars, issues?, note?}
 
 - POST /api/drivers/ping  {name, status?, coords?}  driver presence heartbeat
-- GET /api/drivers/{name}/messages?since=  driver's text thread with dispatch
-- POST /api/drivers/{name}/message  {text}  driver → dispatch text
+- GET /api/drivers/{name}/messages?since=  shared conversation as this driver sees it
+- POST /api/drivers/{name}/message  {text, private?}  driver text (group, or private to dispatch)
 
 Dispatch routes:
 - GET /api/dispatch/rides, GET /api/dispatch/riders
 - GET /api/dispatch/drivers  active + known drivers (last_seen, status, idle seconds)
 - GET /api/dispatch/events?since=&wait=  (wakes the instant a ride is requested)
 - POST /api/dispatch/rides/{id}/ack  {by}  acknowledgment handshake
-- GET /api/dispatch/drivers/{name}/messages?since=  dispatch's text thread with a driver
-- POST /api/dispatch/drivers/{name}/message  {text}  dispatch → driver text
+- GET /api/dispatch/messages?since=  shared conversation as dispatch sees it
+- POST /api/dispatch/message  {text, to}  dispatch text; to="all" is a group text, to=<name> is private
+- POST /api/dispatch/drivers/{name}/message  {text}  alias: private dispatch → driver text (kept for compatibility)
 - GET /api/dispatch/export?from=&to=  plain-text ride log
 
 ## Dispatch: push, not polling
@@ -47,18 +48,27 @@ bottom. Each ride card shows its current stage label and how long the ride has s
 and the driver's status follows the same stage labels. Event state is in memory only, so it resets when the server restarts; rides themselves
 persist to `rides.json`.
 
-## Active drivers and texting
+## Active drivers and one shared conversation
 The driver page sends a heartbeat to `/api/drivers/ping` every 30 seconds. Any driver seen within
 the last 90 seconds is listed as **active** on the dispatch board (with its status and how long ago
-it checked in); older ones drop to **idle**. Dispatch and each driver can hold a direct text thread:
-the dispatcher presses **Text** next to a driver, the driver has a **Text dispatch** card, and both
-sides poll the thread every few seconds. Messages are kept in memory with the rest of the event
-state, so they clear on a server restart.
+it checked in); older ones drop to **idle**.
 
-When a driver's message is waiting, dispatch flags it three ways: the **Text** button pulses, the
-row shows the first 25 characters of the newest unread text, and a quiet cue repeats every four
-seconds (toggle with the **Sound** button). The recent-ride cards are a fixed size and no longer
-carry a rider rating — rating a rider is the driver's job.
+Texting is one persistent **Team text** card, not a control on each driver row. Both the dispatch
+page and the driver page show the same conversation and poll it every few seconds:
+
+- **Group (default).** Every text is visible to dispatch and all drivers. Dispatch sends to
+  **Everyone (group)**; a driver just sends normally.
+- **Private.** Dispatch picks a driver in the **To** menu, or a driver ticks **Private to
+  dispatch**, to send a note only those two can see. Private texts still appear in the same window
+  and are colour-coded amber with a **private** tag, so they are never confused with the group
+  thread. The server filters private texts out of any other driver's view.
+
+Messages are kept in memory with the rest of the event state, so they clear on a server restart.
+
+When a driver's text is waiting, dispatch flags it three ways: the **Team text** card pulses, the
+card header shows the first 25 characters of the newest waiting text, and a quiet cue repeats every
+four seconds (toggle with the **Sound** button). The recent-ride cards are a fixed size and no
+longer carry a rider rating — rating a rider is the driver's job.
 
 ## No dispatch key
 Dispatch routes are open, like the rest of this starter — there is no login anywhere yet. A

@@ -33,8 +33,26 @@
   <div class="card">
     <h2>Active drivers <span class="tiny muted" id="drivercount"></span></h2>
     <p class="muted">Every driver page that checked in within the last 90 seconds shows here.
-      Press Text to open a direct message thread with that driver.</p>
+      Use the Team text card below to reach one driver or the whole crew.</p>
     <div id="drivers"></div>
+  </div>
+
+  <div class="card" id="chatCard">
+    <h2>Team text <span class="tiny muted" id="chatCue" hidden></span></h2>
+    <p class="muted">A group chat every driver and dispatch can see. Choose one driver under
+      <strong>To</strong> to send a private text that only that driver and dispatch will see — it still
+      appears here, colour-coded.</p>
+    <div class="chatlog" id="chatLog"></div>
+    <div class="row">
+      <input id="chatText" type="text" placeholder="Message the team…" maxlength="1000" style="flex:1;min-width:0">
+      <button type="button" id="chatSend">Send</button>
+    </div>
+    <div class="row">
+      <label class="privwrap" for="chatTo">To
+        <select id="chatTo"><option value="all">Everyone (group)</option></select>
+      </label>
+    </div>
+    <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
   </div>
 
   <div class="card">
@@ -61,20 +79,6 @@
     <button type="button" class="alt" id="exportOpen">Export ride log…</button>
   </div>
 </main>
-
-<!-- Dispatch <-> driver texting window -->
-<div id="chatModal" class="modal" hidden>
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="chatTitle">
-    <p class="prompt" id="chatTitle">Texting <span id="chatWho">driver</span></p>
-    <div class="chatlog" id="chatLog"></div>
-    <div class="row">
-      <input id="chatText" type="text" placeholder="Message the driver…" maxlength="1000" style="flex:1;min-width:0">
-      <button type="button" id="chatSend">Send</button>
-    </div>
-    <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
-    <div class="row"><button type="button" class="alt" id="chatClose" style="flex:0 0 auto;margin-left:0">Close</button></div>
-  </div>
-</div>
 
 <!-- Export ride log pop-up -->
 <div id="exportModal" class="modal" hidden>
@@ -110,14 +114,11 @@
   var ridesById = {};
   var polling = false;
   var seenRides = false;
-  var chatDriver = null;   /* driver whose thread is open */
   var chatSeen = 0;        /* newest message timestamp we have rendered */
-  var chatTimer = null;
+  var chatInit = false;    /* true once the first conversation load set a baseline */
+  var chatUnread = false;  /* a driver text is waiting to be read */
+  var chatUnreadText = ""; /* first 25 chars of the newest waiting text */
   var driverNames = [];    /* names currently listed on the board */
-  var msgCursor = {};      /* driver -> newest message timestamp dispatch has seen */
-  var msgInit = {};        /* driver -> true once we have set a baseline */
-  var unread = {};         /* driver -> true when a new driver message is waiting */
-  var unreadText = {};     /* driver -> first 25 chars of the newest waiting text */
   var soundOn = true;      /* audio cue on/off */
   var audioCtx = null;
   var cueTimer = null;     /* repeats a quiet cue while texts wait */
@@ -321,37 +322,37 @@
             (dr.active ? "active" : "idle") + "</span> <strong>" + esc(dr.name) + "</strong> " +
             '<span class="muted">' + esc(statusWord(dr.status)) +
             (dr.active ? " \u00b7 seen " + Math.round(dr.idle_s) + "s ago" : " \u00b7 last seen " + clock(dr.last_seen)) +
-            "</span>" +
-            "<span class=\"textpreview\" hidden></span></div>";
-          var b = document.createElement("button");
-          b.type = "button"; b.className = "alt textbtn"; b.style.marginLeft = "0"; b.textContent = "Text";
-          b.setAttribute("aria-label", "Text " + dr.name);
-          b.addEventListener("click", function () { openChat(dr.name); });
-          el.appendChild(b);
+            "</span></div>";
           box.appendChild(el);
         });
-        applyUnread();
+        syncRecipients();
       }).catch(function () {});
   }
 
-  /* ---- unread text cues: pulse the button, chime on arrival ------------- */
-  function applyUnread() {
-    var rows = document.querySelectorAll("#drivers .driverrow");
-    Array.prototype.forEach.call(rows, function (row) {
-      var name = row.getAttribute("data-driver");
-      var btn = row.querySelector(".textbtn");
-      if (!btn) { return; }
-      var on = !!unread[name];
-      btn.classList.toggle("unread", on);
-      btn.textContent = on ? "Text \u2022" : "Text";
-      row.classList.toggle("hasunread", on);
-      var pv = row.querySelector(".textpreview");
-      if (pv) {
-        var text = on ? preview(unreadText[name]) : "";
-        pv.textContent = text ? "\u201c" + text + "\u201d" : "";
-        pv.hidden = !text;
-      }
+  /* Keep the To picker in step with the drivers on the board. */
+  function syncRecipients() {
+    var sel = $("chatTo");
+    if (!sel) { return; }
+    var keep = sel.value || "all";
+    var opts = '<option value="all">Everyone (group)</option>';
+    driverNames.forEach(function (n) {
+      opts += '<option value="' + esc(n) + '">' + esc(n) + " (private)</option>";
     });
+    sel.innerHTML = opts;
+    sel.value = (keep === "all" || driverNames.indexOf(keep) >= 0) ? keep : "all";
+  }
+
+  /* ---- unread text cue: pulse the card, preview the newest waiting text -- */
+  function applyUnread() {
+    var card = $("chatCard");
+    if (!card) { return; }
+    card.classList.toggle("hasunread", chatUnread);
+    var cue = $("chatCue");
+    if (cue) {
+      var text = chatUnread ? preview(chatUnreadText) : "";
+      cue.textContent = text ? "new: \u201c" + text + "\u201d" : "";
+      cue.hidden = !text;
+    }
   }
 
   function beep() {
@@ -381,96 +382,74 @@
     } catch (e) { /* audio is a nicety, never break the board */ }
   }
 
-  /* Watch every driver thread so dispatch hears about a text even when the
-     chat window is closed. The first look only sets a baseline, so old
-     history does not chime on page load. */
-  function pollMessages() {
-    driverNames.forEach(function (name) {
-      var since = msgCursor[name] || 0;
-      api("/api/dispatch/drivers/" + encodeURIComponent(name) + "/messages?since=" + since, { cache: "no-store" })
-        .then(function (r) { return r.json(); })
-        .then(function (d) {
-          var msgs = d.messages || [];
-          if (!msgs.length) { return; }
-          var newest = since;
-          var fromDriver = false;
-          msgs.forEach(function (m) {
-            if (m.at > newest) { newest = m.at; }
-            if (m.from === "driver" && m.at > since) { fromDriver = true; }
-          });
-          if (!msgInit[name]) {
-            msgInit[name] = true;
-            msgCursor[name] = newest;
-            return;
-          }
-          msgCursor[name] = newest;
-          if (fromDriver && chatDriver !== name && !unread[name]) {
-            unread[name] = true;
-            var last = msgs.filter(function (m) {
-              return m.from === "driver" && m.at > since;
-            });
-            if (last.length) { unreadText[name] = last[last.length - 1].text; }
-            beep();
-            applyUnread();
-          }
-        }).catch(function () {});
+  /* Render new messages into the one shared window. Group texts and the
+     private texts dispatch is party to all appear here; private ones are
+     amber and tagged so they are never mistaken for the group thread. */
+  function renderChat(msgs, scroll) {
+    var log = $("chatLog");
+    (msgs || []).forEach(function (m) {
+      var mine = m.from === "dispatch";
+      var priv = m.channel === "private";
+      var div = document.createElement("div");
+      div.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
+      var tag = priv ? ' <span class="privtag">private' +
+        (mine && m.driver ? " \u2192 " + esc(m.driver) : "") + "</span>" : "";
+      div.innerHTML = '<span class="who">' + (mine ? "You" : esc(m.from)) + "</span>" + tag +
+        " " + esc(m.text) +
+        ' <span class="tiny muted">' + clock(m.at) + "</span>";
+      log.appendChild(div);
     });
+    if (scroll) { log.scrollTop = log.scrollHeight; }
   }
 
-  function openChat(name) {
-    chatDriver = name;
-    chatSeen = msgCursor[name] || 0;
-    unread[name] = false;
-    unreadText[name] = "";
-    applyUnread();
-    $("chatWho").textContent = name;
-    $("chatLog").innerHTML = "";
-    $("chatMsg").textContent = "";
-    $("chatModal").hidden = false;
-    loadChat(true);
-    if (chatTimer) { clearInterval(chatTimer); }
-    chatTimer = setInterval(function () { loadChat(false); }, 4000);
-    $("chatText").focus();
-  }
-
-  function closeChat() {
-    $("chatModal").hidden = true;
-    if (chatTimer) { clearInterval(chatTimer); chatTimer = null; }
-    chatDriver = null;
-  }
-
-  function loadChat(scroll) {
-    if (!chatDriver) { return; }
-    api("/api/dispatch/drivers/" + encodeURIComponent(chatDriver) + "/messages?since=" + chatSeen, { cache: "no-store" })
+  /* Watch the shared conversation so dispatch hears a driver text even before
+     the card is read. The first look only sets a baseline, so old history does
+     not chime on page load. */
+  function pollChat() {
+    api("/api/dispatch/messages?since=" + chatSeen, { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        var log = $("chatLog");
-        (d.messages || []).forEach(function (m) {
-          if (m.at > chatSeen) { chatSeen = m.at; }
-          if (chatDriver) { msgCursor[chatDriver] = chatSeen; }
-          var div = document.createElement("div");
-          div.className = "chatline " + (m.from === "dispatch" ? "me" : "them");
-          div.innerHTML = '<span class="who">' + esc(m.from) + "</span> " + esc(m.text) +
-            ' <span class="tiny muted">' + clock(m.at) + "</span>";
-          log.appendChild(div);
+        var msgs = d.messages || [];
+        if (!chatInit) {
+          chatInit = true;
+          msgs.forEach(function (m) { if (m.at > chatSeen) { chatSeen = m.at; } });
+          renderChat(msgs, true);
+          return;
+        }
+        var newest = chatSeen, fromDriver = false;
+        msgs.forEach(function (m) {
+          if (m.at > newest) { newest = m.at; }
+          if (m.role === "driver" && m.at > chatSeen) { fromDriver = true; }
         });
-        if (scroll) { log.scrollTop = log.scrollHeight; }
+        chatSeen = newest;
+        renderChat(msgs, true);
+        if (fromDriver) {
+          var last = msgs.filter(function (m) { return m.role === "driver"; });
+          if (last.length) { chatUnreadText = last[last.length - 1].text; }
+          chatUnread = true;
+          beep();
+          applyUnread();
+        }
       }).catch(function () {});
   }
 
   function sendChat() {
     var text = $("chatText").value.trim();
-    if (!chatDriver || !text) { return; }
+    if (!text) { return; }
+    var to = $("chatTo") ? $("chatTo").value : "all";
     $("chatSend").disabled = true;
-    api("/api/dispatch/drivers/" + encodeURIComponent(chatDriver) + "/message", {
+    api("/api/dispatch/message", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: text })
+      body: JSON.stringify({ text: text, to: to })
     }).then(function (r) { return r.json(); }).then(function (d) {
       $("chatSend").disabled = false;
       if (d && d.error) { $("chatMsg").textContent = d.error; return; }
       $("chatText").value = "";
       $("chatMsg").textContent = "";
-      loadChat(true);
+      chatUnread = false;
+      chatUnreadText = "";
+      applyUnread();
+      pollChat();
     }).catch(function () { $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
   }
 
@@ -503,7 +482,7 @@
   }
 
   /* ---- wiring ----------------------------------------------------------- */
-  $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); pollMessages(); });
+  $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); pollChat(); });
 
   /* A persistent, unobtrusive cue: while any text is waiting, replay a soft
      single tone every few seconds until dispatch opens the thread. */
@@ -532,8 +511,7 @@
   }
 
   cueTimer = setInterval(function () {
-    var waiting = Object.keys(unread).some(function (k) { return unread[k]; });
-    if (waiting) { softCue(); }
+    if (chatUnread) { softCue(); }
   }, 4000);
   $("sound").addEventListener("click", function () {
     soundOn = !soundOn;
@@ -545,7 +523,6 @@
   $("exportClose").addEventListener("click", function () { $("exportModal").hidden = true; });
   $("export").addEventListener("click", doExport);
   $("chatSend").addEventListener("click", sendChat);
-  $("chatClose").addEventListener("click", closeChat);
   $("chatText").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
@@ -557,9 +534,10 @@
     }).catch(function () {}).then(function () {
       refresh();
       refreshDrivers();
+      pollChat();
     });
   setInterval(refreshDrivers, 10000);
-  setInterval(pollMessages, 6000);
+  setInterval(pollChat, 6000);
   listen();
 })();
 </script>

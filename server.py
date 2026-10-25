@@ -210,13 +210,22 @@ def dispatch_driver(rec, now=None):
     }
 
 
-def add_message(store, driver, sender, text):
-    """Append one message to a driver's thread and return it."""
+def add_message(store, sender, text, driver=None, private=False):
+    """Append one text to the shared conversation and return it.
+
+    A group text (private=False) is seen by dispatch and every driver. A
+    private text belongs to one dispatch<->driver pair and is seen only by
+    those two; it still lives in the same conversation window, colour-coded.
+    """
     text = clean_text(text, 1000)
     if not text:
         return None
-    msg = {"id": uuid.uuid4().hex[:8], "driver": clean_text(driver, 60),
-           "from": "driver" if sender == "driver" else "dispatch",
+    sender = clean_text(sender, 60) or "dispatch"
+    private = bool(private)
+    msg = {"id": uuid.uuid4().hex[:8], "from": sender,
+           "role": "dispatch" if sender == "dispatch" else "driver",
+           "channel": "private" if private else "group",
+           "driver": clean_text(driver, 60) if private else None,
            "text": text, "at": time.time()}
     thread = store.setdefault("messages", [])
     thread.append(msg)
@@ -225,10 +234,19 @@ def add_message(store, driver, sender, text):
     return msg
 
 
-def thread_messages(store, driver, since=0.0):
-    """Messages in one driver's thread newer than the `since` timestamp."""
-    driver = clean_text(driver, 60)
-    out = [m for m in store.get("messages", []) if m.get("driver") == driver]
+def thread_messages(store, viewer, since=0.0):
+    """The conversation as one viewer is allowed to see it.
+
+    Everyone sees group texts. A private text is visible only to dispatch and
+    the named driver, so a driver's fetch is filtered to their own pair.
+    """
+    viewer = clean_text(viewer, 60)
+    out = []
+    for m in store.get("messages", []):
+        if m.get("channel") == "private":
+            if viewer != "dispatch" and m.get("driver") != viewer:
+                continue
+        out.append(m)
     if since:
         out = [m for m in out if float(m.get("at") or 0) > float(since)]
     return out
@@ -498,19 +516,38 @@ class Handler(SimpleHTTPRequestHandler):
             raise ValueError("payload too large")
         return json.loads(self.rfile.read(n) or b"{}")
 
-    def driver_message(self, name, sender, data):
-        """Store one dispatch<->driver text and wake the other side."""
+    def driver_message(self, name, data):
+        """Store one text from a driver page: a group text, or private to
+        dispatch when the driver marks it private."""
         name = clean_text(name, 60)
         if not name:
             return self.send_json(400, {"error": "driver name required"})
         text = clean_text(data.get("text"), 1000)
         if not text:
             return self.send_json(400, {"error": "text required"})
+        private = bool(data.get("private"))
         with LOCK:
             touch_driver(STORE, name)
-            msg = add_message(STORE, name, sender, text)
+            msg = add_message(STORE, name, text, driver=name, private=private)
             save(STORE)
         record_event("driver_message", driver=name, message=msg)
+        return self.send_json(201, {"ok": True, "message": msg})
+
+    def dispatch_message(self, data):
+        """Store one text from dispatch: a group text for everyone, or a
+        private text when `to` names a single driver."""
+        text = clean_text(data.get("text"), 1000)
+        if not text:
+            return self.send_json(400, {"error": "text required"})
+        to = clean_text(data.get("to"), 60)
+        private = bool(to) and to != "all"
+        with LOCK:
+            if private:
+                touch_driver(STORE, to)
+            msg = add_message(STORE, "dispatch", text,
+                              driver=to if private else None, private=private)
+            save(STORE)
+        record_event("dispatch_message", message=msg)
         return self.send_json(201, {"ok": True, "message": msg})
 
     def ack_ride(self, rid, data):
@@ -557,12 +594,12 @@ class Handler(SimpleHTTPRequestHandler):
                 out = [dispatch_driver(rec, now) for rec in STORE.get("drivers", {}).values()]
             out.sort(key=lambda d: (not d["active"], -float(d.get("last_seen") or 0)))
             return self.send_json(200, {"drivers": out, "window_s": DRIVER_ACTIVE_WINDOW, "now": now})
-        if path.startswith("/api/dispatch/drivers/") and path.endswith("/messages"):
-            name = urllib.parse.unquote(path.split("/")[4])
+        if path == "/api/dispatch/messages":
             since = _num(qs, "since", 0)
             with LOCK:
-                msgs = thread_messages(STORE, name, since)
-            return self.send_json(200, {"driver": name, "messages": msgs, "now": time.time()})
+                msgs = thread_messages(STORE, "dispatch", since)
+            return self.send_json(200, {"viewer": "dispatch", "messages": msgs,
+                                        "now": time.time()})
         if path == "/api/dispatch/export":
             start = parse_when(_first(qs, "from"), end_of_day=False)
             end = parse_when(_first(qs, "to"), end_of_day=True)
@@ -707,12 +744,17 @@ class Handler(SimpleHTTPRequestHandler):
         if len(parts) >= 3 and parts[0] == "api" and parts[1] == "dispatch":
             if len(parts) == 5 and parts[2] == "rides" and parts[4] == "ack":
                 return self.ack_ride(parts[3], data)
+            if len(parts) == 3 and parts[2] == "message":
+                return self.dispatch_message(data)
             if len(parts) == 5 and parts[2] == "drivers" and parts[4] == "message":
-                return self.driver_message(urllib.parse.unquote(parts[3]), "dispatch", data)
+                # Kept as an alias: an old per-driver text is now private.
+                data = dict(data or {})
+                data["to"] = urllib.parse.unquote(parts[3])
+                return self.dispatch_message(data)
             return self.send_json(404, {"error": "not found"})
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "drivers" and parts[3] == "message":
-            return self.driver_message(urllib.parse.unquote(parts[2]), "driver", data)
+            return self.driver_message(urllib.parse.unquote(parts[2]), data)
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "rides":
             rid, action = parts[2], parts[3]

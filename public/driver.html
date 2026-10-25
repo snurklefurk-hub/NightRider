@@ -33,13 +33,14 @@
     <div id="myRides" class="grid"></div>
   </div>
   <div class="card">
-    <h2>Text dispatch</h2>
-    <p class="muted">Send a message to the dispatcher. Replies show up here.</p>
+    <h2>Team text</h2>
+    <p class="muted">A group chat with dispatch and every driver. Tick <strong>Private to dispatch</strong> to send a note only dispatch can see; it still appears here, colour-coded.</p>
     <div class="chatlog" id="chatLog"></div>
     <div class="row">
-      <input id="chatText" type="text" placeholder="Message dispatch…" maxlength="1000" style="flex:1;min-width:0">
+      <input id="chatText" type="text" placeholder="Message the team…" maxlength="1000" style="flex:1;min-width:0">
       <button type="button" id="chatSend">Send</button>
     </div>
+    <label class="privwrap"><input type="checkbox" id="chatPrivate"> Private to dispatch</label>
     <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
   </div>
 </main>
@@ -82,9 +83,13 @@
         var log = $("chatLog");
         (res.messages || []).forEach(function (m) {
           if (m.at > chatSeen) { chatSeen = m.at; }
+          var mine = m.from === d;
+          var priv = m.channel === "private";
           var div = document.createElement("div");
-          div.className = "chatline " + (m.from === "driver" ? "me" : "them");
-          div.innerHTML = '<span class="who">' + esc(m.from) + "</span> " + esc(m.text) +
+          div.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
+          var tag = priv ? ' <span class="privtag">private</span>' : "";
+          div.innerHTML = '<span class="who">' + esc(mine ? "You" : m.from) + "</span>" + tag +
+            " " + esc(m.text) +
             ' <span class="tiny muted">' + new Date(m.at * 1000).toLocaleTimeString() + "</span>";
           log.appendChild(div);
         });
@@ -97,8 +102,9 @@
     var text = $("chatText").value.trim();
     if (!d) { $("chatMsg").textContent = "Enter your name first."; return; }
     if (!text) { return; }
+    var priv = !!($("chatPrivate") && $("chatPrivate").checked);
     $("chatSend").disabled = true;
-    api("/api/drivers/" + encodeURIComponent(d) + "/message", { text: text })
+    api("/api/drivers/" + encodeURIComponent(d) + "/message", { text: text, private: priv })
       .then(function (res) {
         $("chatSend").disabled = false;
         if (!res.ok) { $("chatMsg").textContent = res.j.error || "Send failed."; return; }
