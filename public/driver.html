@@ -10,16 +10,15 @@
 <header>
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
-    <a href="/">Ride</a>
     <a href="/driver.html" aria-current="page">Driver</a>
-    <a href="/dispatch.html">Dispatch</a>
+    <span id="sessionName" class="tiny muted"></span>
+    <button type="button" class="alt" id="signOut">Sign out</button>
   </nav>
 </header>
 <main>
   <h1>Driver board</h1>
   <div class="card">
-    <label for="driverName">Your name</label>
-    <input id="driverName" placeholder="e.g. Sam" autocomplete="name">
+    <p class="muted">Signed in as <strong id="driverName">—</strong></p>
     <button type="button" id="refresh">Refresh open rides</button>
     <button type="button" class="alt" id="useTestDriver">Use test driver (Savannah City Hall)</button>
     <p class="msg" id="msg"></p>
@@ -53,7 +52,8 @@
   function statusWord(s) { return CFG.statusLabels[s] || s; }
   function money(n) { return "$" + Number(n).toFixed(2); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
-  function driver() { return $("driverName").value.trim(); }
+  var accountName = "";
+  function driver() { return accountName; }
 
   function api(path, body) {
     return fetch(path, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : undefined)
@@ -262,7 +262,6 @@
   $("useTestDriver").addEventListener("click", function () {
     testDriver = !testDriver;
     if (testDriver) {
-      if (!driver()) { $("driverName").value = "Test Driver"; }
       $("msg").textContent = "Test driver on \u2014 accepts will be priced from Savannah City Hall.";
     } else {
       $("msg").textContent = "Test driver off \u2014 accepts will use this device's location.";
@@ -274,7 +273,6 @@
   });
 
   $("refresh").addEventListener("click", load);
-  $("driverName").addEventListener("change", load);
   function privateOn() { return $("chatPrivate").getAttribute("aria-pressed") === "true"; }
   $("chatPrivate").addEventListener("click", function () {
     var on = !privateOn();
@@ -289,13 +287,30 @@
     if (res.ok) {
       CFG.statusLabels = res.j.statusLabels || {};
       CFG.stageAction = res.j.stageAction || {};
+      if (!res.j.demoDriver) $("useTestDriver").hidden = true;
     }
-  }).catch(function () {}).then(load);
-  ping();
+  }).catch(function () {}).then(function () {
+    return fetch("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); });
+  }).then(function (data) {
+    if (data.user) {
+      accountName = data.user.display_name;
+      $("driverName").textContent = accountName;
+      $("sessionName").textContent = accountName;
+    }
+    load();
+    ping();
+  }).catch(function () { $("msg").textContent = "Could not load your NightRider account."; });
   setInterval(load, 5000);
   setInterval(loadChat, 4000);
   setInterval(function () { ping(); }, 30000);
 })();
 </script>
+<script>
+document.getElementById("signOut").addEventListener("click", function () {
+  fetch("/api/auth/logout", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"})
+    .finally(function () { location.replace("/account.html"); });
+});
+</script>
 </body>
 </html>
+
