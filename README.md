@@ -1,24 +1,30 @@
-# NightRider (basic v0)
+# NightRider
 
 A starter ride-hailing ecosystem for regional private drivers and small companies.
 
 ## Deploy
-See **DEPLOY.md** for step-by-step GitHub and Render instructions (render.yaml is included).
+See **DEPLOY.md** and **ACCOUNT-SETUP.md** for the GitHub, Render, account, and database setup.
 
 ## Run
-    python3 server.py          # http://localhost:8000 (set PORT to change)
+    pip install -r requirements.txt
+    NIGHTRIDER_REQUIRE_DATABASE=false python3 server.py
 
-Standard library only (Python 3.8+). No database; rides persist to rides.json.
+The production service requires PostgreSQL through `DATABASE_URL`. The local-only
+mode above is for development and does not enable accounts or protect API routes.
+Do not expose it to the public internet.
 
 ## Pages
 - `/` (index.html): Lyft-style rider page — full-screen map, pickup/drop-off address search, one fare estimate, request and live status.
-- `/driver.html`: driver enters name, accepts open requests, then moves the ride through five staged buttons — **Head to pickup → Arrive at pickup → Head to destination → Arrive at destination → Complete ride** — and rates the rider.
+- `/driver.html`: signed-in drivers accept open requests, advance their assigned rides through five stages, and rate riders.
 - `/dispatch.html`: live dispatch board — see **Dispatch** below.
+- `/account.html`: rider account creation and sign-in. Dispatch creates driver accounts.
 
 ## API
 - GET /api/rides, GET /api/rides/{id}
-- POST /api/rides  {rider_name, payment_method, pickup, dropoff, distance_mi, pickup_coords?, driver_to_pickup_mi?, device?}
-- POST /api/rides/{id}/accept  {driver, driver_coords?}  (or {driver, demo: true} for the test driver)
+- POST /api/auth/register, /api/auth/login, /api/auth/logout, /api/auth/change-password
+- POST /api/auth/setup-dispatch  one-time first-dispatch setup using `NIGHTRIDER_SETUP_TOKEN`
+- POST /api/rides  {payment_method, pickup, dropoff, distance_mi, pickup_coords?, driver_to_pickup_mi?}
+- POST /api/rides/{id}/accept  {driver_coords?}
 - POST /api/rides/{id}/advance  moves the ride to its next stage (accepted → to_pickup → at_pickup → to_dropoff → at_dropoff → completed)
 - POST /api/rides/{id}/cancel
 - GET /api/events?since=&ride=&wait=  long-poll event stream (rider screens)
@@ -70,24 +76,26 @@ card header shows the first 25 characters of the newest waiting text, and a quie
 four seconds (toggle with the **Sound** button). The recent-ride cards are a fixed size and no
 longer carry a rider rating — rating a rider is the driver's job.
 
-## No dispatch key
-Dispatch routes are open, like the rest of this starter — there is no login anywhere yet. A
-dispatch key was removed because riders and drivers reach the same host; add real authentication
-before anything ships to paying customers.
+## Accounts and access
 
-## Hidden rider IDs, ratings and issues
-Every ride is stamped with a rider identity the rider can neither see nor change. It is derived on
-the server from the request headers plus a few read-only browser signals the rider page reports
-(SHA-256), so it works with no app install. It is **not** a hardware serial — it is a stable
-best-effort fingerprint, not a verified identity. Drivers and dispatch can file a 1–5 star rating
-and issue tags (no-show, rude, messy, unsafe, payment, other) against that ID; the running average
-and issue count are shown to drivers and dispatch, while the ID itself is only ever visible on the
-dispatch/backend side. Riders see their own average summary but never the ID.
+Every rider, driver, and dispatcher signs in with a NightRider account. Riders
+can create their own accounts; dispatch creates driver accounts. The server
+checks the account role and ride ownership on protected pages and API routes.
+Passwords use salted scrypt hashes, web sessions use secure HTTP-only cookies,
+and the Android driver app uses the same account service with an encrypted
+session token. Setup steps and Render variables are in **ACCOUNT-SETUP.md**.
+
+## Rider accounts, ratings and issues
+
+Each ride belongs to the signed-in rider account. NightRider does not collect
+browser or device fingerprints. Drivers and dispatch can file a 1–5 star rating
+and issue tags (no-show, rude, messy, unsafe, payment, other); drivers see a
+summary on rides they can access and dispatch can review rider accounts and
+ride history.
 
 ## Export
-The dispatch page can download a plain-text log of every ride for a chosen date range (or all
-rides) — ID, rider, hidden ID, route, distance, fare, driver, status, dispatch acknowledgment and
-ratings.
+Dispatch can download a plain-text ride log for a chosen date range or all rides,
+including route, fare, driver, status, acknowledgments, and ratings.
 
 ## Fare
 
@@ -100,24 +108,20 @@ location and the server measures a straight-line (haversine) distance to the pic
 browser will not share a location, the ride is still accepted and only that leg goes unpriced.
 A wildly implausible approach distance (over 200 miles) is rejected rather than charged.
 
-No payments or accounts yet; `fare` is an estimate stored on the ride.
+Payments remain placeholders; `fare` is an estimate stored on the ride.
 
 ## Test driver (T&E)
 
-For testing and engineering there is one stand-in driver, **Test Driver**, permanently parked at
-the real **Savannah City Hall** (2 E Bay St, `32.08111, -81.09111`). It is defined as `DEMO_DRIVER`
-in `server.py` and also returned by `GET /api/config`, so the rider map always shows it as a cyan
-crosshair with a slow pulsing halo, and the rider estimate prices the $0.25/mile approach leg from City Hall. On the driver page,
-**Use test driver (Savannah City Hall)** makes your accepts come from City Hall too, instead of this
-device's GPS — handy for repeatable tests from anywhere.
+For internal testing only, the stand-in driver at Savannah City Hall can be
+enabled by setting `NIGHTRIDER_ENABLE_DEMO_DRIVER=true`. It is off by default.
 
-## Verification
-Checked by running the server and calling the API: create (201), validation (400), accept,
-double-accept (409), advance, cancel, page/asset loads (200), unknown route (404), the event stream
-and acknowledgment handshake, driver presence and dispatch↔driver messaging, payment-method
-capture, map-zoom capping, ratings/issues validation, and plain-text export with date filters. The
-automated suite (`python3 -m unittest discover -s tests`) covers the same ground. Visual layout has
-not been reviewed.
+## Production setup
+
+The account-enabled server requires a Render Postgres database and the
+environment settings described in **ACCOUNT-SETUP.md**. The web service uses a
+single application instance while rides and messages are stored as one JSON
+state record in Postgres. Scale the service only after the state store is
+changed to support concurrent multi-instance updates.
 
 ## Map and addresses (rider page)
 The rider page uses Leaflet with CARTO *Dark Matter* map tiles (OpenStreetMap data) — a near-monochrome dark basemap that matches the NightRider night aesthetic. The pickup dot is teal, the drop-off dot is coral, and the route line is bright cyan so it stays visible on the dark base. Prefer a light map? Change `dark_all` to `voyager` in the tile URL in `public/index.html` — that one word switches the basemap.
@@ -132,9 +136,10 @@ CARTO now gates these tiles behind a free basemap key. A working key is built in
 - The route line and distance come from OSRM's public routing service (real road distance and time). If that service is unavailable, the page falls back to a straight-line estimate × 1.2.
 - The fare box shows only the **total** — riders do not see the rate breakdown. Press **Request NightRide**.
 - A payment popup appears before the request is sent; pick Cash App, PayPal, Zelle, Venmo, or Cash
-  (all placeholders for now) and the choice is stored on the ride. (The pulsing crosshair is the test driver at Savannah City Hall.)
+  (all placeholders for now) and the choice is stored on the ride. The test-driver crosshair appears only when the internal demo driver is enabled.
 - The map stops zooming at tile level 19, the deepest level the tiles actually render, so it never
   goes blank from over-zooming.
 - The status view tracks Requesting → Driver assigned → Driver arrived → En route → Completed.
 
 Both OSM/Nominatim and OSRM are public services with fair-use limits, so lookups are throttled. For production we would host or pay for a routing/geocoding provider.
+
