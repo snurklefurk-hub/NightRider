@@ -52,6 +52,7 @@
     <div class="farebox">
       <div class="farerow total"><span>Estimated total</span><span class="num" id="fareTotal">—</span></div>
     </div>
+    <p class="tiny muted">Please request rides you intend to take. Repeated rider cancellations may lead to account suspension or required prepayment for future rides.</p>
     <div class="row">
       <button type="button" class="cta" id="requestBtn" disabled>Request NightRide</button>
       <button type="button" class="alt" id="backBtn" style="flex:0 0 auto;margin-left:0">Edit trip</button>
@@ -95,6 +96,7 @@
       <span class="muted" id="tripStatus">—</span>
       <span class="num" id="tripFare">—</span>
     </div>
+    <p id="tripCancelledNotice" class="msg" role="alert" hidden></p>
     <p class="tiny muted" id="tripAck"></p>
     <p class="muted" id="tripBreakdown"></p>
     <div class="driverline">
@@ -517,6 +519,18 @@
     $("stepMatching").hidden = true; $("stepSearch").hidden = true; $("stepOptions").hidden = true; $("stepTrip").hidden = false;
     $("tripStatus").textContent = statusWord(ride.status);
     $("tripFare").textContent = money(ride.fare);
+    var cancelledNotice = $("tripCancelledNotice");
+    if (ride.status === "cancelled") {
+      cancelledNotice.hidden = false;
+      var who = ride.cancelled_by === "dispatch" ? "Dispatch" :
+        ride.cancelled_by === "driver" ? "Your driver" :
+        ride.cancelled_by === "rider" ? "You" : "NightRider";
+      cancelledNotice.textContent = who + " cancelled this ride." +
+        (ride.cancelled_by === "driver" ? " Dispatch has been notified." : "");
+    } else {
+      cancelledNotice.hidden = true;
+      cancelledNotice.textContent = "";
+    }
     $("tripAck").textContent = ackLine(ride);
     $("tripBreakdown").textContent = "Total fare " + money(ride.fare) +
       (ride.payment_method ? "  \u00b7  Pay by " + ride.payment_method : "");
@@ -554,6 +568,7 @@
 
   function cancelRide() {
     if (!state.rideId) { return; }
+    if (!window.confirm("Cancel this ride? Repeated rider cancellations may lead to account suspension or required prepayment for future rides.")) { return; }
     fetch("/api/rides/" + state.rideId + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
       .then(function () { stopLive(); resetAll(); });
   }
@@ -566,6 +581,7 @@
     closePayModal(); state.payMethod = null;
     stopLive(); state.live = false; state.cursor = 0;
     $("ackMsg").textContent = "Sending your request to dispatch\u2026"; $("tripAck").textContent = "";
+    $("tripCancelledNotice").hidden = true; $("tripCancelledNotice").textContent = "";
     state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
     state.selected = null; $("pickup").value = ""; $("dropoff").value = ""; $("results").innerHTML = "";
     $("stepTrip").hidden = true; $("stepOptions").hidden = true; $("stepMatching").hidden = true; $("stepSearch").hidden = false;
