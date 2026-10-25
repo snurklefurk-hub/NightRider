@@ -204,6 +204,6 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 /* Small export control pinned at the bottom of the board. */
 .exportbar{display:flex;justify-content:flex-end;margin:1.1rem 0 .3rem}
 .exportbar button{font-size:.8rem;padding:.45rem .9rem;letter-spacing:.08em;text-transform:uppercase}
-.field{display:flex;flex-direction:column;gap:.25rem;margin:.6rem 0}
-.field label{text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;color:var(--mist)}
-.field input{width:100%}
+.efield{display:flex;flex-direction:column;gap:.25rem;margin:.6rem 0}
+.efield label{text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;color:var(--mist)}
+.efield input{width:100%}
