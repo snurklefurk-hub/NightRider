@@ -483,6 +483,7 @@
       .then(function (res) {
         if (!res.ok) { throw new Error(res.j.error || "request failed"); }
         state.rideId = res.j.id;
+        localStorage.setItem("nightrider.activeRideId", state.rideId);
         closePayModal();
         showMatching();
         startLive();
@@ -537,9 +538,11 @@
       $("rideChatAudience").querySelector('option[value="shared"]').disabled = true;
       $("rideChatHelp").textContent = "You can message Dispatch while a driver is being assigned. Messages to Dispatch are not shown to drivers.";
       loadRideMessages();
-      $("ackMsg").textContent = ride.dispatch_ack
-        ? "Dispatch received your request at " + new Date(ride.dispatch_ack.at * 1000).toLocaleTimeString() + "."
-        : "Waiting for dispatch to confirm your request\u2026";
+      $("ackMsg").textContent = ride.last_driver_release
+        ? "Your driver " + ride.last_driver_release.driver + " could not take the ride. Dispatch is finding another driver."
+        : (ride.dispatch_ack
+          ? "Dispatch received your request at " + new Date(ride.dispatch_ack.at * 1000).toLocaleTimeString() + "."
+          : "Waiting for dispatch to confirm your request\u2026");
       return;
     }
     $("stepMatching").hidden = true; $("stepSearch").hidden = true; $("stepOptions").hidden = true; $("stepTrip").hidden = false;
@@ -708,10 +711,51 @@
     $("tripCancelledNotice").hidden = true; $("tripCancelledNotice").textContent = "";
     $("rideChatCard").hidden = true; $("rideChatLog").innerHTML = ""; $("rideChatMsg").textContent = "";
     $("riderRatingCard").hidden = true; $("riderRatingButtons").innerHTML = ""; $("riderRatingMsg").textContent = "";
+    if (state.rideId) { localStorage.removeItem("nightrider.activeRideId"); }
     state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
     state.selected = null; $("pickup").value = ""; $("dropoff").value = ""; $("results").innerHTML = "";
     $("stepTrip").hidden = true; $("stepOptions").hidden = true; $("stepMatching").hidden = true; $("stepSearch").hidden = false;
     $("searchMsg").textContent = "Type an address, then tap Search (or press Enter) to see nearby matches.";
+  }
+
+  function restoreRiderRide() {
+    fetch("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); })
+      .then(function (session) {
+        if (!session.user || session.user.role !== "rider") { return; }
+        return fetch("/api/rides", {cache:"no-store"}).then(function (r) { return r.json(); })
+          .then(function (data) {
+            var rides = data.rides || [];
+            var savedId = localStorage.getItem("nightrider.activeRideId");
+            var ride = (savedId && rides.find(function (item) { return item.id === savedId; })) ||
+              rides.find(function (item) { return item.status !== "completed" && item.status !== "cancelled"; });
+            if (!ride) {
+              if (savedId) { localStorage.removeItem("nightrider.activeRideId"); }
+              return;
+            }
+            state.rideId = ride.id;
+            localStorage.setItem("nightrider.activeRideId", ride.id);
+            state.miles = Number(ride.distance_mi) || 0;
+            state.approachMi = Number(ride.driver_to_pickup_mi) || 0;
+            state.payMethod = ride.payment_method || null;
+            var points = [];
+            if (ride.pickup_coords && ride.pickup_coords.length === 2) {
+              state.pickup = {label:ride.pickup,lat:ride.pickup_coords[0],lng:ride.pickup_coords[1]};
+              setMarker("pickup", [state.pickup.lat,state.pickup.lng]);
+              points.push([state.pickup.lat,state.pickup.lng]);
+              $("pickup").value = ride.pickup || "";
+            }
+            if (ride.dropoff_coords && ride.dropoff_coords.length === 2) {
+              state.dropoff = {label:ride.dropoff,lat:ride.dropoff_coords[0],lng:ride.dropoff_coords[1]};
+              setMarker("dropoff", [state.dropoff.lat,state.dropoff.lng]);
+              points.push([state.dropoff.lat,state.dropoff.lng]);
+              $("dropoff").value = ride.dropoff || "";
+            }
+            if (points.length > 1) { map.fitBounds(L.latLngBounds(points).pad(0.25), {maxZoom:13}); }
+            else if (points.length) { map.setView(points[0], 13); }
+            renderRide(ride);
+            if (ride.status !== "completed" && ride.status !== "cancelled") { startLive(); }
+          });
+      }).catch(function () {});
   }
 
   function useMyLocation() {
@@ -771,6 +815,7 @@
     if (event.key === "Enter") { event.preventDefault(); sendRideMessage(); }
   });
   $("newRide").addEventListener("click", resetAll);
+  restoreRiderRide();
 
   setTimeout(function () { map.invalidateSize(); }, 200);
 })();
