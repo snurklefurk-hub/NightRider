@@ -1,51 +1,62 @@
-# NightRider: put it online (GitHub + Render)
+# NightRider deployment
 
-No coding is needed. You will copy the files to GitHub, then connect GitHub to Render.
+The live website is served by Render from this GitHub repository. Review
+**ACCOUNT-SETUP.md** before deploying the account-enabled revision.
 
-## Part 1: Put the files on GitHub
+## Render Blueprint resources
 
-1. Go to https://github.com and sign in (or create a free account).
-2. Click the **+** at the top right, then **New repository**.
-3. Name it `nightrider`. Keep it **Public** or **Private** (either works with Render). Do **not** tick any "add README" boxes. Click **Create repository**.
-4. On the next screen, click **uploading an existing file**.
-5. Unzip `nightrider.zip` on your computer. Open the folder it creates.
-6. Drag **everything inside** that folder into the GitHub upload box. You should see `server.py`, `render.yaml`, `public`, `tests`, and `README.md`.
-7. Click **Commit changes**. If GitHub asks about replacing existing files, say yes — the new files must replace the old ones.
+The Blueprint configures the Python service and links it to a Render Postgres
+database named `nightrider-db`. The database uses Render's `basic-256mb` plan,
+which is paid. Check the plan, cost, and database region in Render before
+syncing the Blueprint. Keep the web service and database in the same region.
 
-> Updating an existing site? Upload the whole folder again the same way. The new `public/index.html` must overwrite the old one, or the site keeps showing the old map.
+The Blueprint sets `DATABASE_URL` from the database's private connection and
+requires the database at startup. It enables secure cookies for the HTTPS
+service. `NIGHTRIDER_SETUP_TOKEN` is a secret and is not stored in Git. When
+updating an existing Blueprint, add that variable manually in the Render
+service's **Environment** page; Render does not prompt for `sync: false` values
+again during later Blueprint syncs.
 
-## Part 2: Start the site on Render
+Use a password manager to generate a long, random setup token. Do not put it in
+GitHub, a URL, or a chat message. The token is used once to create the first
+dispatch account; remove it from Render after setup.
 
-1. Go to https://render.com and sign up, choosing **Sign in with GitHub**.
-2. Click **New +** then **Blueprint**.
-3. Find your `nightrider` repository and click **Connect**. Render reads `render.yaml` automatically.
-4. Click **Apply** (or **Deploy Blueprint**). Wait 2 to 5 minutes until the status says **Live**.
-5. Click the link at the top of the page (it looks like `https://nightrider-xxxx.onrender.com`). That is your live site.
+## First account setup
 
-Your pages:
-- `/` is the rider page (map, address search, one total fare, payment popup, live status).
-- `/driver.html` is the driver page. It checks in as "active" and has a **Text dispatch** box.
-- `/dispatch.html` is the dispatch page — live board, the list of active drivers with a **Text** button each, hidden rider IDs, ratings/issues, and the ride-log export.
+1. Confirm the database and required environment variables are available to the
+   service before its account-enabled revision starts. The server refuses to
+   start if the required database is missing.
+2. After the service is live, open
+   `https://nightrider.onrender.com/account.html?setup=1`.
+3. Create the initial dispatch account using `NIGHTRIDER_SETUP_TOKEN`.
+4. Remove the setup token from Render and save the environment change.
+5. On the Dispatch page, create driver accounts and give each driver their
+   username and initial password privately.
+6. Riders use **Create rider account** on the sign-in page.
 
-## If Render shows "Failed to launch" or a Python error
+See **ACCOUNT-SETUP.md** for role behavior, account recovery, and the one-time
+ride-data migration details.
 
-Upload the newest `render.yaml` (from the newest nightrider.zip) to GitHub, replacing the old one. Older versions pinned Python 3.11.2, which Render no longer has. Render redeploys automatically after the upload.
+## Other settings
 
-## Good to know
+- `ADDRESS_COUNTRY` selects the country used for local address lookup (default
+  `us`).
+- `CARTO_API_KEY` optionally overrides the public browser-visible map key. It
+  is not a secret.
+- `NIGHTRIDER_ENABLE_DEMO_DRIVER` is off by default. Enable it only for internal
+  testing.
 
-- **Free plan sleeps.** After about 15 minutes with no visitors, the site goes to sleep. The first visit afterward can take ~30 seconds to load.
-- **Ride data resets.** Rides are saved to a file on the server. Render's free plan can erase that file on restarts and redeploys. This is fine for testing. Real ride storage needs a database, which we can add later.
-- **Updating the site.** Change files on GitHub (or upload new ones), and Render redeploys automatically.
-- **Map key — works out of the box.** The map uses CARTO's dark "Dark Matter" tiles. A working basemap key is already built into the code, so you do **not** need to do anything: deploy and the map works. It is a public client-side basemap key (it is visible in any tile request the browser makes), not an account secret.
-- **Optional: set the address country.** Address lookup is filtered to one country so results stay local. To change it from the default `us`, open your Render service → **Environment** → **Add Environment Variable** → name `ADDRESS_COUNTRY`, value = a two-letter country code (e.g. `ca`) → save.
-- **Optional: rotate the key.** If you ever get a new key and want to use it without editing code, open your Render service → **Environment** → **Add Environment Variable** → name `CARTO_API_KEY`, value = your new key → save. Render redeploys automatically and the server hands the new key to the page. If an old copy of your site ever asks for a Google key, that page is out of date — re-upload the current files from `nightrider.zip` and redeploy.
-- **No login yet.** There is no dispatch key and no accounts — anyone with the link can open any page. That is fine for testing; add real sign-in before real riders use it.
-- **Active drivers.** A driver page checks in every 30 seconds; drivers seen in the last 90 seconds show as **active** on the dispatch board, with a **Text** button that opens a message thread with that driver.
-- **Payment is a placeholder.** Before a rider can send a request, a popup asks how they will pay (Cash App, PayPal, Zelle, Venmo, or Cash). No money moves yet — the choice is just recorded on the ride.
-- **Live updates, no polling.** Dispatch and rider screens hold a connection open and update the moment something changes. Nothing to configure.
-- **Not for real riders yet.** There is no login and payments are placeholders. Anyone with the link can see the rider, driver, and dispatch pages.
+## Running locally
 
-## Running it on your own computer (optional)
+For the development-only no-database mode, install the Python dependency and
+run:
 
-You need Python 3 installed. In the folder, run `python3 server.py`, then open http://localhost:8000.
+```text
+pip install -r requirements.txt
+NIGHTRIDER_REQUIRE_DATABASE=false python3 server.py
+```
+
+That mode does not provide accounts or protected API routes. Keep it on a local
+machine only. Public deployments must set `DATABASE_URL` and keep
+`NIGHTRIDER_REQUIRE_DATABASE=true`.
 
