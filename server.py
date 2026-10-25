@@ -1,5 +1,6 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
-import datetime, hashlib, json, math, os, threading, time, urllib.parse, uuid
+import datetime, hmac, json, math, os, threading, time, urllib.parse, uuid
+import auth
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
 # driver -> pickup leg of the fare can be exercised without a real driver.
@@ -55,6 +56,8 @@ STATUS_LABELS = {
 
 
 def load():
+    if os.environ.get("DATABASE_URL", "").strip():
+        return auth.load_app_state(DATA_FILE)
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE) as f:
             return json.load(f)
@@ -71,13 +74,23 @@ def ensure_store(store):
 
 
 def save(store):
+    if os.environ.get("DATABASE_URL", "").strip():
+        auth.save_app_state(store, DATA_FILE)
+        return
     tmp = DATA_FILE + ".tmp"
     with open(tmp, "w") as f:
         json.dump(store, f, indent=2)
     os.replace(tmp, DATA_FILE)
 
 
+if os.environ.get("NIGHTRIDER_REQUIRE_DATABASE", "true").lower() == "true" and not os.environ.get("DATABASE_URL", "").strip():
+    raise RuntimeError("DATABASE_URL is required; set it in the Render environment before deploying")
+if os.environ.get("DATABASE_URL", "").strip():
+    auth.initialize()
 STORE = ensure_store(load())
+LOGIN_FAILURES = {}
+LOGIN_FAILURES_LOCK = threading.Lock()
+SIGNUP_ATTEMPTS = {}
 
 
 def clean_text(v, n=120):
@@ -132,37 +145,6 @@ def read_events(since, ride=None, timeout=25.0):
             if found or time.time() >= deadline:
                 return {"events": found, "cursor": EVENT_SEQ, "now": time.time(), "timed_out": not found}
             EVENT_COND.wait(min(1.0, max(0.05, deadline - time.time())))
-
-
-# ---- Hidden rider identifiers ------------------------------------------
-# Each rider gets a stable id derived on the server from the request headers
-# plus read-only browser/device properties the rider page reports. The rider
-# never receives this id in any response and has no way to change it: nothing
-# from the browser is trusted, and no app, cookie or local value is used.
-RIDER_SALT = os.environ.get("RIDER_ID_SALT", "nightrider-rider-v1")
-SIGNAL_KEYS = ("platform", "langs", "screen", "viewport", "color_depth", "pixel_ratio",
-               "timezone", "tz_offset", "cores", "memory", "touch", "canvas", "gpu")
-
-
-def clean_signals(value):
-    """Keep only known scalar device properties; ignore anything else."""
-    out = {}
-    if not isinstance(value, dict):
-        return out
-    for k in SIGNAL_KEYS:
-        v = value.get(k)
-        if v is None or isinstance(v, (dict, list, bool)):
-            continue
-        s = str(v).strip()[:80]
-        if s:
-            out[k] = s
-    return out
-
-
-def rider_id_for(headers, signals):
-    raw = [RIDER_SALT, headers.get("User-Agent", ""), headers.get("Accept-Language", "")]
-    raw += [k + "=" + signals[k] for k in sorted(signals)]
-    return "NR-" + hashlib.sha256("|".join(raw).encode("utf-8", "replace")).hexdigest()[:10].upper()
 
 
 # ---- Active drivers + dispatch/driver texting --------------------------
@@ -313,7 +295,6 @@ def dispatch_rider(rec, store, detail=False):
         "first_seen": rec.get("first_seen"),
         "last_seen": rec.get("last_seen"),
         "names": rec.get("names") or [],
-        "signals": rec.get("signals") or {},
         "summary": rider_summary(store, rec.get("id")),
     }
     if detail:
@@ -490,6 +471,14 @@ class Handler(SimpleHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def end_headers(self):
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Referrer-Policy", "same-origin")
+        self.send_header("X-Frame-Options", "DENY")
+        if os.environ.get("NIGHTRIDER_COOKIE_SECURE", "true").lower() == "true":
+            self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        super().end_headers()
+
     def send_json(self, code, payload):
         body = json.dumps(payload).encode()
         self.send_response(code)
@@ -498,6 +487,184 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
+
+    def set_session_cookie(self, token):
+        secure = os.environ.get("NIGHTRIDER_COOKIE_SECURE", "true").lower() == "true"
+        parts = ["nr_session=" + urllib.parse.quote(token), "Path=/", "HttpOnly", "SameSite=Strict",
+                 "Max-Age=" + str(auth.SESSION_DAYS * 86400)]
+        if secure:
+            parts.append("Secure")
+        self.send_header("Set-Cookie", "; ".join(parts))
+
+    def clear_session_cookie(self):
+        secure = os.environ.get("NIGHTRIDER_COOKIE_SECURE", "true").lower() == "true"
+        parts = ["nr_session=", "Path=/", "HttpOnly", "SameSite=Strict", "Max-Age=0"]
+        if secure:
+            parts.append("Secure")
+        self.send_header("Set-Cookie", "; ".join(parts))
+
+    def user(self):
+        if not os.environ.get("DATABASE_URL", "").strip():
+            return None
+        token = ""
+        header = self.headers.get("Authorization", "")
+        if header.startswith("Bearer "):
+            token = header[7:].strip()
+        if not token:
+            cookie = self.headers.get("Cookie", "")
+            for item in cookie.split(";"):
+                key, sep, value = item.strip().partition("=")
+                if sep and key == "nr_session":
+                    token = urllib.parse.unquote(value)
+                    break
+        return auth.get_session(token)
+
+    def require_role(self, *roles):
+        user = self.user()
+        if user and (not roles or user["role"] in roles):
+            return user
+        self.send_json(401 if not user else 403,
+                       {"error": "sign in required" if not user else "not allowed"})
+        return None
+
+    def account_endpoint(self, path, data=None):
+        """NightRider-only signup, login, logout and account setup."""
+        if path == "/api/auth/me":
+            return self.send_json(200, {"user": self.user()})
+        if path == "/api/auth/register":
+            now = time.time()
+            ip = self.client_address[0]
+            recent = [stamp for stamp in SIGNUP_ATTEMPTS.get(ip, []) if now - stamp < 3600]
+            if len(recent) >= 10:
+                SIGNUP_ATTEMPTS[ip] = recent
+                return self.send_json(429, {"error": "Too many accounts created from this connection. Try again later."})
+            recent.append(now)
+            SIGNUP_ATTEMPTS[ip] = recent
+            user, error = auth.create_user(data.get("username"), data.get("display_name"),
+                                           data.get("password"), "rider")
+            if error:
+                return self.send_json(400, {"error": error})
+            token = auth.create_session(user["id"])
+            self.send_response(201)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.set_session_cookie(token)
+            body = json.dumps({"user": user}).encode()
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == "/api/auth/login":
+            key = (self.client_address[0], auth.normalize_username(data.get("username")))
+            now = time.time()
+            with LOGIN_FAILURES_LOCK:
+                failures = [stamp for stamp in LOGIN_FAILURES.get(key, []) if now - stamp < 900]
+                LOGIN_FAILURES[key] = failures
+                if len(failures) >= 8:
+                    return self.send_json(429, {"error": "Too many sign-in attempts. Wait 15 minutes and try again."})
+            user = auth.authenticate(data.get("username"), data.get("password"))
+            if not user:
+                with LOGIN_FAILURES_LOCK:
+                    LOGIN_FAILURES.setdefault(key, []).append(now)
+                return self.send_json(401, {"error": "Username or password is incorrect."})
+            with LOGIN_FAILURES_LOCK:
+                LOGIN_FAILURES.pop(key, None)
+            token = auth.create_session(user["id"])
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.set_session_cookie(token)
+            body_data = {"user": user}
+            if self.headers.get("X-NightRider-Client") == "android":
+                body_data["token"] = token
+            body = json.dumps(body_data).encode()
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == "/api/auth/logout":
+            user = self.user()
+            token = ""
+            header = self.headers.get("Authorization", "")
+            if header.startswith("Bearer "):
+                token = header[7:].strip()
+            if not token:
+                for item in self.headers.get("Cookie", "").split(";"):
+                    key, sep, value = item.strip().partition("=")
+                    if sep and key == "nr_session":
+                        token = urllib.parse.unquote(value)
+            auth.delete_session(token)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.clear_session_cookie()
+            body = b'{"ok":true}'
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == "/api/auth/setup-dispatch":
+            setup = os.environ.get("NIGHTRIDER_SETUP_TOKEN", "")
+            if not setup or auth.has_dispatch_user() or not self.secrets_compare(data.get("setup_token"), setup):
+                return self.send_json(403, {"error": "Initial setup is unavailable."})
+            user, error = auth.create_user(data.get("username"), data.get("display_name"),
+                                           data.get("password"), "dispatch")
+            if error:
+                return self.send_json(400, {"error": error})
+            token = auth.create_session(user["id"])
+            self.send_response(201)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.set_session_cookie(token)
+            body = json.dumps({"user": user}).encode()
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        if path == "/api/auth/change-password":
+            user = self.require_role("rider", "driver", "dispatch")
+            if not user:
+                return
+            if not auth.authenticate(user["username"], data.get("current_password")):
+                return self.send_json(401, {"error": "Current password is incorrect."})
+            if not auth.change_password(user["id"], data.get("new_password")):
+                return self.send_json(400, {"error": "New password must be at least 8 characters."})
+            token = auth.create_session(user["id"])
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Cache-Control", "no-store")
+            self.set_session_cookie(token)
+            body = json.dumps({"ok": True, "user": user}).encode()
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
+        return self.send_json(404, {"error": "not found"})
+
+    def page_access(self, path):
+        if not os.environ.get("DATABASE_URL", "").strip():
+            return True
+        roles = {"/": ("rider",), "/index.html": ("rider",),
+                 "/driver.html": ("driver",), "/dispatch.html": ("dispatch",)}
+        allowed = roles.get(path)
+        if not allowed:
+            return True
+        user = self.user()
+        if not user:
+            self.send_response(302)
+            self.send_header("Location", "/account.html?next=" + urllib.parse.quote(path, safe="/"))
+            self.end_headers()
+            return False
+        if user["role"] not in allowed:
+            destinations = {"rider": "/", "driver": "/driver.html", "dispatch": "/dispatch.html"}
+            self.send_response(302)
+            self.send_header("Location", destinations[user["role"]])
+            self.end_headers()
+            return False
+        return True
+
+    def secrets_compare(self, value, expected):
+        return hmac.compare_digest(str(value or "").encode(), str(expected or "").encode())
 
     def send_text(self, code, text, filename=None):
         body = text.encode("utf-8")
@@ -550,9 +717,9 @@ class Handler(SimpleHTTPRequestHandler):
         record_event("dispatch_message", message=msg)
         return self.send_json(201, {"ok": True, "message": msg})
 
-    def ack_ride(self, rid, data):
+    def ack_ride(self, rid, data, dispatcher_name=None):
         """The handshake: dispatch confirms it really received the request."""
-        by = clean_text(data.get("by"), 40) or "dispatch"
+        by = clean_text(dispatcher_name, 60) or clean_text(data.get("by"), 40) or "dispatch"
         now = time.time()
         with LOCK:
             ride = STORE["rides"].get(rid)
@@ -568,6 +735,10 @@ class Handler(SimpleHTTPRequestHandler):
         return self.send_json(200, {"ok": True, "ack": ack, "ride": snapshot})
 
     def dispatch_get(self, path, qs):
+        if path == "/api/dispatch/users":
+            return self.send_json(200, {"users": auth.list_users("driver")})
+        if path == "/api/dispatch/rider-accounts":
+            return self.send_json(200, {"users": auth.list_users("rider")})
         if path == "/api/dispatch/events":
             since = int(_num(qs, "since", 0))
             wait = min(55.0, max(0.0, _num(qs, "wait", 25)))
@@ -612,10 +783,23 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
+        if path == "/healthz":
+            try:
+                if os.environ.get("DATABASE_URL", "").strip():
+                    auth.database_healthy()
+                return self.send_json(200, {"ok": True})
+            except Exception:
+                return self.send_json(503, {"ok": False})
+        if not self.page_access(path):
+            return
         if path.startswith("/api/"):
+            if path == "/api/auth/me":
+                return self.account_endpoint(path)
             if path == "/api/dispatch/":
                 return self.send_json(404, {"error": "not found"})
             if path.startswith("/api/dispatch/"):
+                if os.environ.get("DATABASE_URL", "").strip() and not self.require_role("dispatch"):
+                    return
                 return self.dispatch_get(path, qs)
             if path == "/api/config":
                 # Host environment variable wins (lets you rotate the key
@@ -632,34 +816,70 @@ class Handler(SimpleHTTPRequestHandler):
                         "trip_per_mile": TRIP_PER_MILE,
                         "approach_per_mile": APPROACH_PER_MILE,
                     },
-                    "demoDriver": DEMO_DRIVER,
+                    "demoDriver": DEMO_DRIVER if os.environ.get("NIGHTRIDER_ENABLE_DEMO_DRIVER", "false").lower() == "true" else None,
                     # Shared status labels + driver stage actions so the
                     # driver and dispatch boards never drift apart.
                     "statusLabels": STATUS_LABELS,
                     "stageAction": STAGE_ACTION,
                 })
             if path == "/api/events":
+                user = self.require_role("rider", "driver", "dispatch")
+                if os.environ.get("DATABASE_URL", "").strip() and not user:
+                    return
                 since = int(_num(qs, "since", 0))
                 ride = _first(qs, "ride") or None
+                if user and user["role"] == "rider":
+                    with LOCK:
+                        owned = STORE["rides"].get(ride) if ride else None
+                    if not owned or owned.get("rider_account_id") != user["id"]:
+                        return self.send_json(404, {"error": "not found"})
+                if user and user["role"] == "driver":
+                    with LOCK:
+                        visible = STORE["rides"].get(ride) if ride else None
+                    if not visible or (visible.get("status") != "requested" and
+                                       visible.get("driver_account_id") != user["id"]):
+                        return self.send_json(404, {"error": "not found"})
                 wait = min(55.0, max(0.0, _num(qs, "wait", 25)))
                 return self.send_json(200, read_events(since, ride, wait))
             if path.startswith("/api/drivers/") and path.endswith("/messages"):
+                user = self.require_role("driver", "dispatch")
+                if os.environ.get("DATABASE_URL", "").strip() and not user:
+                    return
                 name = urllib.parse.unquote(path.split("/")[3])
+                if user and user["role"] == "driver":
+                    name = user["display_name"]
                 since = _num(qs, "since", 0)
                 with LOCK:
                     msgs = thread_messages(STORE, name, since)
                 return self.send_json(200, {"driver": name, "messages": msgs, "now": time.time()})
             if path == "/api/rides":
+                user = self.require_role("rider", "driver", "dispatch")
+                if os.environ.get("DATABASE_URL", "").strip() and not user:
+                    return
                 with LOCK:
                     rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
+                    if user and user["role"] == "rider":
+                        rides = [r for r in rides if r.get("rider_account_id") == user["id"]]
+                    elif user and user["role"] == "driver":
+                        rides = [r for r in rides if r.get("status") == "requested" or
+                                 r.get("driver_account_id") == user["id"]]
                     return self.send_json(200, {"rides": [public_ride(r, STORE) for r in rides]})
             if path.startswith("/api/rides/"):
+                user = self.require_role("rider", "driver", "dispatch")
+                if os.environ.get("DATABASE_URL", "").strip() and not user:
+                    return
                 rid = path.split("/")[3]
                 with LOCK:
                     ride = STORE["rides"].get(rid)
                     if not ride:
                         return self.send_json(404, {"error": "not found"})
+                    if user and user["role"] == "rider" and ride.get("rider_account_id") != user["id"]:
+                        return self.send_json(404, {"error": "not found"})
+                    if user and user["role"] == "driver" and ride.get("status") != "requested" and ride.get("driver_account_id") != user["id"]:
+                        return self.send_json(404, {"error": "not found"})
                     if path.endswith("/ratings"):
+                        if user and user["role"] == "rider":
+                            return self.send_json(403, {"error": "not allowed"})
                         return self.send_json(200, {"ratings": ride.get("ratings") or []})
                     return self.send_json(200, public_ride(ride, STORE))
             return self.send_json(404, {"error": "not found"})
@@ -672,10 +892,23 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return self.send_json(400, {"error": "invalid JSON"})
 
+        origin = self.headers.get("Origin")
+        if origin and self.headers.get("Cookie"):
+            origin_host = urllib.parse.urlparse(origin).netloc.lower()
+            request_host = self.headers.get("Host", "").lower()
+            if origin_host != request_host:
+                return self.send_json(403, {"error": "request origin is not allowed"})
+
+        if path.startswith("/api/auth/"):
+            return self.account_endpoint(path, data)
+
         if path == "/api/rides":
+            user = self.require_role("rider")
+            if os.environ.get("DATABASE_URL", "").strip() and not user:
+                return
             pickup = clean_text(data.get("pickup"))
             dropoff = clean_text(data.get("dropoff"))
-            name = clean_text(data.get("rider_name"), 60)
+            name = user["display_name"] if user else clean_text(data.get("rider_name"), 60)
             # The rider picks a payment method in the popup before the request
             # is sent; store it with the ride so dispatch and the driver see it.
             payment = clean_text(data.get("payment_method"), 30) or "Unspecified"
@@ -705,17 +938,15 @@ class Handler(SimpleHTTPRequestHandler):
                 "dropoff_coords": parse_coords(data.get("dropoff_coords")),
                 "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
                 "fare": fare(miles, approach), "status": "requested",
-                "payment_method": payment,
+                "payment_method": payment, "rider_account_id": user["id"] if user else None,
                 "driver": None, "created": time.time(),
                 "status_log": [{"status": "requested", "at": time.time()}],
             }
             with LOCK:
-                # The hidden rider id is derived here, on the server, from the
-                # request headers plus the read-only device properties the rider
-                # page reports. Any browser-supplied "rider_id" is ignored, so a
-                # rider can never set or change what dispatch sees.
-                signals = clean_signals(data.get("device"))
-                rid = rider_id_for(self.headers, signals)
+                signals = {}
+                rid = "NR-" + user["id"][:10].upper() if user else None
+                if not rid:
+                    return self.send_json(401, {"error": "sign in required"})
                 ride["rider_id"] = rid
                 STORE["rides"][ride["id"]] = ride
                 rec = touch_rider(STORE, rid, signals, name)
@@ -730,7 +961,10 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(201, reply)
 
         if path == "/api/drivers/ping":
-            name = clean_text(data.get("name"), 60)
+            user = self.require_role("driver")
+            if os.environ.get("DATABASE_URL", "").strip() and not user:
+                return
+            name = user["display_name"] if user else clean_text(data.get("name"), 60)
             if not name:
                 return self.send_json(400, {"error": "name required"})
             coords = parse_coords(data.get("coords"))
@@ -742,8 +976,24 @@ class Handler(SimpleHTTPRequestHandler):
 
         parts = path.strip("/").split("/")
         if len(parts) >= 3 and parts[0] == "api" and parts[1] == "dispatch":
+            user = self.require_role("dispatch")
+            if os.environ.get("DATABASE_URL", "").strip() and not user:
+                return
+            if len(parts) == 3 and parts[2] == "users":
+                created, error = auth.create_user(data.get("username"), data.get("display_name"),
+                                                  data.get("password"), "driver")
+                if error:
+                    return self.send_json(400, {"error": error})
+                return self.send_json(201, {"user": created})
+            if len(parts) == 4 and parts[2] == "users" and parts[3]:
+                auth.set_user_enabled(parts[3], data.get("enabled") is True)
+                return self.send_json(200, {"ok": True})
+            if len(parts) == 5 and parts[2] == "users" and parts[4] == "password":
+                if not auth.reset_password(parts[3], data.get("password")):
+                    return self.send_json(400, {"error": "Password must be at least 8 characters."})
+                return self.send_json(200, {"ok": True})
             if len(parts) == 5 and parts[2] == "rides" and parts[4] == "ack":
-                return self.ack_ride(parts[3], data)
+                return self.ack_ride(parts[3], data, user["display_name"] if user else None)
             if len(parts) == 3 and parts[2] == "message":
                 return self.dispatch_message(data)
             if len(parts) == 5 and parts[2] == "drivers" and parts[4] == "message":
@@ -754,18 +1004,37 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(404, {"error": "not found"})
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "drivers" and parts[3] == "message":
-            return self.driver_message(urllib.parse.unquote(parts[2]), data)
+            user = self.require_role("driver")
+            if os.environ.get("DATABASE_URL", "").strip() and not user:
+                return
+            name = user["display_name"] if user else urllib.parse.unquote(parts[2])
+            return self.driver_message(name, data)
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "rides":
             rid, action = parts[2], parts[3]
+            user = self.require_role("rider", "driver", "dispatch")
+            if os.environ.get("DATABASE_URL", "").strip() and not user:
+                return
             with LOCK:
                 ride = STORE["rides"].get(rid)
                 if not ride:
                     return self.send_json(404, {"error": "not found"})
+                if user and user["role"] == "rider" and action != "cancel":
+                    return self.send_json(403, {"error": "not allowed"})
+                if user and user["role"] == "driver" and action not in ("accept", "advance", "rating"):
+                    return self.send_json(403, {"error": "not allowed"})
                 if action == "rating":
+                    if user and user["role"] not in ("driver", "dispatch"):
+                        return self.send_json(403, {"error": "not allowed"})
+                    if user and user["role"] == "driver" and ride.get("driver_account_id") != user["id"]:
+                        return self.send_json(403, {"error": "not allowed"})
                     # A driver or dispatcher rates this ride; the score is filed
                     # against the hidden rider id behind it, never the name.
-                    entry = build_rating(data)
+                    rating_data = dict(data)
+                    if user:
+                        rating_data["by"] = user["role"]
+                        rating_data["by_name"] = user["display_name"]
+                    entry = build_rating(rating_data)
                     if isinstance(entry, str):
                         return self.send_json(400, {"error": entry})
                     ride.setdefault("ratings", []).append(entry)
@@ -777,19 +1046,23 @@ class Handler(SimpleHTTPRequestHandler):
                     record_event("ride_rated", ride=rid, rating=entry, snapshot=snapshot)
                     return self.send_json(201, {"ok": True, "rating": entry, "ride": snapshot})
                 if action == "accept":
+                    if user and user["role"] != "driver":
+                        return self.send_json(403, {"error": "not allowed"})
                     if ride["status"] != "requested":
                         return self.send_json(409, {"error": "ride is no longer available"})
-                    driver = clean_text(data.get("driver"), 60)
+                    driver = user["display_name"] if user else clean_text(data.get("driver"), 60)
                     if not driver:
                         return self.send_json(400, {"error": "driver name required"})
                     ride["driver"] = driver
+                    ride["driver_account_id"] = user["id"] if user else None
                     ride["status"] = "accepted"
                     log_status(ride, "accepted")
                     # Price the driver -> pickup leg now that we know who is
                     # coming and (when the driver's page shares it) where from.
                     approach = None
                     dcoords = parse_coords(data.get("driver_coords"))
-                    if not dcoords and data.get("demo") and DEMO_DRIVER:
+                    demo_enabled = os.environ.get("NIGHTRIDER_ENABLE_DEMO_DRIVER", "false").lower() == "true"
+                    if not dcoords and data.get("demo") and DEMO_DRIVER and demo_enabled:
                         dcoords = list(DEMO_DRIVER["coords"])
                     if dcoords and ride.get("pickup_coords"):
                         approach = haversine_miles(dcoords[0], dcoords[1],
@@ -801,12 +1074,16 @@ class Handler(SimpleHTTPRequestHandler):
                         ride["driver_coords"] = dcoords
                         ride["fare"] = fare(ride["distance_mi"], ride["driver_to_pickup_mi"])
                 elif action == "advance":
+                    if user and (user["role"] != "driver" or ride.get("driver_account_id") != user["id"]):
+                        return self.send_json(403, {"error": "not allowed"})
                     nxt = NEXT.get(ride["status"])
                     if not nxt:
                         return self.send_json(409, {"error": "ride cannot advance"})
                     ride["status"] = nxt
                     log_status(ride, nxt)
                 elif action == "cancel":
+                    if user and user["role"] != "dispatch" and ride.get("rider_account_id") != user["id"]:
+                        return self.send_json(403, {"error": "not allowed"})
                     if ride["status"] in ("completed", "cancelled"):
                         return self.send_json(409, {"error": "ride already closed"})
                     ride["status"] = "cancelled"
@@ -827,3 +1104,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     print(f"NightRider listening on http://0.0.0.0:{port}")
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
+
