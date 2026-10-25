@@ -358,7 +358,7 @@
       if (r.last_driver_release) {
         var releaseNote = document.createElement("p");
         releaseNote.className = "tiny muted";
-        releaseNote.textContent = (r.status === "requested" ? "Driver released this ride; it is back in the open queue. " : "Previously released by driver. ") +
+        releaseNote.textContent = (r.status === "requested" ? "Cancelled by driver — returned to the open queue. " : "Previously cancelled/released by driver. ") +
           r.last_driver_release.driver + " · " + clock(r.last_driver_release.at);
         card.appendChild(releaseNote);
       }
