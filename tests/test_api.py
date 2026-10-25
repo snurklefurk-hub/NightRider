@@ -20,9 +20,13 @@ class NightRiderAPI(unittest.TestCase):
         if os.path.exists(server.DATA_FILE):
             os.remove(server.DATA_FILE)
 
-    def call(self, path, body=None):
+    KEY = {"X-Dispatch-Key": server.DEFAULT_DISPATCH_KEY}
+
+    def call(self, path, body=None, headers=None):
         data = json.dumps(body).encode() if body is not None else None
-        req = u.Request(self.base + path, data=data, headers={"Content-Type": "application/json"},
+        hdrs = {"Content-Type": "application/json"}
+        hdrs.update(headers or {})
+        req = u.Request(self.base + path, data=data, headers=hdrs,
                         method="POST" if data is not None else "GET")
         try:
             with u.urlopen(req) as r:
@@ -30,8 +34,18 @@ class NightRiderAPI(unittest.TestCase):
         except u.HTTPError as e:
             return e.code, json.load(e)
 
-    def new_ride(self):
-        s, j = self.call("/api/rides", {"rider_name": "Jordan", "pickup": "A", "dropoff": "B", "distance_mi": 6.5})
+    def call_text(self, path, headers=None):
+        req = u.Request(self.base + path, headers=headers or {}, method="GET")
+        try:
+            with u.urlopen(req) as r:
+                return r.status, r.read().decode("utf-8"), r.headers.get("Content-Type", "")
+        except u.HTTPError as e:
+            return e.code, e.read().decode("utf-8"), e.headers.get("Content-Type", "")
+
+    def new_ride(self, body=None, headers=None):
+        payload = {"rider_name": "Jordan", "pickup": "A", "dropoff": "B", "distance_mi": 6.5}
+        payload.update(body or {})
+        s, j = self.call("/api/rides", payload, headers=headers)
         self.assertEqual(s, 201)
         return j["id"]
 
@@ -137,6 +151,173 @@ class NightRiderAPI(unittest.TestCase):
         for p in ["/", "/driver.html", "/dispatch.html", "/nightrider.css"]:
             with u.urlopen(self.base + p) as r:
                 self.assertEqual(r.status, 200)
+
+    # ---- Push + acknowledgement handshake ----
+    def test_ride_request_is_pushed_with_a_receipt_handshake(self):
+        rid = self.new_ride()
+        s, j = self.call("/api/dispatch/events?since=0&wait=0", headers=self.KEY)
+        self.assertEqual(s, 200)
+        mine = [e for e in j["events"] if e.get("ride") == rid]
+        types = [e["type"] for e in mine]
+        self.assertIn("ride_requested", types)
+        requested = next(e for e in mine if e["type"] == "ride_requested")
+        self.assertTrue(requested["ack_required"])
+        self.assertEqual(requested["snapshot"]["status"], "requested")
+        self.assertNotIn("rider_id", requested["snapshot"])
+
+        s, j = self.call(f"/api/dispatch/rides/{rid}/ack", {"by": "Alex"}, headers=self.KEY)
+        self.assertEqual(s, 200)
+        self.assertEqual(j["ack"]["by"], "Alex")
+        self.assertGreaterEqual(j["ack"]["latency_s"], 0)
+
+        s, j = self.call(f"/api/rides/{rid}")
+        self.assertEqual(j["dispatch_ack"]["by"], "Alex")
+        s, j = self.call(f"/api/events?since=0&wait=0&ride={rid}")
+        self.assertIn("ride_acknowledged", [e["type"] for e in j["events"]])
+
+    def test_long_poll_returns_only_events_after_the_cursor(self):
+        ride = self.new_ride()
+        s, first = self.call("/api/events?since=0&wait=0")
+        cursor = first["cursor"]
+        s, empty = self.call(f"/api/events?since={cursor}&wait=0")
+        self.assertEqual(empty["events"], [])
+        self.assertTrue(empty["timed_out"])
+        self.new_ride()
+        s, later = self.call(f"/api/events?since={cursor}&wait=0")
+        self.assertTrue(later["events"])
+        self.assertTrue(all(e["seq"] > cursor for e in later["events"]))
+        s, scoped = self.call(f"/api/events?since=0&wait=0&ride={ride}")
+        self.assertTrue(scoped["events"])
+        self.assertTrue(all(e.get("ride") == ride for e in scoped["events"]))
+
+    def test_status_changes_are_pushed_too(self):
+        rid = self.new_ride()
+        cursor = self.call("/api/events?since=0&wait=0")[1]["cursor"]
+        self.call(f"/api/rides/{rid}/accept", {"driver": "Sam"})
+        s, j = self.call(f"/api/events?since={cursor}&wait=0&ride={rid}")
+        accepted = [e for e in j["events"] if e["type"] == "ride_accepted"]
+        self.assertEqual(len(accepted), 1)
+        self.assertEqual(accepted[0]["snapshot"]["status"], "accepted")
+        self.assertEqual(accepted[0]["snapshot"]["driver"], "Sam")
+
+    def test_dispatch_routes_require_the_dispatch_key(self):
+        for path in ["/api/dispatch/rides", "/api/dispatch/riders", "/api/dispatch/events"]:
+            self.assertEqual(self.call(path)[0], 401)
+            self.assertEqual(self.call(path, headers={"X-Dispatch-Key": "wrong"})[0], 401)
+            self.assertEqual(self.call(path, headers=self.KEY)[0], 200)
+        self.assertEqual(self.call("/api/dispatch", headers=self.KEY)[0], 404)
+        self.assertEqual(self.call("/api/dispatch/nope", headers=self.KEY)[0], 404)
+        self.assertEqual(self.call("/api/dispatch/rides/nope/ack", {}, headers={})[0], 401)
+
+    # ---- Hidden rider identifiers ----
+    def test_rider_id_is_derived_hidden_and_not_client_settable(self):
+        signals = {"platform": "Win32", "screen": "1920x1080", "cores": "8", "canvas": "ab12"}
+        s, j = self.call("/api/rides", {"rider_name": "Casey", "pickup": "A", "dropoff": "B",
+                                        "distance_mi": 3, "device": signals, "rider_id": "NR-SPOOFED"})
+        self.assertEqual(s, 201)
+        self.assertNotIn("rider_id", j, "the rider must never receive their hidden id")
+        self.assertIn("rider_summary", j)
+        rid = j["id"]
+        stored = server.STORE["rides"][rid]["rider_id"]
+        self.assertTrue(stored.startswith("NR-"))
+        self.assertNotEqual(stored, "NR-SPOOFED", "a client-supplied rider_id must be ignored")
+        # Same device signals from the same client resolve to the same rider.
+        s, j2 = self.call("/api/rides", {"rider_name": "Casey", "pickup": "C", "dropoff": "D",
+                                          "distance_mi": 2, "device": signals})
+        self.assertEqual(server.STORE["rides"][j2["id"]]["rider_id"], stored)
+        # A different client is a different rider.
+        s, j3 = self.call("/api/rides", {"rider_name": "Other", "pickup": "E", "dropoff": "F",
+                                          "distance_mi": 2, "device": signals},
+                          headers={"User-Agent": "OtherBrowser/9"})
+        self.assertNotEqual(server.STORE["rides"][j3["id"]]["rider_id"], stored)
+        # Nothing public ever exposes it.
+        self.assertNotIn("rider_id", self.call(f"/api/rides/{rid}")[1])
+        self.assertTrue(all("rider_id" not in r for r in self.call("/api/rides")[1]["rides"]))
+        # Dispatch does see it, and so does the backend record.
+        found = [r for r in self.call("/api/dispatch/rides", headers=self.KEY)[1]["rides"] if r["id"] == rid]
+        self.assertEqual(found[0]["rider_id"], stored)
+        s, detail = self.call(f"/api/dispatch/riders/{stored}", headers=self.KEY)
+        self.assertEqual(s, 200)
+        self.assertIn("Casey", detail["names"])
+        self.assertEqual(detail["signals"]["canvas"], "ab12")
+        self.assertIn(rid, [r["id"] for r in detail["rides"]])
+
+    def test_signals_are_sanitised(self):
+        s, j = self.call("/api/rides", {"rider_name": "Sam", "pickup": "A", "dropoff": "B", "distance_mi": 2,
+                                        "device": {"platform": "Linux", "secret": "nope",
+                                                   "screen": {"nested": 1}, "cores": "4"}})
+        self.assertEqual(s, 201)
+        rid = server.STORE["rides"][j["id"]]["rider_id"]
+        sig = self.call(f"/api/dispatch/riders/{rid}", headers=self.KEY)[1]["signals"]
+        self.assertEqual(sig, {"platform": "Linux", "cores": "4"})
+
+    # ---- Ratings and issues ----
+    def test_ratings_and_issues_attach_to_the_hidden_rider(self):
+        rid = self.new_ride({"rider_name": "Difficult", "device": {"platform": "Rater1"}})
+        hidden = server.STORE["rides"][rid]["rider_id"]
+        s, j = self.call(f"/api/rides/{rid}/rating", {"by": "driver", "by_name": "Sam", "stars": 2,
+                                                      "issues": ["no-show", "rude"], "note": "late"})
+        self.assertEqual(s, 201)
+        self.assertEqual(j["rating"]["stars"], 2)
+        self.assertEqual(j["rating"]["issues"], ["no-show", "rude"])
+        s, j = self.call(f"/api/rides/{rid}/rating", {"by": "dispatch", "stars": 1, "issues": "unreachable"})
+        self.assertEqual(s, 201)
+        self.assertEqual(self.call(f"/api/rides/{rid}/ratings")[1]["ratings"][-1]["issues"], ["unreachable"])
+        self.assertEqual(self.call(f"/api/riders/{hidden}/ratings")[0], 404)
+        s, detail = self.call(f"/api/dispatch/riders/{hidden}", headers=self.KEY)
+        self.assertEqual(len(detail["ratings"]), 2)
+        self.assertEqual(detail["summary"]["avg"], 1.5)
+        self.assertEqual(detail["summary"]["issues"], 2)
+        # Invalid input is refused.
+        self.assertEqual(self.call(f"/api/rides/{rid}/rating", {"by": "rider", "stars": 5})[0], 400)
+        self.assertEqual(self.call(f"/api/rides/{rid}/rating", {"by": "driver", "stars": 9})[0], 400)
+        self.assertEqual(self.call(f"/api/rides/{rid}/rating", {"by": "driver", "stars": "bad"})[0], 400)
+        self.assertEqual(self.call("/api/rides/nope/rating", {"by": "driver", "stars": 5})[0], 404)
+
+    def test_ride_rated_event_is_pushed(self):
+        rid = self.new_ride()
+        cursor = self.call("/api/events?since=0&wait=0")[1]["cursor"]
+        self.call(f"/api/rides/{rid}/rating", {"by": "driver", "by_name": "Sam", "stars": 5})
+        s, j = self.call(f"/api/events?since={cursor}&wait=0&ride={rid}")
+        self.assertIn("ride_rated", [e["type"] for e in j["events"]])
+
+    # ---- Plain-text log export ----
+    def test_export_log_covers_a_period_and_includes_every_ride(self):
+        ids = [self.new_ride({"rider_name": "Log%d" % n, "device": {"platform": "Exporter%d" % n}})
+               for n in range(3)]
+        s, text, ctype = self.call_text("/api/dispatch/export", headers=self.KEY)
+        self.assertEqual(s, 200)
+        self.assertIn("text/plain", ctype)
+        self.assertIn("NightRider ride log", text)
+        self.assertIn("Period:    all rides", text)
+        for i in ids:
+            self.assertIn(i, text)
+        for n in range(3):
+            self.assertIn("NR-", text)
+            self.assertIn("Log%d" % n, text)
+        self.assertIn("Status:   requested", text)
+        # A window with no rides is empty but still a valid log.
+        s, text, ctype = self.call_text("/api/dispatch/export?from=2100-01-01&to=2100-01-02", headers=self.KEY)
+        self.assertEqual(s, 200)
+        self.assertIn("Rides:     0", text)
+        self.assertIn("No rides in this period.", text)
+        # A date-only period includes all of that day.
+        today = __import__("datetime").date.today().isoformat()
+        s, text, ctype = self.call_text("/api/dispatch/export?from=" + today + "&to=" + today, headers=self.KEY)
+        for i in ids:
+            self.assertIn(i, text)
+        self.assertEqual(self.call_text("/api/dispatch/export")[0], 401)
+
+    def test_export_log_records_the_acknowledgement_and_rating(self):
+        rid = self.new_ride({"rider_name": "Audit", "device": {"platform": "Audit1"}})
+        self.call(f"/api/dispatch/rides/{rid}/ack", {"by": "Alex"}, headers=self.KEY)
+        self.call(f"/api/rides/{rid}/rating", {"by": "dispatch", "stars": 1, "issues": ["unreachable"]})
+        text = self.call_text("/api/dispatch/export", headers=self.KEY)[1]
+        block = [b for b in text.split("-" * 68) if rid in b][0]
+        self.assertIn("dispatch ack", block)
+        self.assertIn("by Alex", block)
+        self.assertIn("dispatch 1/5", block)
+        self.assertIn("issues: unreachable", block)
 
 
 if __name__ == "__main__":

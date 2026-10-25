@@ -132,3 +132,17 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
      padding-right:calc(1.5rem + env(safe-area-inset-right,0px))}
 .sheet{padding-bottom:calc(1rem + var(--safe-bottom))}
 .rider{padding-bottom:env(safe-area-inset-bottom,0px)}
+
+/* ---------- Dispatch board extras ---------- */
+.tiny{font-size:.72rem}
+.counts h3{font-size:.72rem;text-transform:uppercase;letter-spacing:.14em;font-weight:normal;
+  color:var(--mist);margin:0 0 .5rem}
+.counts-strip{display:flex;flex-wrap:wrap;gap:1.2rem}
+.counts-strip .count{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase}
+.counts-strip .count .num{font-size:.78rem}
+.handshake{border-color:var(--plum);box-shadow:0 0 12px rgba(196,100,177,.25)}
+.rate{display:flex;gap:.25rem;margin:.3rem 0}
+.rate .star{padding:.1rem .35rem;font-size:.7rem;line-height:1.1}
+.issues{display:flex;flex-wrap:wrap;gap:.4rem;max-width:16rem}
+.issues label{display:inline-flex;align-items:center;gap:.25rem;color:var(--mist)}
+.issues input{width:auto}

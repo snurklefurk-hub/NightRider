@@ -25,7 +25,7 @@ No coding is needed. You will copy the files to GitHub, then connect GitHub to R
 Your pages:
 - `/` is the rider page (map, address search, one fare estimate, live status).
 - `/driver.html` is the driver page.
-- `/dispatch.html` is the dispatch page.
+- `/dispatch.html` is the dispatch page — live board, hidden rider IDs, ratings/issues, and the ride-log export. It asks for the dispatch key (a default is built in).
 
 ## If Render shows "Failed to launch" or a Python error
 
@@ -38,7 +38,9 @@ Upload the newest `render.yaml` (from the newest nightrider.zip) to GitHub, repl
 - **Updating the site.** Change files on GitHub (or upload new ones), and Render redeploys automatically.
 - **Map key — works out of the box.** The map uses CARTO's dark "Dark Matter" tiles. A working basemap key is already built into the code, so you do **not** need to do anything: deploy and the map works. It is a public client-side basemap key (it is visible in any tile request the browser makes), not an account secret.
 - **Optional: rotate the key.** If you ever get a new key and want to use it without editing code, open your Render service → **Environment** → **Add Environment Variable** → name `CARTO_API_KEY`, value = your new key → save. Render redeploys automatically and the server hands the new key to the page. If an old copy of your site ever asks for a Google key, that page is out of date — re-upload the current files from `nightrider.zip` and redeploy.
-- **Not for real riders yet.** There is no login or payment. Anyone with the link can see the dispatch and driver pages.
+- **Dispatch key — works out of the box.** The dispatch page (`/dispatch.html`) is the only place hidden rider IDs are shown, so it sits behind a key. A working default is built in, so you can open it immediately; the page has a key field to enter a different one. To make it private, open your Render service → **Environment** → **Add Environment Variable** → name `DISPATCH_KEY`, value = a private phrase of your choosing → save. Then type that same phrase into the dispatch page's key field. Riders and drivers never see hidden rider IDs.
+- **Live updates, no polling.** Dispatch and rider screens hold a connection open and update the moment something changes. Nothing to configure.
+- **Not for real riders yet.** There is no login or payment. Anyone with the link can see the rider and driver pages; the dispatch page is behind the dispatch key.
 
 ## Running it on your own computer (optional)
 

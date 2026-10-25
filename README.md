@@ -12,15 +12,51 @@ Standard library only (Python 3.8+). No database; rides persist to rides.json.
 
 ## Pages
 - `/` (index.html): Lyft-style rider page — full-screen map, pickup/drop-off address search, one fare estimate, request and live status.
-- `/driver.html`: driver enters name, accepts open requests, moves ride through arrived → in progress → completed.
-- `/dispatch.html`: dispatch board of all rides with cancel control.
+- `/driver.html`: driver enters name, accepts open requests, moves ride through arrived → in progress → completed, and rates the rider.
+- `/dispatch.html`: live dispatch board — see **Dispatch** below.
 
 ## API
 - GET /api/rides, GET /api/rides/{id}
-- POST /api/rides  {rider_name, pickup, dropoff, distance_mi, pickup_coords?, driver_to_pickup_mi?}
+- POST /api/rides  {rider_name, pickup, dropoff, distance_mi, pickup_coords?, driver_to_pickup_mi?, device?}
 - POST /api/rides/{id}/accept  {driver, driver_coords?}  (or {driver, demo: true} for the test driver)
 - POST /api/rides/{id}/advance
 - POST /api/rides/{id}/cancel
+- GET /api/events?since=&ride=&wait=  long-poll event stream (rider screens)
+- POST /api/rides/{id}/rating  {by: "driver"|"dispatch", stars, issues?, note?}
+
+Dispatch-only routes (require the `X-Dispatch-Key` header):
+- GET /api/dispatch/rides, GET /api/dispatch/riders
+- GET /api/dispatch/events?since=&wait=  (wakes the instant a ride is requested)
+- POST /api/dispatch/rides/{id}/ack  {by}  acknowledgment handshake
+- GET /api/dispatch/export?from=&to=  plain-text ride log
+
+## Dispatch: push, not polling
+The dispatch board no longer polls on a timer. It holds one long-lived request open on
+`/api/dispatch/events`; the server wakes it the moment a rider requests a ride. Each incoming
+request is acknowledged back to the rider (`ride_acknowledged`) so the rider's screen can show
+"dispatch received your request" — a handshake that nothing was dropped. There is also a **Force
+refresh** button, and the board shows the five most recent rides plus a small counts strip at the
+bottom. Event state is in memory only, so it resets when the server restarts; rides themselves
+persist to `rides.json`.
+
+## Dispatch key
+Dispatch routes expose hidden rider IDs, so they sit behind a key. A working default
+(`nightrider-dispatch`) ships so the board works out of the box; set `DISPATCH_KEY` in the host
+environment to make it private (see DEPLOY.md). The dispatch page has a key field for that value.
+
+## Hidden rider IDs, ratings and issues
+Every ride is stamped with a rider identity the rider can neither see nor change. It is derived on
+the server from the request headers plus a few read-only browser signals the rider page reports
+(SHA-256), so it works with no app install. It is **not** a hardware serial — it is a stable
+best-effort fingerprint, not a verified identity. Drivers and dispatch can file a 1–5 star rating
+and issue tags (no-show, rude, messy, unsafe, payment, other) against that ID; the running average
+and issue count are shown to drivers and dispatch, while the ID itself is only ever visible on the
+dispatch/backend side. Riders see their own average summary but never the ID.
+
+## Export
+The dispatch page can download a plain-text log of every ride for a chosen date range (or all
+rides) — ID, rider, hidden ID, route, distance, fare, driver, status, dispatch acknowledgment and
+ratings.
 
 ## Fare
 
@@ -45,7 +81,11 @@ square and the rider estimate prices the $0.25/mile approach leg from City Hall.
 device's GPS — handy for repeatable tests from anywhere.
 
 ## Verification
-Checked by running the server and calling the API: create (201), validation (400), accept, double-accept (409), advance, cancel, and page/asset loads (200), unknown route (404). Visual layout has not been reviewed.
+Checked by running the server and calling the API: create (201), validation (400), accept,
+double-accept (409), advance, cancel, page/asset loads (200), unknown route (404), the event stream
+and acknowledgment handshake, dispatch-key authentication (401 without a key), ratings/issues
+validation, and plain-text export with date filters. The automated suite (`python3 -m unittest
+discover -s tests`) covers the same ground. Visual layout has not been reviewed.
 
 ## Map and addresses (rider page)
 The rider page uses Leaflet with CARTO *Dark Matter* map tiles (OpenStreetMap data) — a near-monochrome dark basemap that matches the NightRider night aesthetic. The pickup dot is teal, the drop-off dot is coral, and the route line is bright cyan so it stays visible on the dark base. Prefer a light map? Change `dark_all` to `voyager` in the tile URL in `public/index.html` — that one word switches the basemap.

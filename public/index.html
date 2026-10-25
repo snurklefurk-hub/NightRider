@@ -68,6 +68,7 @@
   <div id="stepMatching" hidden>
     <p class="prompt"><span class="pulse" aria-hidden="true"></span>Finding your driver</p>
     <p class="muted">Matching you with a nearby NightRider. Keep this page open.</p>
+    <p class="tiny muted" id="ackMsg">Sending your request to dispatch…</p>
     <div class="row">
       <button type="button" class="alt" id="cancelMatch" style="margin-left:0">Cancel request</button>
     </div>
@@ -79,6 +80,7 @@
       <span class="muted" id="tripStatus">—</span>
       <span class="num" id="tripFare">—</span>
     </div>
+    <p class="tiny muted" id="tripAck"></p>
     <p class="muted" id="tripBreakdown"></p>
     <div class="driverline">
       <div class="avatar" id="driverInitial">?</div>
@@ -181,7 +183,8 @@
     options: [],
     selected: null,
     rideId: null,
-    poll: null,
+    live: false,
+    cursor: 0,
     approachMi: 0,
     demoMarker: null
   };
@@ -368,7 +371,7 @@
         if (!res.ok) { throw new Error(res.j.error || "request failed"); }
         state.rideId = res.j.id;
         showMatching();
-        startPolling();
+        startLive();
       })
       .catch(function (e) {
         $("requestBtn").disabled = false;
@@ -381,12 +384,30 @@
     $("stepMatching").hidden = false;
   }
 
-  function startPolling() {
-    stopPolling();
-    state.poll = setInterval(refresh, 3000);
+  // Live updates by push: one open request instead of a timer that fires
+  // whether or not anything changed. The server wakes us the moment the ride
+  // changes, and we re-open the wait straight away.
+  function startLive() {
+    if (state.live) { return; }
+    state.live = true;
     refresh();
+    listen();
   }
-  function stopPolling() { if (state.poll) { clearInterval(state.poll); state.poll = null; } }
+  function stopLive() { state.live = false; }
+
+  function listen() {
+    if (!state.live || !state.rideId) { return; }
+    fetch("/api/events?ride=" + encodeURIComponent(state.rideId) + "&since=" + state.cursor + "&wait=25", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!state.live) { return; }
+        if (typeof d.cursor === "number") { state.cursor = Math.max(state.cursor, d.cursor); }
+        var touched = (d.events || []).some(function (e) { return e.ride === state.rideId; });
+        if (touched) { refresh(); }
+        listen();
+      })
+      .catch(function () { if (state.live) { setTimeout(listen, 3000); } });
+  }
 
   function refresh() {
     if (!state.rideId) { return; }
@@ -395,10 +416,17 @@
 
   function renderRide(ride) {
     if (!ride || ride.error) { return; }
-    if (ride.status === "requested") { showMatching(); return; }
+    if (ride.status === "requested") {
+      showMatching();
+      $("ackMsg").textContent = ride.dispatch_ack
+        ? "Dispatch received your request at " + new Date(ride.dispatch_ack.at * 1000).toLocaleTimeString() + "."
+        : "Waiting for dispatch to confirm your request\u2026";
+      return;
+    }
     $("stepMatching").hidden = true; $("stepSearch").hidden = true; $("stepOptions").hidden = true; $("stepTrip").hidden = false;
     $("tripStatus").textContent = statusWord(ride.status);
     $("tripFare").textContent = money(ride.fare);
+    $("tripAck").textContent = ackLine(ride);
     var bits = ["Flag drop " + money(RATES.flag_drop),
                 "Trip " + money(round2(RATES.trip_per_mile * ride.distance_mi))];
     if (ride.driver_to_pickup_mi > 0) {
@@ -417,10 +445,17 @@
     });
     if (ride.status === "completed" || ride.status === "cancelled") {
       $("cancelTrip").hidden = true; $("newRide").hidden = false;
-      stopPolling();
+      stopLive();
     } else {
       $("cancelTrip").hidden = false; $("newRide").hidden = true;
     }
+  }
+
+  function ackLine(ride) {
+    var a = ride.dispatch_ack;
+    if (!a) { return ride.status === "requested" ? "Dispatch has not confirmed your request yet." : ""; }
+    return "Dispatch received your request at " + new Date(a.at * 1000).toLocaleTimeString() +
+      " (" + a.latency_s + "s after you asked).";
   }
 
   function statusWord(s) {
@@ -431,7 +466,7 @@
   function cancelRide() {
     if (!state.rideId) { return; }
     fetch("/api/rides/" + state.rideId + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
-      .then(function () { stopPolling(); resetAll(); });
+      .then(function () { stopLive(); resetAll(); });
   }
   function cancelMatch() { cancelRide(); }
 
@@ -439,6 +474,8 @@
     if (state.routeLine) { map.removeLayer(state.routeLine); state.routeLine = null; }
     if (state.pickupMarker) { map.removeLayer(state.pickupMarker); state.pickupMarker = null; }
     if (state.dropoffMarker) { map.removeLayer(state.dropoffMarker); state.dropoffMarker = null; }
+    stopLive(); state.live = false; state.cursor = 0;
+    $("ackMsg").textContent = "Sending your request to dispatch\u2026"; $("tripAck").textContent = "";
     state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
     state.selected = null; $("pickup").value = ""; $("dropoff").value = ""; $("results").innerHTML = "";
     $("stepTrip").hidden = true; $("stepOptions").hidden = true; $("stepMatching").hidden = true; $("stepSearch").hidden = false;

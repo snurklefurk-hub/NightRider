@@ -58,6 +58,7 @@
       '<p class="num">' + ride.distance_mi + " mi \u00b7 " + money(ride.fare) + "</p>" +
       (ride.driver_to_pickup_mi ? '<p class="muted">Driver to pickup: ' + ride.driver_to_pickup_mi + " mi</p>" : "") +
       (ride.driver ? '<p class="muted">Driver: ' + esc(ride.driver) + "</p>" : "");
+    el.appendChild(riderRating(ride));
     actions.forEach(function (a) {
       var b = document.createElement("button");
       b.type = "button"; b.textContent = a.label; if (a.alt) { b.className = "alt"; b.style.marginLeft = "0"; }
@@ -65,6 +66,54 @@
       el.appendChild(b);
     });
     return el;
+  }
+
+  var ISSUES = ["No-show", "Rude", "Messy", "Unsafe", "Payment issue", "Other"];
+
+  /* Rate the rider behind this ride. The score is filed against the hidden
+     rider id on the server, so the driver sees the running total but never
+     the id itself. */
+  function riderRating(ride) {
+    var wrap = document.createElement("div");
+    var s = ride.rider_summary || {};
+    var head = document.createElement("p");
+    head.className = "tiny muted";
+    head.textContent = (s.ratings ? s.avg + "\u2605 avg over " + s.ratings + " rating(s)" : "No ratings yet") +
+      (s.issues ? " \u00b7 " + s.issues + " flagged issue(s)" : "");
+    wrap.appendChild(head);
+    if (ride.status === "completed" || ride.status === "cancelled") { return wrap; }
+
+    var box = document.createElement("div");
+    box.className = "rate";
+    for (var n = 1; n <= 5; n++) {
+      (function (n) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "alt star"; b.style.marginLeft = "0"; b.textContent = n;
+        b.title = "Rate this rider " + n + "/5";
+        b.addEventListener("click", function () { rate(ride, n, wrap); });
+        box.appendChild(b);
+      })(n);
+    }
+    wrap.appendChild(box);
+    var issues = document.createElement("div");
+    issues.className = "issues";
+    issues.innerHTML = ISSUES.map(function (i) {
+      return '<label class="tiny"><input type="checkbox" class="issuepick" value="' + esc(i) + '"> ' + esc(i) + "</label>";
+    }).join(" ");
+    wrap.appendChild(issues);
+    return wrap;
+  }
+
+  function rate(ride, stars, wrap) {
+    var issues = [];
+    wrap.querySelectorAll(".issuepick:checked").forEach(function (c) { issues.push(c.value); });
+    api("/api/rides/" + ride.id + "/rating", { by: "driver", by_name: driver(), stars: stars, issues: issues })
+      .then(function (res) {
+        if (!res.ok) { $("msg").textContent = "Rating not saved: " + (res.j.error || "error"); return; }
+        $("msg").textContent = "Saved " + stars + "/5 for " + ride.rider_name + "'s rider profile.";
+        load();
+      })
+      .catch(function () { $("msg").textContent = "Rating failed."; });
   }
 
   function load() {

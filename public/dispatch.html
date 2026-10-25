@@ -17,23 +17,63 @@
 </header>
 <main>
   <h1>Dispatch</h1>
+
   <div class="card">
-    <p class="muted">Live view of every ride in the system. Updated every 4 seconds.</p>
-    <button type="button" id="refresh">Refresh now</button>
-    <p class="msg" id="msg"></p>
+    <p class="muted">Live board. Dispatch holds a connection open and is woken the instant a rider
+      requests a ride — no polling every few seconds. Each incoming request is acknowledged back to
+      the rider as a handshake, so nothing is silently dropped.</p>
+    <div class="row">
+      <button type="button" id="refresh">Force refresh</button>
+      <label class="muted" for="key" style="margin-left:1rem">Dispatch key</label>
+      <input id="key" type="password" autocomplete="off" placeholder="dispatch key" style="max-width:14rem">
+      <button type="button" class="alt" id="savekey">Use key</button>
+    </div>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    <p class="tiny muted" id="conn">Connecting…</p>
   </div>
+
   <div class="card">
-    <h2>Counts</h2>
-    <div class="grid" id="counts"></div>
+    <h2>Incoming requests</h2>
+    <div id="pending"></div>
   </div>
+
   <div class="card">
-    <h2>All rides</h2>
+    <h2>Recent rides <span class="tiny muted">(last 5)</span></h2>
     <div style="overflow:auto">
       <table>
-        <thead><tr><th>ID</th><th>Rider</th><th>Route</th><th class="num">Mi</th><th class="num">Fare</th><th>Driver</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>ID</th><th>Rider</th><th>Hidden ID</th><th>Route</th><th class="num">Mi</th><th class="num">Fare</th><th>Driver</th><th>Status</th><th>Ack</th><th>Rate rider</th><th></th></tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Export ride log</h2>
+    <p class="muted">Choose a period (leave blank for everything) and download a plain-text log of
+      every ride, with the hidden rider IDs, dispatch acknowledgments and ratings.</p>
+    <div class="row">
+      <label class="muted" for="from">From</label>
+      <input id="from" type="date">
+      <label class="muted" for="to">To</label>
+      <input id="to" type="date">
+      <button type="button" id="export">Export .txt</button>
+    </div>
+    <p class="msg" id="exportmsg" role="status" aria-live="polite"></p>
+  </div>
+
+  <div class="card">
+    <h2>Known riders <span class="tiny muted">(hidden IDs — drivers and riders never see these)</span></h2>
+    <div style="overflow:auto">
+      <table>
+        <thead><tr><th>Hidden ID</th><th>Names</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Last seen</th></tr></thead>
+        <tbody id="riderrows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card counts">
+    <h3>Counts <span class="tiny muted">by status</span></h3>
+    <div class="counts-strip" id="counts"></div>
   </div>
 </main>
 
@@ -42,47 +82,281 @@
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var STATUSES = ["requested", "accepted", "arrived", "in_progress", "completed", "cancelled"];
+  var ISSUES = ["No-show", "Rude", "Messy", "Unsafe", "Payment issue", "Other"];
+  var DEFAULT_KEY = "nightrider-dispatch";   /* built-in default; change DISPATCH_KEY on the host */
+  var KEY = localStorage.getItem("nightrider.dispatchKey") || DEFAULT_KEY;
+  var cursor = 0;          /* last event seq we have seen */
+  var pending = {};        /* ride id -> the request we still owe an ack */
+  var ridesById = {};
+  var polling = false;
+  var seenRides = false;
+
   function money(n) { return "$" + Number(n).toFixed(2); }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
+  function clock(ts) { if (!ts) return "—"; return new Date(ts * 1000).toLocaleTimeString(); }
+  function headers(extra) {
+    var h = { "X-Dispatch-Key": KEY };
+    if (extra) for (var k in extra) h[k] = extra[k];
+    return h;
+  }
+  function api(path, opts) {
+    opts = opts || {};
+    opts.headers = headers(opts.headers);
+    return fetch(path, opts);
+  }
 
-  function load() {
-    fetch("/api/rides").then(function (r) { return r.json(); }).then(function (d) {
-      var rides = d.rides || [];
-      var counts = {}; STATUSES.forEach(function (s) { counts[s] = 0; });
-      rides.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
-      $("counts").innerHTML = STATUSES.map(function (s) {
-        return '<div class="tripbar"><span class="muted">' + s + '</span><span class="num">' + counts[s] + "</span></div>";
-      }).join("");
-      var body = $("rows"); body.innerHTML = "";
-      if (!rides.length) { body.innerHTML = '<tr><td colspan="8" class="muted">No rides yet.</td></tr>'; }
-      rides.forEach(function (r) {
+  /* ---- live push: one long request instead of a 4s timer ---------------- */
+  function listen() {
+    if (polling) { return; }
+    polling = true;
+    api("/api/dispatch/events?since=" + cursor + "&wait=25", { cache: "no-store" })
+      .then(function (r) {
+        if (r.status === 401) { throw new Error("dispatch key rejected"); }
+        return r.json();
+      })
+      .then(function (d) {
+        polling = false;
+        (d.events || []).forEach(handle);
+        if (typeof d.cursor === "number") { cursor = Math.max(cursor, d.cursor); }
+        setConn(d.timed_out ? "Live — waiting for the next request." : "Live — received an update.");
+        listen();
+      })
+      .catch(function (e) {
+        polling = false;
+        setConn("Reconnecting… (" + (e && e.message ? e.message : "connection lost") + ")");
+        setTimeout(listen, 3000);
+      });
+  }
+
+  function setConn(text) {
+    var el = $("conn");
+    el.textContent = text;
+    el.className = "tiny " + (text.indexOf("Reconnecting") === 0 ? "msg" : "muted");
+  }
+
+  function handle(ev) {
+    if (ev.type === "ride_requested") {
+      /* The handshake: acknowledge the moment we have the request in hand. */
+      pending[ev.ride] = ev.snapshot || { id: ev.ride };
+      ack(ev.ride, true);
+      renderPending();
+    } else if (ev.type === "ride_acknowledged") {
+      delete pending[ev.ride];
+      renderPending();
+    }
+    refresh();
+  }
+
+  function ack(id, auto) {
+    api("/api/dispatch/rides/" + id + "/ack", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ by: "dispatch" })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.ack) {
+        delete pending[id];
+        renderPending();
+        $("msg").textContent = "Request " + id + " acknowledged at " + clock(d.ack.at) +
+          " (" + d.ack.latency_s + "s after the request).";
+        refresh();
+      }
+    }).catch(function () {
+      if (!auto) { $("msg").textContent = "Could not acknowledge " + id + "."; }
+    });
+  }
+
+  function renderPending() {
+    var ids = Object.keys(pending);
+    var box = $("pending");
+    if (!ids.length) {
+      box.innerHTML = '<p class="muted">No requests waiting. New requests appear here the moment they arrive.</p>';
+      return;
+    }
+    box.innerHTML = "";
+    ids.forEach(function (id) {
+      var r = pending[id] || {};
+      var wrap = document.createElement("div");
+      wrap.className = "tripbar handshake";
+      wrap.innerHTML =
+        '<div><span class="status pulse">new</span> <strong>' + esc(id) + "</strong> " +
+        '<span class="muted">' + esc(r.rider_name || "rider") + " · " + esc(r.pickup || "") +
+        " → " + esc(r.dropoff || "") + "</span></div>";
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Acknowledge";
+      b.addEventListener("click", function () { ack(id, false); });
+      wrap.appendChild(b);
+      box.appendChild(wrap);
+    });
+  }
+
+  /* ---- ride table (last five) ------------------------------------------ */
+  function refresh() {
+    api("/api/dispatch/rides", { cache: "no-store" }).then(function (r) {
+      if (r.status === 401) { throw new Error("dispatch key rejected"); }
+      return r.json();
+    }).then(function (d) {
+      var all = d.rides || [];
+      ridesById = {};
+      all.forEach(function (r) { ridesById[r.id] = r; });
+      renderRows(all.slice(0, 5));
+      renderCounts(all);
+      renderRiders();
+      $("msg").textContent = "";
+      seenRides = true;
+    }).catch(function (e) {
+      if (!seenRides) { $("msg").textContent = "Could not load rides: " + (e && e.message ? e.message : "error"); }
+    });
+  }
+
+  function ackCell(r) {
+    var a = r.dispatch_ack;
+    if (!a) return r.status === "requested" ? '<span class="msg">awaiting ack</span>' : '<span class="muted">—</span>';
+    return '<span class="tiny muted">' + clock(a.at) + " · " + a.latency_s + "s</span>";
+  }
+
+  function renderRows(rides) {
+    var body = $("rows"); body.innerHTML = "";
+    if (!rides.length) { body.innerHTML = '<tr><td colspan="11" class="muted">No rides yet.</td></tr>'; return; }
+    rides.forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + esc(r.id) + "</td>" + "<td>" + esc(r.rider_name) + "</td>" +
+        '<td class="tiny">' + esc(r.rider_id || "—") + "</td>" +
+        '<td><span class="muted">' + esc(r.pickup) + "</span><br>" + esc(r.dropoff) + "</td>" +
+        '<td class="num">' + r.distance_mi + "</td>" + '<td class="num">' + money(r.fare) + "</td>" +
+        "<td>" + esc(r.driver || "\u2014") + "</td>" + '<td><span class="status">' + esc(r.status) + "</span></td>" +
+        "<td>" + ackCell(r) + "</td>";
+      tr.appendChild(ratingCell(r));
+      var td = document.createElement("td");
+      if (r.status !== "completed" && r.status !== "cancelled") {
+        var b = document.createElement("button"); b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Cancel";
+        b.addEventListener("click", function () { cancel(r.id); });
+        td.appendChild(b);
+      }
+      tr.appendChild(td);
+      body.appendChild(tr);
+    });
+  }
+
+  function ratingCell(r) {
+    var td = document.createElement("td");
+    td.className = "tiny";
+    var s = r.rider_summary || {};
+    td.innerHTML = '<span class="muted">' + (s.avg != null ? s.avg + "★ avg" : "no score") +
+      (s.issues ? " · " + s.issues + " issue(s)" : "") + "</span><br>";
+    var box = document.createElement("div");
+    box.className = "rate";
+    for (var n = 1; n <= 5; n++) {
+      (function (n) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "star"; b.textContent = n;
+        b.title = "Rate this rider " + n + "/5";
+        b.addEventListener("click", function () { rate(r, n, box); });
+        box.appendChild(b);
+      })(n);
+    }
+    td.appendChild(box);
+    var issues = document.createElement("div");
+    issues.className = "issues";
+    issues.innerHTML = issuePicker();
+    td.appendChild(issues);
+    return td;
+  }
+
+  function rate(r, stars, box) {
+    if (box.dataset.busy) { return; }
+    box.dataset.busy = "1";
+    var picked = [];
+    box.parentNode.querySelectorAll(".issuepick:checked").forEach(function (c) { picked.push(c.value); });
+    api("/api/rides/" + r.id + "/rating", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ by: "dispatch", stars: stars, issues: picked })
+    }).then(function (x) { return x.json(); }).then(function (d) {
+      box.dataset.busy = "";
+      if (d && d.error) { $("msg").textContent = "Rating not saved: " + d.error; return; }
+      $("msg").textContent = "Rated ride " + r.id + " " + stars + "/5 for rider " + (r.rider_id || "") + ".";
+      refresh();
+    }).catch(function () { box.dataset.busy = ""; $("msg").textContent = "Rating failed."; });
+  }
+
+  function issuePicker() {
+    return ISSUES.map(function (i) {
+      return '<label class="tiny"><input type="checkbox" class="issuepick" value="' + esc(i) + '"> ' + esc(i) + "</label>";
+    }).join(" ");
+  }
+
+  function renderCounts(rides) {
+    var counts = {}; STATUSES.forEach(function (s) { counts[s] = 0; });
+    rides.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    $("counts").innerHTML = STATUSES.map(function (s) {
+      return '<span class="count"><span class="muted">' + s + '</span> <span class="num">' + counts[s] + "</span></span>";
+    }).join("");
+  }
+
+  function renderRiders() {
+    api("/api/dispatch/riders", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
+      var body = $("riderrows"); body.innerHTML = "";
+      var riders = d.riders || [];
+      if (!riders.length) { body.innerHTML = '<tr><td colspan="7" class="muted">No riders yet.</td></tr>'; return; }
+      riders.forEach(function (r) {
+        var s = r.summary || {};
         var tr = document.createElement("tr");
         tr.innerHTML =
-          "<td>" + esc(r.id) + "</td>" + "<td>" + esc(r.rider_name) + "</td>" +
-          '<td><span class="muted">' + esc(r.pickup) + "</span><br>" + esc(r.dropoff) + "</td>" +
-          '<td class="num">' + r.distance_mi + "</td>" + '<td class="num">' + money(r.fare) + "</td>" +
-          "<td>" + esc(r.driver || "\u2014") + "</td>" + '<td><span class="status">' + esc(r.status) + "</span></td>";
-        var td = document.createElement("td");
-        if (r.status !== "completed" && r.status !== "cancelled") {
-          var b = document.createElement("button"); b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Cancel";
-          b.addEventListener("click", function () { cancel(r.id); });
-          td.appendChild(b);
-        }
-        tr.appendChild(td);
+          '<td class="tiny">' + esc(r.id) + "</td>" +
+          "<td>" + esc((r.names || []).join(", ") || "—") + "</td>" +
+          '<td class="num">' + (s.rides || 0) + "</td>" +
+          '<td class="num">' + (s.ratings || 0) + "</td>" +
+          '<td class="num">' + (s.avg != null ? s.avg : "—") + "</td>" +
+          '<td class="num">' + (s.issues || 0) + "</td>" +
+          '<td class="tiny muted">' + (r.last_seen ? new Date(r.last_seen * 1000).toLocaleString() : "—") + "</td>";
         body.appendChild(tr);
       });
-      $("msg").textContent = "";
-    }).catch(function () { $("msg").textContent = "Could not load rides."; });
+    }).catch(function () {});
   }
 
   function cancel(id) {
-    fetch("/api/rides/" + id + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
-      .then(load).catch(function () { $("msg").textContent = "Cancel failed."; });
+    api("/api/rides/" + id + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
+      .then(refresh).catch(function () { $("msg").textContent = "Cancel failed."; });
   }
 
-  $("refresh").addEventListener("click", load);
-  load();
-  setInterval(load, 4000);
+  /* ---- export ----------------------------------------------------------- */
+  function doExport() {
+    var qs = [];
+    if ($("from").value) { qs.push("from=" + encodeURIComponent($("from").value)); }
+    if ($("to").value) { qs.push("to=" + encodeURIComponent($("to").value)); }
+    $("exportmsg").textContent = "Building log…";
+    api("/api/dispatch/export" + (qs.length ? "?" + qs.join("&") : ""), { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) { throw new Error("HTTP " + r.status); }
+        return r.blob();
+      })
+      .then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "nightrider-log.txt";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        $("exportmsg").textContent = "Log downloaded as nightrider-log.txt.";
+      })
+      .catch(function (e) { $("exportmsg").textContent = "Export failed: " + e.message; });
+  }
+
+  /* ---- wiring ----------------------------------------------------------- */
+  $("refresh").addEventListener("click", function () { refresh(); renderRiders(); });
+  $("export").addEventListener("click", doExport);
+  $("savekey").addEventListener("click", function () {
+    KEY = $("key").value.trim() || DEFAULT_KEY;
+    localStorage.setItem("nightrider.dispatchKey", KEY);
+    cursor = 0; pending = {}; renderPending();
+    refresh(); listen();
+    $("msg").textContent = "Dispatch key saved.";
+  });
+
+  renderPending();
+  refresh();
+  listen();
 })();
 </script>
 </body>

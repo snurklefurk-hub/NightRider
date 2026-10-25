@@ -1,5 +1,5 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
-import json, math, os, threading, time, uuid
+import datetime, hashlib, hmac, json, math, os, threading, time, urllib.parse, uuid
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
 # driver -> pickup leg of the fare can be exercised without a real driver.
@@ -16,6 +16,11 @@ DEMO_DRIVER = {
 # CARTO_API_KEY environment variable on the host to override/rotate it without
 # touching this file.
 DEFAULT_CARTO_KEY = "cb1_4ty9_1_b9153d194e9b53019d1d5bbe"
+
+# Only the dispatch screens know a rider's hidden id, so the dispatch routes
+# are behind this key. A working default ships so dispatch works out of the
+# box; set DISPATCH_KEY on the host to make it private.
+DEFAULT_DISPATCH_KEY = "nightrider-dispatch"
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 BASE = os.path.dirname(os.path.abspath(__file__))
@@ -45,6 +50,256 @@ STORE = load()
 
 def clean_text(v, n=120):
     return str(v or "").strip()[:n]
+
+
+def _first(qs, key, default=""):
+    return (qs.get(key) or [default])[0]
+
+
+def _num(qs, key, default=0.0):
+    try:
+        return float(_first(qs, key, default))
+    except (TypeError, ValueError):
+        return float(default)
+
+
+# ---- Push events (long-poll) -------------------------------------------
+# Dispatch no longer watches the clock. It holds one open request on
+# /api/events and the server answers the instant something happens, so a new
+# request appears on the dispatch screen immediately. The log lives in memory,
+# so a server restart simply resets the cursor to 0.
+EVENTS = []
+EVENT_SEQ = 0
+EVENT_LIMIT = 400
+EVENT_COND = threading.Condition()
+EVENT_FOR = {"accept": "ride_accepted", "advance": "ride_status", "cancel": "ride_cancelled"}
+
+
+def record_event(kind, ride=None, **extra):
+    """Append to the event log and wake every client that is waiting."""
+    global EVENT_SEQ
+    with EVENT_COND:
+        EVENT_SEQ += 1
+        ev = {"seq": EVENT_SEQ, "type": kind, "at": time.time()}
+        if ride is not None:
+            ev["ride"] = ride
+        ev.update(extra)
+        EVENTS.append(ev)
+        if len(EVENTS) > EVENT_LIMIT:
+            del EVENTS[:-EVENT_LIMIT]
+        EVENT_COND.notify_all()
+        return ev
+
+
+def read_events(since, ride=None, timeout=25.0):
+    """Long-poll: return events newer than `since`, or time out with none."""
+    deadline = time.time() + max(0.0, timeout)
+    with EVENT_COND:
+        while True:
+            found = [e for e in EVENTS if e["seq"] > since and (ride is None or e.get("ride") == ride)]
+            if found or time.time() >= deadline:
+                return {"events": found, "cursor": EVENT_SEQ, "now": time.time(), "timed_out": not found}
+            EVENT_COND.wait(min(1.0, max(0.05, deadline - time.time())))
+
+
+# ---- Hidden rider identifiers ------------------------------------------
+# Each rider gets a stable id derived on the server from the request headers
+# plus read-only browser/device properties the rider page reports. The rider
+# never receives this id in any response and has no way to change it: nothing
+# from the browser is trusted, and no app, cookie or local value is used.
+RIDER_SALT = os.environ.get("RIDER_ID_SALT", "nightrider-rider-v1")
+SIGNAL_KEYS = ("platform", "langs", "screen", "viewport", "color_depth", "pixel_ratio",
+               "timezone", "tz_offset", "cores", "memory", "touch", "canvas", "gpu")
+
+
+def clean_signals(value):
+    """Keep only known scalar device properties; ignore anything else."""
+    out = {}
+    if not isinstance(value, dict):
+        return out
+    for k in SIGNAL_KEYS:
+        v = value.get(k)
+        if v is None or isinstance(v, (dict, list, bool)):
+            continue
+        s = str(v).strip()[:80]
+        if s:
+            out[k] = s
+    return out
+
+
+def rider_id_for(headers, signals):
+    raw = [RIDER_SALT, headers.get("User-Agent", ""), headers.get("Accept-Language", "")]
+    raw += [k + "=" + signals[k] for k in sorted(signals)]
+    return "NR-" + hashlib.sha256("|".join(raw).encode("utf-8", "replace")).hexdigest()[:10].upper()
+
+
+def touch_rider(store, rid, signals, name):
+    """Create or update the backend record for this hidden rider id."""
+    riders = store.setdefault("riders", {})
+    rec = riders.get(rid)
+    now = time.time()
+    if not rec:
+        rec = {"id": rid, "first_seen": now, "rides": [], "ratings": []}
+        riders[rid] = rec
+    rec["last_seen"] = now
+    if signals:
+        rec["signals"] = signals
+    names = rec.setdefault("names", [])
+    if name and name not in names:
+        names.append(name)
+    del names[:-5]
+    return rec
+
+
+def rider_summary(store, rid):
+    """Counts and average score a driver may see. Never the identity."""
+    rec = (store.get("riders") or {}).get(rid)
+    if not rec:
+        return {"rides": 0, "ratings": 0, "avg": None, "issues": 0}
+    ratings = rec.get("ratings") or []
+    scored = [r["stars"] for r in ratings if isinstance(r.get("stars"), (int, float))]
+    return {
+        "rides": len(rec.get("rides") or []),
+        "ratings": len(ratings),
+        "avg": round(sum(scored) / len(scored), 2) if scored else None,
+        "issues": sum(1 for r in ratings if r.get("issues")),
+    }
+
+
+def public_ride(ride, store=None):
+    """A ride any client may see. The hidden rider id is never included."""
+    if not ride:
+        return ride
+    out = {k: v for k, v in ride.items() if k != "rider_id"}
+    out["rider_summary"] = rider_summary(store or {}, ride.get("rider_id"))
+    return out
+
+
+def dispatch_ride(ride, store):
+    """Dispatch's view: the same ride plus the hidden rider id."""
+    out = dict(ride)
+    out["rider_summary"] = rider_summary(store, ride.get("rider_id"))
+    return out
+
+
+def dispatch_rider(rec, store, detail=False):
+    out = {
+        "id": rec.get("id"),
+        "first_seen": rec.get("first_seen"),
+        "last_seen": rec.get("last_seen"),
+        "names": rec.get("names") or [],
+        "signals": rec.get("signals") or {},
+        "summary": rider_summary(store, rec.get("id")),
+    }
+    if detail:
+        rides = store["rides"]
+        out["rides"] = [
+            {"id": i, "created": rides[i]["created"], "status": rides[i]["status"],
+             "pickup": rides[i]["pickup"], "dropoff": rides[i]["dropoff"],
+             "fare": rides[i]["fare"], "driver": rides[i].get("driver"),
+             "ratings": rides[i].get("ratings") or []}
+            for i in rec.get("rides") or [] if i in rides
+        ]
+        out["ratings"] = rec.get("ratings") or []
+    return out
+
+
+def build_rating(data):
+    """Build a rating entry, or return an error string."""
+    by = clean_text(data.get("by"), 20)
+    if by not in ("driver", "dispatch"):
+        return "by must be driver or dispatch"
+    try:
+        stars = float(data.get("stars"))
+    except (TypeError, ValueError):
+        return "stars must be a number from 1 to 5"
+    if not (stars == int(stars) and 1 <= stars <= 5):
+        return "stars must be a number from 1 to 5"
+    issues = data.get("issues")
+    if isinstance(issues, str):
+        issues = [issues]
+    if not isinstance(issues, list):
+        issues = []
+    cleaned = [clean_text(i, 60) for i in issues[:6]]
+    return {
+        "by": by,
+        "by_name": clean_text(data.get("by_name"), 60),
+        "stars": int(stars),
+        "issues": [i for i in cleaned if i],
+        "note": clean_text(data.get("note"), 400),
+        "at": time.time(),
+    }
+
+
+# ---- Plain-text log export ---------------------------------------------
+def fmt_ts(ts):
+    return datetime.datetime.fromtimestamp(ts).astimezone().strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+def parse_when(value, end_of_day=False):
+    """Epoch seconds, YYYY-MM-DD, or an ISO timestamp. None means no bound."""
+    s = str(value or "").strip()
+    if not s:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    try:
+        if len(s) == 10:
+            d = datetime.datetime.strptime(s, "%Y-%m-%d")
+            if end_of_day:
+                d = d.replace(hour=23, minute=59, second=59, microsecond=999999)
+            return d.timestamp()
+        return datetime.datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def export_log(store, start=None, end=None):
+    """Every ride in the period as plain text, newest last, with hidden ids."""
+    rides = [r for r in store["rides"].values()
+             if (start is None or r["created"] >= start) and (end is None or r["created"] <= end)]
+    rides.sort(key=lambda r: r["created"])
+    if start is not None and end is not None:
+        period = fmt_ts(start) + " to " + fmt_ts(end)
+    elif start is not None:
+        period = "from " + fmt_ts(start)
+    elif end is not None:
+        period = "through " + fmt_ts(end)
+    else:
+        period = "all rides"
+    lines = [
+        "NightRider ride log",
+        "Period:    " + period,
+        "Generated: " + fmt_ts(time.time()),
+        "Rides:     " + str(len(rides)),
+        "",
+    ]
+    if not rides:
+        lines.append("No rides in this period." + chr(10))
+        return chr(10).join(lines)
+    for r in rides:
+        ack = r.get("dispatch_ack")
+        lines.append("-" * 68)
+        lines.append(fmt_ts(r["created"]) + "  ride " + str(r["id"]) + "  rider " + str(r.get("rider_id") or "-"))
+        lines.append("  Name:     " + str(r.get("rider_name") or "-"))
+        lines.append("  Route:    " + str(r.get("pickup")) + "  ->  " + str(r.get("dropoff")))
+        lines.append("  Distance: " + str(r.get("distance_mi")) + " mi (driver leg "
+                     + str(r.get("driver_to_pickup_mi")) + " mi)")
+        lines.append("  Fare:     $" + "%.2f" % r.get("fare", 0))
+        lines.append("  Driver:   " + str(r.get("driver") or "-"))
+        lines.append("  Status:   " + str(r.get("status"))
+                     + ("   (dispatch ack " + fmt_ts(ack["at"]) + " by " + str(ack.get("by"))
+                        + ", " + str(ack.get("latency_s")) + "s)" if ack else "   (no dispatch ack)"))
+        for entry in r.get("ratings") or []:
+            lines.append("  Rating:   " + str(entry.get("by")) + " " + str(entry.get("stars")) + "/5"
+                         + ("  by " + str(entry["by_name"]) if entry.get("by_name") else "")
+                         + ("  issues: " + ", ".join(entry["issues"]) if entry.get("issues") else "")
+                         + ("  note: " + str(entry["note"]) if entry.get("note") else ""))
+    lines.append("-" * 68)
+    lines.append("")
+    return chr(10).join(lines)
 
 
 # ---- Fares -------------------------------------------------------------
@@ -118,15 +373,86 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_text(self, code, text, filename=None):
+        body = text.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        if filename:
+            self.send_header("Content-Disposition", 'attachment; filename="%s"' % filename)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def read_json(self):
         n = int(self.headers.get("Content-Length") or 0)
         if n > 20000:
             raise ValueError("payload too large")
         return json.loads(self.rfile.read(n) or b"{}")
 
+    def dispatch_ok(self):
+        want = os.environ.get("DISPATCH_KEY", DEFAULT_DISPATCH_KEY)
+        got = self.headers.get("X-Dispatch-Key", "")
+        return hmac.compare_digest(str(want).encode(), str(got).encode())
+
+    def ack_ride(self, rid, data):
+        """The handshake: dispatch confirms it really received the request."""
+        by = clean_text(data.get("by"), 40) or "dispatch"
+        now = time.time()
+        with LOCK:
+            ride = STORE["rides"].get(rid)
+            if not ride:
+                return self.send_json(404, {"error": "not found"})
+            ride["dispatch_ack"] = {"by": by, "at": now,
+                                    "latency_s": round(max(0.0, now - ride["created"]), 2)}
+            save(STORE)
+            snapshot = public_ride(ride, STORE)
+            ack = dict(ride["dispatch_ack"])
+        # Tells the waiting rider screen that dispatch has the request in hand.
+        record_event("ride_acknowledged", ride=rid, ack=ack, snapshot=snapshot)
+        return self.send_json(200, {"ok": True, "ack": ack, "ride": snapshot})
+
+    def dispatch_get(self, path, qs):
+        if path == "/api/dispatch/events":
+            since = int(_num(qs, "since", 0))
+            wait = min(55.0, max(0.0, _num(qs, "wait", 25)))
+            return self.send_json(200, read_events(since, None, wait))
+        if path == "/api/dispatch/rides":
+            with LOCK:
+                rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
+                return self.send_json(200, {"rides": [dispatch_ride(r, STORE) for r in rides]})
+        if path == "/api/dispatch/riders":
+            with LOCK:
+                out = [dispatch_rider(rec, STORE) for rec in (STORE.get("riders") or {}).values()]
+            out.sort(key=lambda r: r.get("last_seen") or 0, reverse=True)
+            return self.send_json(200, {"riders": out})
+        if path.startswith("/api/dispatch/riders/"):
+            rid = path.split("/")[4]
+            with LOCK:
+                rec = (STORE.get("riders") or {}).get(rid)
+                if not rec:
+                    return self.send_json(404, {"error": "not found"})
+                return self.send_json(200, dispatch_rider(rec, STORE, detail=True))
+        if path == "/api/dispatch/export":
+            start = parse_when(_first(qs, "from"), end_of_day=False)
+            end = parse_when(_first(qs, "to"), end_of_day=True)
+            with LOCK:
+                text = export_log(STORE, start, end)
+            stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+            return self.send_text(200, text, filename="nightrider-log-%s.txt" % stamp)
+        return self.send_json(404, {"error": "not found"})
+
     def do_GET(self):
-        if self.path.startswith("/api/"):
-            if self.path == "/api/config":
+        parsed = urllib.parse.urlparse(self.path)
+        path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
+        if path.startswith("/api/"):
+            if path == "/api/dispatch/":
+                return self.send_json(404, {"error": "not found"})
+            if path.startswith("/api/dispatch/"):
+                if not self.dispatch_ok():
+                    return self.send_json(401, {"error": "dispatch key required"})
+                return self.dispatch_get(path, qs)
+            if path == "/api/config":
                 # Host environment variable wins (lets you rotate the key
                 # without a code change); otherwise use the built-in key.
                 key = os.environ.get("CARTO_API_KEY", DEFAULT_CARTO_KEY).strip()
@@ -141,25 +467,35 @@ class Handler(SimpleHTTPRequestHandler):
                     },
                     "demoDriver": DEMO_DRIVER,
                 })
-            if self.path == "/api/rides":
+            if path == "/api/events":
+                since = int(_num(qs, "since", 0))
+                ride = _first(qs, "ride") or None
+                wait = min(55.0, max(0.0, _num(qs, "wait", 25)))
+                return self.send_json(200, read_events(since, ride, wait))
+            if path == "/api/rides":
                 with LOCK:
                     rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
-                return self.send_json(200, {"rides": rides})
-            if self.path.startswith("/api/rides/"):
-                rid = self.path.split("/")[3].split("?")[0]
+                    return self.send_json(200, {"rides": [public_ride(r, STORE) for r in rides]})
+            if path.startswith("/api/rides/"):
+                rid = path.split("/")[3]
                 with LOCK:
                     ride = STORE["rides"].get(rid)
-                return self.send_json(200 if ride else 404, ride or {"error": "not found"})
+                    if not ride:
+                        return self.send_json(404, {"error": "not found"})
+                    if path.endswith("/ratings"):
+                        return self.send_json(200, {"ratings": ride.get("ratings") or []})
+                    return self.send_json(200, public_ride(ride, STORE))
             return self.send_json(404, {"error": "not found"})
         return super().do_GET()
 
     def do_POST(self):
+        path = urllib.parse.urlparse(self.path).path
         try:
             data = self.read_json()
         except (ValueError, json.JSONDecodeError):
             return self.send_json(400, {"error": "invalid JSON"})
 
-        if self.path == "/api/rides":
+        if path == "/api/rides":
             pickup = clean_text(data.get("pickup"))
             dropoff = clean_text(data.get("dropoff"))
             name = clean_text(data.get("rider_name"), 60)
@@ -192,17 +528,53 @@ class Handler(SimpleHTTPRequestHandler):
                 "driver": None, "created": time.time(),
             }
             with LOCK:
+                # The hidden rider id is derived here, on the server, from the
+                # request headers plus the read-only device properties the rider
+                # page reports. Any browser-supplied "rider_id" is ignored, so a
+                # rider can never set or change what dispatch sees.
+                signals = clean_signals(data.get("device"))
+                rid = rider_id_for(self.headers, signals)
+                ride["rider_id"] = rid
                 STORE["rides"][ride["id"]] = ride
+                rec = touch_rider(STORE, rid, signals, name)
+                if ride["id"] not in rec["rides"]:
+                    rec["rides"].append(ride["id"])
                 save(STORE)
-            return self.send_json(201, ride)
+                reply = public_ride(ride, STORE)
+            # The push: every dispatch screen waiting on /api/events wakes with
+            # this request at once and has to acknowledge it (see ack_ride).
+            record_event("ride_requested", ride=ride["id"], ack_required=True,
+                         status="requested", snapshot=reply)
+            return self.send_json(201, reply)
 
-        parts = self.path.strip("/").split("/")
+        parts = path.strip("/").split("/")
+        if len(parts) >= 3 and parts[0] == "api" and parts[1] == "dispatch":
+            if not self.dispatch_ok():
+                return self.send_json(401, {"error": "dispatch key required"})
+            if len(parts) == 5 and parts[2] == "rides" and parts[4] == "ack":
+                return self.ack_ride(parts[3], data)
+            return self.send_json(404, {"error": "not found"})
+
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "rides":
             rid, action = parts[2], parts[3]
             with LOCK:
                 ride = STORE["rides"].get(rid)
                 if not ride:
                     return self.send_json(404, {"error": "not found"})
+                if action == "rating":
+                    # A driver or dispatcher rates this ride; the score is filed
+                    # against the hidden rider id behind it, never the name.
+                    entry = build_rating(data)
+                    if isinstance(entry, str):
+                        return self.send_json(400, {"error": entry})
+                    ride.setdefault("ratings", []).append(entry)
+                    rec = (STORE.get("riders") or {}).get(ride.get("rider_id"))
+                    if rec is not None:
+                        rec.setdefault("ratings", []).append(dict(entry, ride=rid))
+                    save(STORE)
+                    snapshot = public_ride(ride, STORE)
+                    record_event("ride_rated", ride=rid, rating=entry, snapshot=snapshot)
+                    return self.send_json(201, {"ok": True, "rating": entry, "ride": snapshot})
                 if action == "accept":
                     if ride["status"] != "requested":
                         return self.send_json(409, {"error": "ride is no longer available"})
@@ -238,7 +610,12 @@ class Handler(SimpleHTTPRequestHandler):
                 else:
                     return self.send_json(404, {"error": "unknown action"})
                 save(STORE)
-                return self.send_json(200, ride)
+                snapshot = public_ride(ride, STORE)
+            # Status changes are pushed the same way, so the rider's screen
+            # updates the moment a driver accepts instead of on a timer.
+            record_event(EVENT_FOR.get(action, "ride_status"), ride=rid,
+                         status=snapshot.get("status"), snapshot=snapshot)
+            return self.send_json(200, snapshot)
         return self.send_json(404, {"error": "not found"})
 
 
