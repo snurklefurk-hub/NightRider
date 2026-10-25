@@ -103,9 +103,17 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .pin{width:16px;height:16px;border-radius:50%;border:3px solid #fff;box-sizing:border-box;box-shadow:0 1px 5px rgba(10,15,29,.45)}
 .pin.pick{background:#0f7ea8}
 .pin.drop{background:var(--plum)}
-/* Test driver parked at Savannah City Hall: amber square, so it never reads
-   as a pickup or drop-off pin. */
-.pin.demo{width:20px;height:20px;border-radius:6px;background:#f5c451}
+/* Test driver parked at Savannah City Hall: a nightwave crosshair with a slow
+   pulsing halo, so it never reads as a round pickup/drop-off pin. */
+.driver-pin{position:relative;width:34px;height:34px;display:block}
+.driver-pin::before{content:"";position:absolute;inset:3px;border-radius:50%;border:1px solid rgba(0,240,255,.5);box-shadow:0 0 8px rgba(0,240,255,.4)}
+.driver-pin .driver-core{position:absolute;left:50%;top:50%;width:15px;height:15px;transform:translate(-50%,-50%);filter:drop-shadow(0 0 5px rgba(0,240,255,.9))}
+.driver-pin .driver-core::before,.driver-pin .driver-core::after{content:"";position:absolute;background:var(--cyan)}
+.driver-pin .driver-core::before{left:50%;top:0;width:2px;height:100%;transform:translateX(-50%)}
+.driver-pin .driver-core::after{top:50%;left:0;height:2px;width:100%;transform:translateY(-50%)}
+.driver-pin .driver-halo{position:absolute;inset:3px;border-radius:50%;border:2px solid var(--cyan)}
+@media (prefers-reduced-motion:no-preference){.driver-pin .driver-halo{animation:driver-pulse 7s ease-out infinite}@keyframes driver-pulse{0%{transform:scale(.5);opacity:.85}100%{transform:scale(1.35);opacity:0}}}
+@media (prefers-reduced-motion:reduce){.driver-pin .driver-halo{opacity:.4}}
 
 /* Keep the map completely clear: drop the decorative scanline overlay on the
    rider page so nothing is drawn on top of the map. */

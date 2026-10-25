@@ -148,8 +148,9 @@
   // Both read clearly on the dark basemap thanks to their white ring.
   var pickIcon = L.divIcon({ className: "", html: '<div class="pin pick"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
   var dropIcon = L.divIcon({ className: "", html: '<div class="pin drop"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
-  // The test driver, parked at Savannah City Hall.
-  var demoIcon = L.divIcon({ className: "", html: '<div class="pin demo" aria-hidden="true"></div>', iconSize: [24, 24], iconAnchor: [12, 12] });
+  // The test driver, parked at Savannah City Hall: a nightwave crosshair with a
+  // slow pulsing halo so it reads as a position, not a pickup/drop-off pin.
+  var demoIcon = L.divIcon({ className: "", html: '<div class="driver-pin" aria-hidden="true"><span class="driver-halo"></span><span class="driver-core"></span></div>', iconSize: [34, 34], iconAnchor: [17, 17] });
 
   function addDemoDriver() {
     if (!DEMO_DRIVER || !DEMO_DRIVER.coords || state.demoMarker) { return; }

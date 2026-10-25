@@ -75,8 +75,8 @@ No payments or accounts yet; `fare` is an estimate stored on the ride.
 
 For testing and engineering there is one stand-in driver, **Test Driver**, permanently parked at
 the real **Savannah City Hall** (2 E Bay St, `32.08111, -81.09111`). It is defined as `DEMO_DRIVER`
-in `server.py` and also returned by `GET /api/config`, so the rider map always shows it as an amber
-square and the rider estimate prices the $0.25/mile approach leg from City Hall. On the driver page,
+in `server.py` and also returned by `GET /api/config`, so the rider map always shows it as a cyan
+crosshair with a slow pulsing halo, and the rider estimate prices the $0.25/mile approach leg from City Hall. On the driver page,
 **Use test driver (Savannah City Hall)** makes your accepts come from City Hall too, instead of this
 device's GPS — handy for repeatable tests from anywhere.
 
@@ -95,7 +95,7 @@ CARTO now gates these tiles behind a free basemap key. A working key is built in
 - Type an address in the pickup or drop-off box and pick a match (Nominatim lookup).
 - Or tap **Use my location** for pickup, and click the map to drop the drop-off pin. Pins can be dragged.
 - The route line and distance come from OSRM's public routing service (real road distance and time). If that service is unavailable, the page falls back to a straight-line estimate × 1.2.
-- The fare box breaks out flag drop, trip, and driver approach, then shows one total. Press **Request NightRide**. (The amber square is the test driver at Savannah City Hall.)
+- The fare box breaks out flag drop, trip, and driver approach, then shows one total. Press **Request NightRide**. (The pulsing crosshair is the test driver at Savannah City Hall.)
 - The status view tracks Requesting → Driver assigned → Driver arrived → En route → Completed.
 
 Both OSM/Nominatim and OSRM are public services with fair-use limits, so lookups are throttled. For production we would host or pay for a routing/geocoding provider.
