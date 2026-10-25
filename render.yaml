@@ -4,6 +4,7 @@ services:
   - type: web
     name: nightrider
     runtime: python
+    region: oregon
     plan: free
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python3 server.py"
@@ -21,6 +22,7 @@ services:
         sync: false
 databases:
   - name: nightrider-db
+    region: oregon
     databaseName: nightrider
     user: nightrider
     plan: basic-256mb
