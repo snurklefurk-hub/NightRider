@@ -120,6 +120,27 @@
       <button type="button" id="newRide" hidden>Book another</button>
     </div>
     <p class="msg" id="tripMsg"></p>
+    <div id="riderRatingCard" class="farebox" hidden>
+      <p class="muted" style="padding:0 .8rem">How was your driver?</p>
+      <div class="row" id="riderRatingButtons" style="padding:0 .8rem"></div>
+      <p class="msg" id="riderRatingMsg" style="padding:0 .8rem"></p>
+    </div>
+  </div>
+  <div id="rideChatCard" class="card" hidden>
+    <h2>Ride messages</h2>
+    <p class="tiny muted" id="rideChatHelp">Messages to your driver are also visible to Dispatch. Dispatch-only messages are not shown to your driver.</p>
+    <div class="chatlog" id="rideChatLog" aria-live="polite"></div>
+    <div class="row chatrow">
+      <label for="rideChatAudience">To
+        <select id="rideChatAudience">
+          <option value="shared">Driver + Dispatch</option>
+          <option value="dispatch">Dispatch only</option>
+        </select>
+      </label>
+      <input id="rideChatText" type="text" maxlength="1000" placeholder="Write a message…" style="flex:1;min-width:0">
+      <button type="button" id="rideChatSend">Send</button>
+    </div>
+    <p class="msg" id="rideChatMsg" role="status" aria-live="polite"></p>
   </div>
 </section>
 
@@ -511,6 +532,11 @@
     if (!ride || ride.error) { return; }
     if (ride.status === "requested") {
       showMatching();
+      $("rideChatCard").hidden = false;
+      $("rideChatAudience").value = "dispatch";
+      $("rideChatAudience").querySelector('option[value="shared"]').disabled = true;
+      $("rideChatHelp").textContent = "You can message Dispatch while a driver is being assigned. Messages to Dispatch are not shown to drivers.";
+      loadRideMessages();
       $("ackMsg").textContent = ride.dispatch_ack
         ? "Dispatch received your request at " + new Date(ride.dispatch_ack.at * 1000).toLocaleTimeString() + "."
         : "Waiting for dispatch to confirm your request\u2026";
@@ -544,12 +570,110 @@
       li.classList.toggle("on", i === idx);
       li.classList.toggle("done", i < idx);
     });
+    $("rideChatCard").hidden = false;
+    $("rideChatAudience").querySelector('option[value="shared"]').disabled = false;
+    $("rideChatHelp").textContent = "Messages to your driver are also visible to Dispatch. Dispatch-only messages are not shown to your driver.";
+    loadRideMessages();
+    showDriverRating(ride);
     if (ride.status === "completed" || ride.status === "cancelled") {
       $("cancelTrip").hidden = true; $("newRide").hidden = false;
       stopLive();
     } else {
       $("cancelTrip").hidden = false; $("newRide").hidden = true;
     }
+  }
+
+  function loadRideMessages() {
+    if (!state.rideId) { return; }
+    fetch("/api/rides/" + encodeURIComponent(state.rideId) + "/messages", { cache: "no-store" })
+      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || "Could not load messages."); return d; }); })
+      .then(function (data) {
+        var log = $("rideChatLog");
+        log.innerHTML = "";
+        (data.messages || []).forEach(function (m) {
+          var wrap = document.createElement("div");
+          wrap.className = "chatwrap " + (m.role === "rider" ? "me" : "them");
+          var line = document.createElement("div");
+          line.className = "chatline " + (m.role === "rider" ? "me" : "them") +
+            (m.audience === "dispatch" ? " private" : "");
+          var who = document.createElement("span");
+          who.className = "who";
+          who.textContent = (m.role === "rider" ? "You" : m.from) +
+            (m.audience === "dispatch" ? " · Dispatch only" : "");
+          line.appendChild(who);
+          line.appendChild(document.createTextNode(m.text));
+          wrap.appendChild(line);
+          log.appendChild(wrap);
+        });
+        log.scrollTop = log.scrollHeight;
+      }).catch(function (error) { $("rideChatMsg").textContent = error.message; });
+  }
+
+  function sendRideMessage() {
+    var text = $("rideChatText").value.trim();
+    if (!state.rideId || !text || $("rideChatSend").disabled) { return; }
+    $("rideChatSend").disabled = true;
+    fetch("/api/rides/" + encodeURIComponent(state.rideId) + "/message", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text:text, audience:$("rideChatAudience").value})
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) { throw new Error(data.error || "Could not send message."); }
+        return data;
+      });
+    }).then(function () {
+      $("rideChatText").value = "";
+      $("rideChatMsg").textContent = "";
+      loadRideMessages();
+    }).catch(function (error) {
+      $("rideChatMsg").textContent = error.message;
+    }).then(function () { $("rideChatSend").disabled = false; });
+  }
+
+  function showDriverRating(ride) {
+    var panel = $("riderRatingCard");
+    var buttons = $("riderRatingButtons");
+    buttons.innerHTML = "";
+    var existing = (ride.ratings || []).find(function (rating) { return rating.by === "rider"; });
+    if (ride.status !== "completed" || !ride.driver_account_id) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    if (existing) {
+      $("riderRatingMsg").textContent = "Thanks for rating your driver " + existing.stars + "/5.";
+      return;
+    }
+    $("riderRatingMsg").textContent = "";
+    for (var stars = 1; stars <= 5; stars++) {
+      (function (value) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "alt";
+        button.textContent = value + " ★";
+        button.addEventListener("click", function () { rateDriver(value); });
+        buttons.appendChild(button);
+      })(stars);
+    }
+  }
+
+  function rateDriver(stars) {
+    $("riderRatingButtons").querySelectorAll("button").forEach(function (button) { button.disabled = true; });
+    fetch("/api/rides/" + encodeURIComponent(state.rideId) + "/rating", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({stars:stars})
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) { throw new Error(data.error || "Could not save rating."); }
+        return data;
+      });
+    }).then(function () {
+      $("riderRatingMsg").textContent = "Thanks for rating your driver " + stars + "/5.";
+      $("riderRatingButtons").innerHTML = "";
+    }).catch(function (error) {
+      $("riderRatingMsg").textContent = error.message;
+      $("riderRatingButtons").querySelectorAll("button").forEach(function (button) { button.disabled = false; });
+    });
   }
 
   function ackLine(ride) {
@@ -582,6 +706,8 @@
     stopLive(); state.live = false; state.cursor = 0;
     $("ackMsg").textContent = "Sending your request to dispatch\u2026"; $("tripAck").textContent = "";
     $("tripCancelledNotice").hidden = true; $("tripCancelledNotice").textContent = "";
+    $("rideChatCard").hidden = true; $("rideChatLog").innerHTML = ""; $("rideChatMsg").textContent = "";
+    $("riderRatingCard").hidden = true; $("riderRatingButtons").innerHTML = ""; $("riderRatingMsg").textContent = "";
     state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
     state.selected = null; $("pickup").value = ""; $("dropoff").value = ""; $("results").innerHTML = "";
     $("stepTrip").hidden = true; $("stepOptions").hidden = true; $("stepMatching").hidden = true; $("stepSearch").hidden = false;
@@ -640,6 +766,10 @@
   $("payCancel").addEventListener("click", closePayModal);
   $("cancelMatch").addEventListener("click", cancelMatch);
   $("cancelTrip").addEventListener("click", cancelRide);
+  $("rideChatSend").addEventListener("click", sendRideMessage);
+  $("rideChatText").addEventListener("keydown", function (event) {
+    if (event.key === "Enter") { event.preventDefault(); sendRideMessage(); }
+  });
   $("newRide").addEventListener("click", resetAll);
 
   setTimeout(function () { map.invalidateSize(); }, 200);
