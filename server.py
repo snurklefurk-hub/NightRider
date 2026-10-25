@@ -1146,13 +1146,8 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(403, {"error": "not allowed"})
                     if user and user["role"] == "driver" and ride.get("driver_account_id") != user["id"]:
                         return self.send_json(403, {"error": "not allowed"})
-                    if user and user["role"] == "rider":
-                        if ride.get("rider_account_id") != user["id"]:
-                            return self.send_json(403, {"error": "not allowed"})
-                        if ride.get("status") != "completed" or not ride.get("driver_account_id"):
-                            return self.send_json(409, {"error": "Rate your driver after the ride is completed."})
-                        if any(r.get("by") == "rider" for r in ride.get("ratings") or []):
-                            return self.send_json(409, {"error": "You already rated this driver."})
+                    if user and user["role"] == "rider" and data.get("audience", "shared") == "shared" and not ride.get("driver_account_id"):
+                        return self.send_json(409, {"error": "A driver has not been assigned yet. You can message Dispatch for now."})
                     message, error = add_ride_message(STORE, rid, user, data)
                     if error:
                         return self.send_json(400, {"error": error})
@@ -1164,6 +1159,13 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(403, {"error": "not allowed"})
                     if user and user["role"] == "driver" and ride.get("driver_account_id") != user["id"]:
                         return self.send_json(403, {"error": "not allowed"})
+                    if user and user["role"] == "rider":
+                        if ride.get("rider_account_id") != user["id"]:
+                            return self.send_json(403, {"error": "not allowed"})
+                        if ride.get("status") != "completed" or not ride.get("driver_account_id"):
+                            return self.send_json(409, {"error": "Rate your driver after the ride is completed."})
+                        if any(r.get("by") == "rider" for r in ride.get("ratings") or []):
+                            return self.send_json(409, {"error": "You already rated this driver."})
                     # A driver or dispatcher rates this ride; the score is filed
                     # against the hidden rider id behind it, never the name.
                     rating_data = dict(data)
