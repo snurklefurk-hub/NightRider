@@ -248,7 +248,7 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
    rides land on the board. Overflowing text scrolls inside the card. */
 .ridecards{display:grid;grid-template-columns:repeat(auto-fill,230px);gap:.7rem;align-items:start;justify-content:start}
 @media (max-width:520px){.ridecards{grid-template-columns:1fr}}
-.ridecard{display:flex;flex-direction:column;height:186px;overflow:auto;border:var(--frame-soft);background:var(--panel);border-radius:6px;padding:.6rem .7rem;min-width:0}
+.ridecard{display:flex;flex-direction:column;min-height:186px;height:auto;overflow:visible;border:var(--frame-soft);background:var(--panel);border-radius:6px;padding:.6rem .7rem;min-width:0}
 .ridecard .ridehead{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin-bottom:.3rem}
 .ridecard .rid{font-family:'Poppins',system-ui,sans-serif;letter-spacing:.04em;font-size:.85rem;overflow-wrap:anywhere}
 .ridecard p{margin:.2rem 0;font-size:.82rem;line-height:1.3;overflow-wrap:anywhere;word-break:break-word}
