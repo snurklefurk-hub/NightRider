@@ -34,13 +34,13 @@
   </div>
   <div class="card">
     <h2>Team text</h2>
-    <p class="muted">A group chat with dispatch and every driver. Tick <strong>Private to dispatch</strong> to send a note only dispatch can see; it still appears here, colour-coded.</p>
+    <p class="muted">A group chat with dispatch and every driver. Press <strong>Private</strong> to send a note only dispatch can see; it still appears here, colour-coded with a small private label.</p>
     <div class="chatlog" id="chatLog"></div>
-    <div class="row">
+    <div class="row chatrow">
       <input id="chatText" type="text" placeholder="Message the team…" maxlength="1000" style="flex:1;min-width:0">
+      <button type="button" id="chatPrivate" class="alt" aria-pressed="false">Private</button>
       <button type="button" id="chatSend">Send</button>
     </div>
-    <label class="privwrap"><input type="checkbox" id="chatPrivate"> Private to dispatch</label>
     <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
   </div>
 </main>
@@ -85,13 +85,21 @@
           if (m.at > chatSeen) { chatSeen = m.at; }
           var mine = m.from === d;
           var priv = m.channel === "private";
+          var wrap = document.createElement("div");
+          wrap.className = "chatwrap " + (mine ? "me" : "them");
+          if (priv) {
+            var label = document.createElement("span");
+            label.className = "privlabel";
+            label.textContent = "Private";
+            wrap.appendChild(label);
+          }
           var div = document.createElement("div");
           div.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
-          var tag = priv ? ' <span class="privtag">private</span>' : "";
-          div.innerHTML = '<span class="who">' + esc(mine ? "You" : m.from) + "</span>" + tag +
-            " " + esc(m.text) +
+          div.innerHTML = '<span class="who">' + esc(mine ? "You" : m.from) + "</span>" +
+            esc(m.text) +
             ' <span class="tiny muted">' + new Date(m.at * 1000).toLocaleTimeString() + "</span>";
-          log.appendChild(div);
+          wrap.appendChild(div);
+          log.appendChild(wrap);
         });
         log.scrollTop = log.scrollHeight;
       }).catch(function () {});
@@ -102,7 +110,7 @@
     var text = $("chatText").value.trim();
     if (!d) { $("chatMsg").textContent = "Enter your name first."; return; }
     if (!text) { return; }
-    var priv = !!($("chatPrivate") && $("chatPrivate").checked);
+    var priv = privateOn();
     $("chatSend").disabled = true;
     api("/api/drivers/" + encodeURIComponent(d) + "/message", { text: text, private: priv })
       .then(function (res) {
@@ -267,6 +275,12 @@
 
   $("refresh").addEventListener("click", load);
   $("driverName").addEventListener("change", load);
+  function privateOn() { return $("chatPrivate").getAttribute("aria-pressed") === "true"; }
+  $("chatPrivate").addEventListener("click", function () {
+    var on = !privateOn();
+    $("chatPrivate").setAttribute("aria-pressed", on ? "true" : "false");
+    $("chatText").placeholder = on ? "Private note to dispatch…" : "Message the team…";
+  });
   $("chatSend").addEventListener("click", sendChat);
   $("chatText").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }

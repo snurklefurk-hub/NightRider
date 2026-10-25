@@ -41,9 +41,9 @@
     <h2>Team text <span class="tiny muted" id="chatCue" hidden></span></h2>
     <p class="muted">A group chat every driver and dispatch can see. Choose one driver under
       <strong>To</strong> to send a private text that only that driver and dispatch will see — it still
-      appears here, colour-coded.</p>
+      appears here with a small private label above it, colour-coded amber.</p>
     <div class="chatlog" id="chatLog"></div>
-    <div class="row">
+    <div class="row chatrow">
       <input id="chatText" type="text" placeholder="Message the team…" maxlength="1000" style="flex:1;min-width:0">
       <button type="button" id="chatSend">Send</button>
     </div>
@@ -390,21 +390,29 @@
     (msgs || []).forEach(function (m) {
       var mine = m.from === "dispatch";
       var priv = m.channel === "private";
+      var wrap = document.createElement("div");
+      wrap.className = "chatwrap " + (mine ? "me" : "them");
+      if (priv) {
+        var label = document.createElement("span");
+        label.className = "privlabel";
+        label.textContent = mine && m.driver ? "Private \u2192 " + m.driver : "Private";
+        wrap.appendChild(label);
+      }
       var div = document.createElement("div");
       div.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
-      var tag = priv ? ' <span class="privtag">private' +
-        (mine && m.driver ? " \u2192 " + esc(m.driver) : "") + "</span>" : "";
-      div.innerHTML = '<span class="who">' + (mine ? "You" : esc(m.from)) + "</span>" + tag +
-        " " + esc(m.text) +
+      div.innerHTML = '<span class="who">' + (mine ? "You" : esc(m.from)) + "</span>" +
+        esc(m.text) +
         ' <span class="tiny muted">' + clock(m.at) + "</span>";
-      log.appendChild(div);
+      wrap.appendChild(div);
+      log.appendChild(wrap);
     });
     if (scroll) { log.scrollTop = log.scrollHeight; }
   }
 
-  /* Watch the shared conversation so dispatch hears a driver text even before
-     the card is read. The first look only sets a baseline, so old history does
-     not chime on page load. */
+  /* Watch the shared conversation so dispatch hears a driver's PRIVATE text
+     even before the card is read. Group texts are deliberately silent, so the
+     cue means a driver needs dispatch specifically. The first look only sets a
+     baseline, so old history does not chime on page load. */
   function pollChat() {
     api("/api/dispatch/messages?since=" + chatSeen, { cache: "no-store" })
       .then(function (r) { return r.json(); })
@@ -416,15 +424,15 @@
           renderChat(msgs, true);
           return;
         }
-        var newest = chatSeen, fromDriver = false;
+        var newest = chatSeen, privateIncoming = false;
         msgs.forEach(function (m) {
           if (m.at > newest) { newest = m.at; }
-          if (m.role === "driver" && m.at > chatSeen) { fromDriver = true; }
+          if (m.role === "driver" && m.channel === "private" && m.at > chatSeen) { privateIncoming = true; }
         });
         chatSeen = newest;
         renderChat(msgs, true);
-        if (fromDriver) {
-          var last = msgs.filter(function (m) { return m.role === "driver"; });
+        if (privateIncoming) {
+          var last = msgs.filter(function (m) { return m.role === "driver" && m.channel === "private"; });
           if (last.length) { chatUnreadText = last[last.length - 1].text; }
           chatUnread = true;
           beep();
