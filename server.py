@@ -985,6 +985,19 @@ class Handler(SimpleHTTPRequestHandler):
                 if error:
                     return self.send_json(400, {"error": error})
                 return self.send_json(201, {"user": created})
+            if len(parts) == 5 and parts[2] == "users" and parts[4] == "delete":
+                user_id = parts[3]
+                with LOCK:
+                    active_ride = any(
+                        ride.get("driver_account_id") == user_id and
+                        ride.get("status") not in ("completed", "cancelled")
+                        for ride in STORE["rides"].values()
+                    )
+                    if active_ride:
+                        return self.send_json(409, {"error": "This driver has an active ride. Complete or cancel it before deleting the account."})
+                    if not auth.delete_driver_user(user_id):
+                        return self.send_json(404, {"error": "Driver account not found."})
+                return self.send_json(200, {"ok": True})
             if len(parts) == 4 and parts[2] == "users" and parts[3]:
                 auth.set_user_enabled(parts[3], data.get("enabled") is True)
                 return self.send_json(200, {"ok": True})
