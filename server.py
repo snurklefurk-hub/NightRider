@@ -1226,20 +1226,34 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(403, {"error": "not allowed"})
                     if ride["status"] in ("completed", "cancelled"):
                         return self.send_json(409, {"error": "ride already closed"})
-                    actor = user["role"] if user else "rider"
-                    ride["cancelled_by"] = actor
-                    ride["cancelled_by_name"] = user["display_name"] if user else ride.get("rider_name")
-                    ride["cancelled_at"] = time.time()
-                    ride["status"] = "cancelled"
-                    log_status(ride, "cancelled")
+                    now = time.time()
+                    if user and user["role"] == "driver":
+                        ride["last_driver_release"] = {
+                            "driver": user["display_name"], "at": now,
+                        }
+                        ride["driver"] = None
+                        ride["driver_account_id"] = None
+                        ride.pop("driver_coords", None)
+                        ride["driver_to_pickup_mi"] = 0.0
+                        ride["fare"] = fare(ride["distance_mi"], 0.0)
+                        ride["status"] = "requested"
+                        log_status(ride, "requested")
+                    else:
+                        actor = user["role"] if user else "rider"
+                        ride["cancelled_by"] = actor
+                        ride["cancelled_by_name"] = user["display_name"] if user else ride.get("rider_name")
+                        ride["cancelled_at"] = now
+                        ride["status"] = "cancelled"
+                        log_status(ride, "cancelled")
                 else:
                     return self.send_json(404, {"error": "unknown action"})
                 save(STORE)
                 snapshot = public_ride(ride, STORE)
             # Status changes are pushed the same way, so the rider's screen
             # updates the moment a driver accepts instead of on a timer.
-            record_event(EVENT_FOR.get(action, "ride_status"), ride=rid,
-                         status=snapshot.get("status"), snapshot=snapshot)
+            event_type = ("ride_driver_released" if action == "cancel" and user and
+                          user["role"] == "driver" else EVENT_FOR.get(action, "ride_status"))
+            record_event(event_type, ride=rid, status=snapshot.get("status"), snapshot=snapshot)
             return self.send_json(200, snapshot)
         return self.send_json(404, {"error": "not found"})
 
