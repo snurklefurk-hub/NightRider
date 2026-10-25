@@ -197,10 +197,6 @@
   }
 
   function handle(ev) {
-    if (ev.type === "ride_message") {
-      handleRideMessageEvent(ev);
-      return;
-    }
     if (ev.type === "ride_requested") {
       /* The handshake: acknowledge the moment we have the request in hand.
          The request itself lands in Recent rides via refresh(). */
