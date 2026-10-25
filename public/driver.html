@@ -31,6 +31,16 @@
     <h2>Your active rides</h2>
     <div id="myRides" class="grid"></div>
   </div>
+  <div class="card" id="rideChatCard" hidden>
+    <h2 id="rideChatTitle">Text your rider</h2>
+    <p class="tiny muted">Messages in this ride conversation are also visible to Dispatch.</p>
+    <div class="chatlog" id="rideChatLog" aria-live="polite"></div>
+    <div class="row chatrow">
+      <input id="rideChatText" type="text" placeholder="Message the rider…" maxlength="1000" style="flex:1;min-width:0">
+      <button type="button" id="rideChatSend">Send</button>
+    </div>
+    <p class="msg" id="rideChatMsg" role="status" aria-live="polite"></p>
+  </div>
   <div class="card">
     <h2>Team text</h2>
     <p class="muted">A group chat with dispatch and every driver. Press <strong>Private</strong> to send a note only dispatch can see; it still appears here, colour-coded with a small private label.</p>
@@ -61,6 +71,9 @@
   }
 
   /* ---- presence + dispatch texting -------------------------------------- */
+  var rideChatId = "";
+  var rideChatLoading = false;
+  var rideChatSending = false;
   var chatSeen = 0;
   var chatName = "";
   var chatLoading = false;
@@ -110,6 +123,58 @@
         });
         log.scrollTop = log.scrollHeight;
       }).catch(function () {}).then(function () { chatLoading = false; });
+  }
+
+  function loadRideMessages() {
+    if (!rideChatId || rideChatLoading) { return; }
+    rideChatLoading = true;
+    var requestedRide = rideChatId;
+    fetch("/api/rides/" + encodeURIComponent(requestedRide) + "/messages", {cache:"no-store"})
+      .then(function (r) { return r.json().then(function (data) {
+        if (!r.ok) { throw new Error(data.error || "Could not load ride messages."); }
+        return data;
+      }); }).then(function (data) {
+        if (requestedRide !== rideChatId) { return; }
+        var log = $("rideChatLog");
+        log.innerHTML = "";
+        (data.messages || []).forEach(function (message) {
+          var wrap = document.createElement("div");
+          wrap.className = "chatwrap " + (message.role === "driver" ? "me" : "them");
+          var line = document.createElement("div");
+          line.className = "chatline " + (message.role === "driver" ? "me" : "them");
+          var who = document.createElement("span");
+          who.className = "who";
+          who.textContent = message.role === "driver" ? "You" : message.from;
+          line.appendChild(who);
+          line.appendChild(document.createTextNode(message.text));
+          wrap.appendChild(line);
+          log.appendChild(wrap);
+        });
+        log.scrollTop = log.scrollHeight;
+      }).catch(function (error) { $("rideChatMsg").textContent = error.message; })
+      .then(function () { rideChatLoading = false; });
+  }
+
+  function sendRideMessage() {
+    var text = $("rideChatText").value.trim();
+    if (!rideChatId || !text || rideChatSending) { return; }
+    rideChatSending = true;
+    $("rideChatSend").disabled = true;
+    fetch("/api/rides/" + encodeURIComponent(rideChatId) + "/message", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text:text,audience:"shared"})
+    }).then(function (r) { return r.json().then(function (data) {
+      if (!r.ok) { throw new Error(data.error || "Could not send message."); }
+      return data;
+    }); }).then(function () {
+      $("rideChatText").value = "";
+      $("rideChatMsg").textContent = "";
+      loadRideMessages();
+    }).catch(function (error) { $("rideChatMsg").textContent = error.message; })
+      .then(function () {
+        rideChatSending = false;
+        $("rideChatSend").disabled = false;
+      });
   }
 
   function sendChat() {
@@ -217,6 +282,16 @@
       /* Report the stage of the ride we are on so dispatch shows it live. */
       var live = mine.filter(function (r) { return r.status !== "completed" && r.status !== "cancelled"; });
       myStage = live.length ? live[live.length - 1].status : "available";
+      var chatRide = mine.length ? mine[0] : null;
+      if (rideChatId !== (chatRide ? chatRide.id : "")) {
+        rideChatId = chatRide ? chatRide.id : "";
+        $("rideChatLog").innerHTML = "";
+      }
+      $("rideChatCard").hidden = !chatRide;
+      if (chatRide) {
+        $("rideChatTitle").textContent = "Text rider · ride " + chatRide.id;
+        loadRideMessages();
+      }
       var openBox = $("openRides"), myBox = $("myRides");
       openBox.innerHTML = ""; myBox.innerHTML = "";
       if (!open.length) { openBox.innerHTML = '<p class="muted">No open requests right now.</p>'; }
@@ -298,6 +373,10 @@
     var on = !privateOn();
     $("chatPrivate").setAttribute("aria-pressed", on ? "true" : "false");
     $("chatText").placeholder = on ? "Private note to dispatch…" : "Message the team…";
+  });
+  $("rideChatSend").addEventListener("click", sendRideMessage);
+  $("rideChatText").addEventListener("keydown", function (event) {
+    if (event.key === "Enter") { event.preventDefault(); sendRideMessage(); }
   });
   $("chatSend").addEventListener("click", sendChat);
   $("chatText").addEventListener("keydown", function (e) {
