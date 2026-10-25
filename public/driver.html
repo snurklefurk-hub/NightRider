@@ -228,6 +228,9 @@
         var acts = [];
         var label = CFG.stageAction[r.status];
         if (label) { acts.push({ label: label, run: function () { advance(r.id); } }); }
+        if (r.status !== "completed" && r.status !== "cancelled") {
+          acts.push({ label: "Cancel ride", alt: true, run: function () { cancelRide(r.id); } });
+        }
         myBox.appendChild(rideCard(r, acts));
       });
     }).catch(function () { $("msg").textContent = "Could not load rides."; });
@@ -267,6 +270,14 @@
     });
   }
   function advance(id) { api("/api/rides/" + id + "/advance", {}).then(load).catch(function () { $("msg").textContent = "Advance failed."; }); }
+  function cancelRide(id) {
+    if (!window.confirm("Cancel this ride? Dispatch and the rider will be notified.")) { return; }
+    api("/api/rides/" + id + "/cancel", {}).then(function (res) {
+      if (!res.ok) { throw new Error(res.j.error || "Could not cancel ride."); }
+      $("msg").textContent = "Ride cancelled. Dispatch and the rider have been notified.";
+      load();
+    }).catch(function (error) { $("msg").textContent = error.message || "Cancel failed."; });
+  }
 
   $("useTestDriver").addEventListener("click", function () {
     testDriver = !testDriver;
