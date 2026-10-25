@@ -10,9 +10,9 @@
 <header>
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
-    <a href="/">Ride</a>
-    <a href="/driver.html">Driver</a>
     <a href="/dispatch.html" aria-current="page">Dispatch</a>
+    <span id="sessionName" class="tiny muted"></span>
+    <button type="button" class="alt" id="signOut">Sign out</button>
   </nav>
 </header>
 <main>
@@ -35,6 +35,20 @@
     <p class="muted">Every driver page that checked in within the last 90 seconds shows here.
       Use the Team text card below to reach one driver or the whole crew.</p>
     <div id="drivers"></div>
+  </div>
+
+  <div class="card">
+    <h2>Driver accounts</h2>
+    <form id="driverAccountForm">
+      <div class="row">
+        <label>Driver name<input id="newDriverName" autocomplete="name" maxlength="60" required></label>
+        <label>Username<input id="newDriverUser" autocomplete="off" minlength="3" maxlength="120" required></label>
+        <label>Temporary password<input id="newDriverPassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></label>
+      </div>
+      <button type="submit">Create driver account</button>
+      <p class="msg" id="driverAccountMsg" role="status" aria-live="polite"></p>
+    </form>
+    <div id="driverAccounts"></div>
   </div>
 
   <div class="card" id="chatCard">
@@ -61,13 +75,19 @@
   </div>
 
   <div class="card">
-    <h2>Known riders <span class="tiny muted">(hidden IDs — drivers and riders never see these)</span></h2>
+    <h2>Known riders <span class="tiny muted">(NightRider account IDs — staff only)</span></h2>
     <div style="overflow:auto">
       <table>
-        <thead><tr><th>Hidden ID</th><th>Names</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Last seen</th></tr></thead>
+        <thead><tr><th>Account ID</th><th>Names</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Last seen</th></tr></thead>
         <tbody id="riderrows"></tbody>
       </table>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Rider accounts</h2>
+    <p class="tiny muted">If a rider loses access, reset their password after confirming their identity in person or by phone.</p>
+    <div id="riderAccounts"></div>
   </div>
 
   <div class="card counts">
@@ -329,6 +349,62 @@
       }).catch(function () {});
   }
 
+  function refreshDriverAccounts() {
+    api("/api/dispatch/users", {cache:"no-store"}).then(function (r) { return r.json(); })
+      .then(function (data) {
+        var box = $("driverAccounts");
+        box.innerHTML = "";
+        (data.users || []).forEach(function (u) {
+          var row = document.createElement("div");
+          row.className = "tripbar";
+          row.innerHTML = "<span><strong>" + esc(u.display_name) + "</strong> <span class=\"muted\">" + esc(u.username) + "</span></span>";
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "alt";
+          button.textContent = u.enabled ? "Disable" : "Enable";
+          button.addEventListener("click", function () {
+            api("/api/dispatch/users/" + encodeURIComponent(u.id), {
+              method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({enabled:!u.enabled})
+            }).then(refreshDriverAccounts).catch(function () {});
+          });
+          row.appendChild(button);
+          var reset = document.createElement("button");
+          reset.type = "button";
+          reset.className = "alt";
+          reset.textContent = "Reset password";
+          reset.addEventListener("click", function () { resetAccountPassword(u); });
+          row.appendChild(reset);
+          box.appendChild(row);
+        });
+      }).catch(function () {});
+  }
+
+  function resetAccountPassword(user) {
+    var password = window.prompt("Enter a temporary password for " + user.display_name + " (at least 8 characters):");
+    if (!password) return;
+    api("/api/dispatch/users/" + encodeURIComponent(user.id) + "/password", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({password:password})
+    }).then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || "Could not reset password."); }); })
+      .then(function () { window.alert("Password reset. Give the temporary password to the account owner privately."); })
+      .catch(function (error) { window.alert(error.message); });
+  }
+
+  function refreshRiderAccounts() {
+    api("/api/dispatch/rider-accounts", {cache:"no-store"}).then(function (r) { return r.json(); })
+      .then(function (data) {
+        var box = $("riderAccounts"); box.innerHTML = "";
+        (data.users || []).forEach(function (u) {
+          var row = document.createElement("div"); row.className = "tripbar";
+          row.innerHTML = "<span><strong>" + esc(u.display_name) + "</strong> <span class=\"muted\">" + esc(u.username) + "</span></span>";
+          var reset = document.createElement("button"); reset.type = "button"; reset.className = "alt";
+          reset.textContent = "Reset password";
+          reset.addEventListener("click", function () { resetAccountPassword(u); });
+          row.appendChild(reset); box.appendChild(row);
+        });
+        if (!box.children.length) box.innerHTML = '<p class="muted">No rider accounts yet.</p>';
+      }).catch(function () {});
+  }
+
   /* Keep the To picker in step with the drivers on the board. */
   function syncRecipients() {
     var sel = $("chatTo");
@@ -534,6 +610,23 @@
   $("chatText").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
+  $("driverAccountForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var button = event.currentTarget.querySelector("button[type=submit]");
+    button.disabled = true;
+    $("driverAccountMsg").textContent = "Creating account…";
+    api("/api/dispatch/users", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({display_name:$("newDriverName").value.trim(), username:$("newDriverUser").value.trim(), password:$("newDriverPassword").value})
+    }).then(function (r) { return r.json().then(function (data) { return {ok:r.ok,data:data}; }); })
+      .then(function (result) {
+        if (!result.ok) throw new Error(result.data.error || "Could not create account.");
+        $("driverAccountForm").reset();
+        $("driverAccountMsg").textContent = "Account created. Give the driver their username and temporary password securely.";
+        refreshDriverAccounts();
+      }).catch(function (error) { $("driverAccountMsg").textContent = error.message; })
+      .finally(function () { button.disabled = false; });
+  });
 
   api("/api/config", { cache: "no-store" }).then(function (r) { return r.json(); })
     .then(function (d) {
@@ -542,6 +635,8 @@
     }).catch(function () {}).then(function () {
       refresh();
       refreshDrivers();
+      refreshDriverAccounts();
+      refreshRiderAccounts();
       pollChat();
     });
   setInterval(refreshDrivers, 10000);
@@ -549,5 +644,15 @@
   listen();
 })();
 </script>
+<script>
+fetch("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); }).then(function (d) {
+  if (d.user) document.getElementById("sessionName").textContent = d.user.display_name;
+}).catch(function () {});
+document.getElementById("signOut").addEventListener("click", function () {
+  fetch("/api/auth/logout", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"})
+    .finally(function () { location.replace("/account.html"); });
+});
+</script>
 </body>
 </html>
+
