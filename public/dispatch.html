@@ -135,7 +135,10 @@
   var polling = false;
   var seenRides = false;
   var chatSeen = 0;        /* newest message timestamp we have rendered */
-  var chatInit = false;    /* true once the first conversation load set a baseline */
+  var chatInit = false;
+  var chatPolling = false;
+  var chatSending = false;
+  var renderedChatIds = {};    /* true once the first conversation load set a baseline */
   var chatUnread = false;  /* a driver text is waiting to be read */
   var chatUnreadText = ""; /* first 25 chars of the newest waiting text */
   var driverNames = [];    /* names currently listed on the board */
@@ -464,6 +467,8 @@
   function renderChat(msgs, scroll) {
     var log = $("chatLog");
     (msgs || []).forEach(function (m) {
+      if (m.id && renderedChatIds[m.id]) { return; }
+      if (m.id) { renderedChatIds[m.id] = true; }
       var mine = m.from === "dispatch";
       var priv = m.channel === "private";
       var wrap = document.createElement("div");
@@ -490,6 +495,8 @@
      cue means a driver needs dispatch specifically. The first look only sets a
      baseline, so old history does not chime on page load. */
   function pollChat() {
+    if (chatPolling) { return; }
+    chatPolling = true;
     api("/api/dispatch/messages?since=" + chatSeen, { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -514,12 +521,13 @@
           beep();
           applyUnread();
         }
-      }).catch(function () {});
+      }).catch(function () {}).then(function () { chatPolling = false; });
   }
 
   function sendChat() {
     var text = $("chatText").value.trim();
-    if (!text) { return; }
+    if (!text || chatSending) { return; }
+    chatSending = true;
     var to = $("chatTo") ? $("chatTo").value : "all";
     $("chatSend").disabled = true;
     api("/api/dispatch/message", {
@@ -527,6 +535,7 @@
       body: JSON.stringify({ text: text, to: to })
     }).then(function (r) { return r.json(); }).then(function (d) {
       $("chatSend").disabled = false;
+      chatSending = false;
       if (d && d.error) { $("chatMsg").textContent = d.error; return; }
       $("chatText").value = "";
       $("chatMsg").textContent = "";
@@ -534,7 +543,7 @@
       chatUnreadText = "";
       applyUnread();
       pollChat();
-    }).catch(function () { $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
+    }).catch(function () { chatSending = false; $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
   }
 
   function cancel(id) {
