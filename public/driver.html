@@ -63,6 +63,9 @@
   /* ---- presence + dispatch texting -------------------------------------- */
   var chatSeen = 0;
   var chatName = "";
+  var chatLoading = false;
+  var chatSending = false;
+  var renderedChatIds = {};
 
   /* Heartbeat so dispatch can list this driver as active. The status is the
      ride stage this driver is currently in, or "available" when idle. */
@@ -76,12 +79,16 @@
   function loadChat() {
     var d = driver();
     if (!d) { return; }
-    if (d !== chatName) { chatName = d; chatSeen = 0; $("chatLog").innerHTML = ""; }
+    if (d !== chatName) { chatName = d; chatSeen = 0; renderedChatIds = {}; $("chatLog").innerHTML = ""; }
+    if (chatLoading) { return; }
+    chatLoading = true;
     fetch("/api/drivers/" + encodeURIComponent(d) + "/messages?since=" + chatSeen, { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (res) {
         var log = $("chatLog");
         (res.messages || []).forEach(function (m) {
+          if (m.id && renderedChatIds[m.id]) { return; }
+          if (m.id) { renderedChatIds[m.id] = true; }
           if (m.at > chatSeen) { chatSeen = m.at; }
           var mine = m.from === d;
           var priv = m.channel === "private";
@@ -102,25 +109,27 @@
           log.appendChild(wrap);
         });
         log.scrollTop = log.scrollHeight;
-      }).catch(function () {});
+      }).catch(function () {}).then(function () { chatLoading = false; });
   }
 
   function sendChat() {
     var d = driver();
     var text = $("chatText").value.trim();
     if (!d) { $("chatMsg").textContent = "Enter your name first."; return; }
-    if (!text) { return; }
+    if (!text || chatSending) { return; }
+    chatSending = true;
     var priv = privateOn();
     $("chatSend").disabled = true;
     api("/api/drivers/" + encodeURIComponent(d) + "/message", { text: text, private: priv })
       .then(function (res) {
         $("chatSend").disabled = false;
+        chatSending = false;
         if (!res.ok) { $("chatMsg").textContent = res.j.error || "Send failed."; return; }
         $("chatText").value = "";
         $("chatMsg").textContent = "";
         loadChat();
       })
-      .catch(function () { $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
+      .catch(function () { chatSending = false; $("chatSend").disabled = false; $("chatMsg").textContent = "Send failed."; });
   }
 
   function rideCard(ride, actions) {
