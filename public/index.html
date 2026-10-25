@@ -12,8 +12,8 @@
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
     <a href="/" aria-current="page">Ride</a>
-    <a href="/driver.html">Driver</a>
-    <a href="/dispatch.html">Dispatch</a>
+    <span id="sessionName" class="tiny muted"></span>
+    <button type="button" class="alt" id="signOut">Sign out</button>
   </nav>
 </header>
 
@@ -56,8 +56,6 @@
       <button type="button" class="cta" id="requestBtn" disabled>Request NightRide</button>
       <button type="button" class="alt" id="backBtn" style="flex:0 0 auto;margin-left:0">Edit trip</button>
     </div>
-    <label for="riderName">Name for the driver</label>
-    <input id="riderName" autocomplete="name" placeholder="Your name">
     <p class="msg" id="optMsg"></p>
   </div>
 
@@ -222,7 +220,7 @@
   // place. These defaults only apply if that request fails.
   var RATES = { flag_drop: 5, trip_per_mile: 1, approach_per_mile: 0.25 };
   // Supplied by /api/config; the test driver that is always at City Hall.
-  var DEMO_DRIVER = { name: "Test Driver", label: "Savannah City Hall", coords: [32.08111, -81.09111] };
+  var DEMO_DRIVER = null;
 
   function round2(n) { return Math.round(n * 100) / 100; }
   function money(n) { return "$" + Number(n).toFixed(2); }
@@ -424,8 +422,6 @@
 
   /* -------- request + status -------- */
   function requestRide() {
-    var name = $("riderName").value.trim();
-    if (!name) { $("optMsg").textContent = "Add your name so the driver knows who to look for."; $("riderName").focus(); return; }
     if (!state.pickup || !state.dropoff) { $("optMsg").textContent = "Set both pickup and drop-off."; return; }
     $("optMsg").textContent = "";
     openPayModal();
@@ -447,15 +443,12 @@
   }
 
   function submitRide() {
-    var name = $("riderName").value.trim();
-    if (!name) { $("payMsg").textContent = "Add your name so the driver knows who to look for."; return; }
     if (!state.payMethod) { $("payMsg").textContent = "Pick a payment method first."; return; }
     $("payConfirm").disabled = true;
     fetch("/api/rides", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        rider_name: name,
         payment_method: state.payMethod,
         pickup: state.pickup.label, dropoff: state.dropoff.label,
         distance_mi: state.miles,
@@ -602,8 +595,8 @@
   // location when the rider allows it, and follows the map when they zoom in
   // somewhere. Whichever the rider acted on last wins.
   var HOME = {
-    lat: (DEMO_DRIVER.coords && DEMO_DRIVER.coords[0]) || 32.08111,
-    lng: (DEMO_DRIVER.coords && DEMO_DRIVER.coords[1]) || -81.09111
+    lat: (DEMO_DRIVER && DEMO_DRIVER.coords && DEMO_DRIVER.coords[0]) || 32.08111,
+    lng: (DEMO_DRIVER && DEMO_DRIVER.coords && DEMO_DRIVER.coords[1]) || -81.09111
   };
   state.bias = HOME;
   map.on("moveend", function () {
@@ -636,5 +629,15 @@
   setTimeout(function () { map.invalidateSize(); }, 200);
 })();
 </script>
+<script>
+fetch("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); }).then(function (d) {
+  if (d.user) document.getElementById("sessionName").textContent = d.user.display_name;
+}).catch(function () {});
+document.getElementById("signOut").addEventListener("click", function () {
+  fetch("/api/auth/logout", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"})
+    .finally(function () { location.replace("/account.html"); });
+});
+</script>
 </body>
 </html>
+
