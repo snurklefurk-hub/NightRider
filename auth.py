@@ -216,6 +216,16 @@ def set_user_enabled(user_id, enabled):
             conn.execute("DELETE FROM nr_sessions WHERE user_id=%s", (user_id,))
 
 
+def delete_driver_user(user_id):
+    """Permanently remove a driver's login and sessions, preserving ride/chat history."""
+    with _connect() as conn:
+        row = conn.execute(
+            "DELETE FROM nr_users WHERE id=%s AND role='driver' RETURNING id",
+            (user_id,),
+        ).fetchone()
+    return bool(row)
+
+
 def load_app_state(local_path):
     import json
     with _connect() as conn:
