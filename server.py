@@ -974,6 +974,8 @@ class Handler(SimpleHTTPRequestHandler):
                     if user and user["role"] == "driver" and ride.get("status") != "requested" and ride.get("driver_account_id") != user["id"]:
                         return self.send_json(404, {"error": "not found"})
                     if path.endswith("/messages"):
+                        if user and user["role"] == "driver" and ride.get("driver_account_id") != user["id"]:
+                            return self.send_json(404, {"error": "not found"})
                         since = _num(urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query), "since", 0)
                         viewer = user["role"] if user else "dispatch"
                         messages = visible_ride_messages(STORE, rid, viewer, since)
@@ -1135,9 +1137,9 @@ class Handler(SimpleHTTPRequestHandler):
                 ride = STORE["rides"].get(rid)
                 if not ride:
                     return self.send_json(404, {"error": "not found"})
-                if user and user["role"] == "rider" and action not in ("cancel", "rating"):
+                if user and user["role"] == "rider" and action not in ("cancel", "rating", "message"):
                     return self.send_json(403, {"error": "not allowed"})
-                if user and user["role"] == "driver" and action not in ("accept", "advance", "rating", "cancel"):
+                if user and user["role"] == "driver" and action not in ("accept", "advance", "rating", "cancel", "message"):
                     return self.send_json(403, {"error": "not allowed"})
                 if action == "message":
                     if user and user["role"] == "rider" and ride.get("rider_account_id") != user["id"]:
