@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NightRider — Dispatch</title>
-<link rel="stylesheet" href="nightrider.css?v=dispatch-desktop-3">
+<link rel="stylesheet" href="nightrider.css?v=dispatch-footer-tools-4">
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
 </head>
 <body class="dispatch">
@@ -12,8 +12,7 @@
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
     <a href="/dispatch.html" aria-current="page">Dispatch</a>
-    <span id="sessionName" class="tiny muted"></span>
-    <button type="button" class="alt" id="signOut">Sign out</button>
+    <span id="sessionName" class="tiny muted" hidden></span>
   </nav>
 </header>
 <main class="dispatch-main">
@@ -36,20 +35,6 @@
     <p class="muted">Every driver page that checked in within the last 90 seconds shows here.
       Use the Team text card below to reach one driver or the whole crew.</p>
     <div id="drivers"></div>
-  </div>
-
-  <div class="card" id="driverAdmin">
-    <h2>Driver accounts</h2>
-    <form id="driverAccountForm">
-      <div class="row">
-        <label>Driver name<input id="newDriverName" autocomplete="name" maxlength="60" required></label>
-        <label>Username<input id="newDriverUser" autocomplete="off" minlength="3" maxlength="120" required></label>
-        <label>Temporary password<input id="newDriverPassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></label>
-      </div>
-      <button type="submit">Create driver account</button>
-      <p class="msg" id="driverAccountMsg" role="status" aria-live="polite"></p>
-    </form>
-    <div id="driverAccounts"></div>
   </div>
 
   <div class="card" id="chatCard">
@@ -90,10 +75,37 @@
     <div class="counts-strip" id="counts"></div>
   </div>
 
-  <div class="exportbar">
+  <div class="exportbar dispatch-footer-actions">
     <button type="button" class="alt" id="exportOpen">Export ride log…</button>
+    <button type="button" class="alt" id="copyDispatchLogin">Copy dispatch login URL</button>
+    <button type="button" class="alt" id="driverAdminOpen">Driver accounts</button>
+    <span id="dispatchFooterMsg" class="tiny muted" role="status" aria-live="polite"></span>
+    <button type="button" class="alt" id="signOut">Sign out</button>
   </div>
 </main>
+
+<!-- Driver account management, opened from the page footer -->
+<div id="driverAdminModal" class="modal" hidden>
+  <div class="modal-card driver-admin-modal" role="dialog" aria-modal="true" aria-labelledby="driverAdminModalTitle">
+    <div class="driver-admin-modal-head">
+      <h2 id="driverAdminModalTitle">Driver accounts</h2>
+      <button type="button" class="alt" id="driverAdminClose">Close</button>
+    </div>
+      <div class="card" id="driverAdmin">
+    <h2>Driver accounts</h2>
+    <form id="driverAccountForm">
+      <div class="row">
+        <label>Driver name<input id="newDriverName" autocomplete="name" maxlength="60" required></label>
+        <label>Username<input id="newDriverUser" autocomplete="off" minlength="3" maxlength="120" required></label>
+        <label>Temporary password<input id="newDriverPassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></label>
+      </div>
+      <button type="submit">Create driver account</button>
+      <p class="msg" id="driverAccountMsg" role="status" aria-live="polite"></p>
+    </form>
+    <div id="driverAccounts"></div>
+  </div>
+  </div>
+</div>
 
 <!-- Export ride log pop-up -->
 <div id="exportModal" class="modal" hidden>
