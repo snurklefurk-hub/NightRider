@@ -2,15 +2,15 @@
    cyan chrome, emerald route accents, cool silver type and restrained gold. */
 :root{
   color-scheme:dark;
-  --paper:#06131a; --paper-2:#081a1d; --indigo:#123230;
-  --void:#0a181d; --panel:#13282e; --sheet:#0d2025;
+  --paper:#030b08; --paper-2:#07140d; --indigo:#10271b;
+  --void:#06130d; --panel:#0b1d13; --sheet:#07140d;
   --ink:#06131a; --ink-soft:#17343a;
   --cyan:#2fe9ff; --cyan-rgb:47,233,255;
   --plum:#2ee6a0; --plum-rgb:46,230,160;
   --rose:#ff6f91; --rose-rgb:255,111,145;
   --lamp:#ffc36b;
   --ice:#f3fdfb; --mist:#8faeb3;
-  --line:#36545b; --danger:#ff7582; --ok:#2ee6a0;
+  --line:#31533e; --danger:#ff6f91; --ok:#2ee6a0;
   --frame:1px solid rgba(47,233,255,.34);
   --frame-soft:1px solid rgba(143,174,179,.24);
   --block:0 8px 24px rgba(0,0,0,.24);
@@ -19,40 +19,52 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;min-height:100vh;color:var(--ice);
-  background:
-    radial-gradient(90% 70% at 92% 4%,rgba(46,230,160,.10) 0%,rgba(46,230,160,0) 60%),
-    radial-gradient(80% 65% at 8% 100%,rgba(47,233,255,.08) 0%,rgba(47,233,255,0) 62%),
-    linear-gradient(180deg,var(--paper) 0%,var(--paper-2) 100%);
-  background-attachment:fixed;
+  background:linear-gradient(180deg,#030b08 0%,#07140d 55%,#08160f 100%);
   font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
-/* Subtle marine linework and a faint teal grain texture. The rider map hides
-   this layer (body.rider::before). */
-body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.55;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 110'%3E%3Cg fill='none' stroke='%232fe9ff' stroke-opacity='.3' stroke-width='2.5' stroke-linecap='round'%3E%3Cellipse cx='86' cy='56' rx='60' ry='26'/%3E%3Cpath d='M142,56L190,30L180,56L190,82Z'/%3E%3Cpath d='M70,40c6-10 22-12 30-4'/%3E%3Cpath d='M108,74c8,8 22,8 30,0'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%232ee6a0' stroke-opacity='.45' stroke-width='3'%3E%3Ccircle cx='60' cy='60' r='8'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(60,60,60)'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(120,60,60)'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%232fe9ff' stroke-opacity='.4' stroke-width='3'%3E%3Ccircle cx='60' cy='60' r='8'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(60,60,60)'/%3E%3Cellipse cx='60' cy='60' rx='11' ry='28' transform='rotate(120,60,60)'/%3E%3C/g%3E%3C/svg%3E"),url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cg fill='%232fe9ff' fill-opacity='.05'%3E%3Ccircle cx='12' cy='18' r='1.1'/%3E%3Ccircle cx='58' cy='9' r='.9'/%3E%3Ccircle cx='96' cy='40' r='1.2'/%3E%3Ccircle cx='30' cy='62' r='1'/%3E%3Ccircle cx='74' cy='78' r='1.1'/%3E%3Ccircle cx='16' cy='104' r='.9'/%3E%3Ccircle cx='104' cy='112' r='1'/%3E%3Ccircle cx='46' cy='34' r='.8'/%3E%3C/g%3E%3C/svg%3E");
-  background-repeat:no-repeat,no-repeat,no-repeat,repeat;
-  background-position:10% 15%,86% 62%,24% 88%,0 0;
-  background-size:min(52vw,520px),min(28vw,280px),min(18vw,180px),120px 120px}
-@media (prefers-reduced-motion:no-preference){
-  body::before{animation:inkdrift 46s ease-in-out infinite alternate}
-  @keyframes inkdrift{
-    from{background-position:10% 15%,86% 62%,24% 88%,0 0}
-    to{background-position:15% 23%,80% 54%,29% 80%,0 0}}
-}
+/* Scroll-reactive retrowave skyline: the horizon stays distant while the
+   star field and floor move at different speeds behind the interface. */
+.parallax-scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;contain:strict}
+.parallax-stars{position:absolute;inset:-20% 0 0;opacity:.42;
+  background-image:radial-gradient(circle at 12% 18%,#effff7 0 1px,transparent 1.8px),
+    radial-gradient(circle at 76% 14%,#effff7 0 1px,transparent 1.8px),
+    radial-gradient(circle at 88% 39%,#effff7 0 1px,transparent 1.8px),
+    radial-gradient(circle at 32% 32%,#ffcf82 0 1px,transparent 1.8px),
+    radial-gradient(circle at 57% 12%,#effff7 0 1px,transparent 1.8px),
+    radial-gradient(circle at 21% 54%,#effff7 0 1px,transparent 1.8px),
+    radial-gradient(circle at 68% 48%,#effff7 0 1px,transparent 1.8px),
+    radial-gradient(circle at 44% 24%,#2ee6a0 0 1px,transparent 1.8px);
+  background-size:420px 310px,510px 360px,620px 440px,700px 500px,360px 280px,540px 420px,760px 460px,460px 380px}
+.parallax-sun{position:absolute;left:50%;top:27vh;width:clamp(150px,22vw,310px);aspect-ratio:1;
+  border-radius:50%;opacity:.18;transform:translate3d(-50%,0,0);
+  background:repeating-linear-gradient(to bottom,transparent 0 15px,rgba(3,11,8,.96) 15px 19px),
+    linear-gradient(180deg,#fff1c7 0%,#ffc36b 48%,#ff6f91 100%);
+  filter:drop-shadow(0 0 44px rgba(255,195,107,.18))}
+.parallax-horizon{position:absolute;top:60vh;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(46,230,160,.6) 18%,rgba(47,233,255,.55) 50%,rgba(46,230,160,.6) 82%,transparent 100%);
+  box-shadow:0 0 22px rgba(46,230,160,.35)}
+.parallax-grid{position:absolute;top:60vh;left:-45vw;width:190vw;height:100vh;transform-origin:50% 0;
+  transform:perspective(420px) rotateX(63deg);opacity:.3;
+  background-image:repeating-linear-gradient(90deg,rgba(46,230,160,.58) 0 1px,transparent 1px 54px),
+    repeating-linear-gradient(0deg,rgba(46,230,160,.56) 0 1px,transparent 1px 34px);
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 92%);
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 92%)}
+@media (prefers-reduced-motion:reduce){.parallax-scene *{transform:none!important;scroll-behavior:auto!important}}
 header,main{position:relative;z-index:1}
-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:1px solid rgba(47,233,255,.3);background:#081a20;flex-wrap:wrap}
-.brand{font:700 1.5rem/1 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;letter-spacing:.16em;text-transform:uppercase;color:var(--ice);text-decoration:none}
+header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:1px solid rgba(46,230,160,.28);background:rgba(3,11,8,.78);backdrop-filter:blur(12px);flex-wrap:wrap}
+.brand{display:inline-flex;align-items:center;gap:.52rem;font:800 1.25rem/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--ice);text-decoration:none}
+.brand::before{content:"";display:inline-block;width:1.75rem;height:1.75rem;flex:0 0 auto;background:url("/nightrider-mark.svg") center/contain no-repeat;filter:drop-shadow(0 0 8px rgba(46,230,160,.3))}
 .brand span{color:var(--cyan)}
 nav a{color:var(--mist);margin-left:1rem;text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:.8rem}
 nav a[aria-current="page"],nav a:hover,nav a:focus-visible{color:var(--ice);outline:none;border-bottom:2px solid var(--cyan)}
-main{max-width:960px;margin:0 auto;padding:2rem 1.5rem}
-h1{font:700 1.6rem/1.2 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:.12em;margin:.2rem 0 1rem;color:var(--ice)}
-h2{font:700 1.05rem/1.2 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;text-transform:uppercase;letter-spacing:.1em;margin:0 0 .6rem;color:var(--cyan)}
-.card{background:var(--panel);border:var(--frame);border-radius:6px;padding:1.25rem;margin-bottom:1rem;min-width:0;box-shadow:var(--block)}
+main{max-width:1120px;margin:0 auto;padding:2rem 1.5rem}
+h1{font:800 1.65rem/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.12em;margin:.2rem 0 1rem;color:var(--ice)}
+h2{font:750 1.02rem/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.1em;margin:0 0 .6rem;color:var(--cyan)}
+.card{background:rgba(8,26,17,.9);border:1px solid rgba(46,230,160,.38);border-radius:14px;padding:1.25rem;margin-bottom:1rem;min-width:0;box-shadow:0 12px 32px rgba(0,0,0,.28);backdrop-filter:blur(8px)}
 label{display:block;margin:.7rem 0 .25rem;color:var(--cyan);font-size:.75rem;text-transform:uppercase;letter-spacing:.14em}
-input,select{width:100%;padding:.6rem .7rem;background:var(--void);border:var(--frame-soft);color:var(--ice);border-radius:4px;font:inherit}
+input,select{width:100%;padding:.6rem .7rem;background:rgba(3,13,8,.88);border:1px solid rgba(143,174,179,.28);color:var(--ice);border-radius:10px;font:inherit}
 input:focus,select:focus{outline:none;border-color:var(--cyan);box-shadow:2px 2px 0 rgba(var(--cyan-rgb),.28)}
 input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
-button{margin-top:1rem;padding:.7rem 1.4rem;border:1px solid var(--ink);border-radius:4px;background:var(--panel);color:var(--ice);font:inherit;font-weight:700;text-transform:uppercase;letter-spacing:.14em;cursor:pointer;box-shadow:var(--block);transition:box-shadow .15s,background .15s,transform .15s}
+button{margin-top:1rem;padding:.7rem 1.4rem;border:1px solid var(--ink);border-radius:999px;background:var(--panel);color:var(--ice);font:inherit;font-weight:700;text-transform:uppercase;letter-spacing:.14em;cursor:pointer;box-shadow:var(--block);transition:box-shadow .15s,background .15s,transform .15s}
 button:hover{background:#18383d;box-shadow:var(--block-lift);transform:translate(-1px,-1px)}
 button.alt{border-color:var(--plum);color:var(--plum);margin-left:.5rem;background:rgba(var(--plum-rgb),.08)}
 button.alt:hover{background:rgba(var(--plum-rgb),.16);box-shadow:5px 5px 0 rgba(var(--plum-rgb),.3);transform:translate(-1px,-1px)}
@@ -145,8 +157,7 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 body.rider::before{display:none}
 
 /* Dispatch uses the driver's plain-color treatment without decorative art. */
-body.dispatch{background:var(--paper-2);background-image:none;background-attachment:scroll}
-body.dispatch::before{display:none}
+body.dispatch{background:linear-gradient(180deg,#030b08 0%,#07140d 100%)}
 
 /* ---------- Fare breakdown (single fare, no ride types) ---------- */
 .farebox{border:var(--frame-soft);border-radius:6px;background:var(--panel);margin:.2rem 0 .9rem}
