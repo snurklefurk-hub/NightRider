@@ -32,6 +32,25 @@ DEFAULT_PRICING = {
     "trip_per_mile": 1.00,
     "multiplier": 1.00,
 }
+
+
+def normalize_pricing(saved):
+    """Normalize persisted fare settings and keep older ride stores safe."""
+    saved = saved if isinstance(saved, dict) else {}
+    limits = {"flag_drop": 10000.0, "approach_per_mile": 10000.0,
+              "trip_per_mile": 10000.0, "multiplier": 100.0}
+    rates = {}
+    for key, default in DEFAULT_PRICING.items():
+        try:
+            value = float(saved.get(key, default))
+        except (TypeError, ValueError):
+            value = default
+        if not math.isfinite(value) or value < 0 or value > limits[key]:
+            value = default
+        rates[key] = round(value, 2)
+    if rates["multiplier"] < 0.01:
+        rates["multiplier"] = DEFAULT_PRICING["multiplier"]
+    return rates
 # The driver's ride workflow: each press moves the ride to the next stage.
 NEXT = {
     "accepted": "to_pickup",
@@ -78,10 +97,7 @@ def ensure_store(store):
     store.setdefault("messages", [])
     store.setdefault("ride_messages", [])
     store.setdefault("driver_colors", {})
-    saved_pricing = store.get("pricing")
-    if not isinstance(saved_pricing, dict):
-        saved_pricing = {}
-    store["pricing"] = dict(DEFAULT_PRICING, **saved_pricing)
+    store["pricing"] = normalize_pricing(store.get("pricing"))
     for ride in (store.get("rides") or {}).values():
         if isinstance(ride, dict):
             ride.setdefault("fare_rates", dict(store["pricing"]))
@@ -558,20 +574,9 @@ APPROACH_PER_MILE = DEFAULT_PRICING["approach_per_mile"]
 
 
 def current_pricing():
-    """Return a validated snapshot of the persisted dispatch fare settings."""
+    """Return a safe copy of persisted dispatch fare settings."""
     saved = STORE.get("pricing", {}) if "STORE" in globals() else {}
-    rates = {}
-    for key, default in DEFAULT_PRICING.items():
-        try:
-            value = float(saved.get(key, default))
-        except (TypeError, ValueError):
-            value = default
-        if not math.isfinite(value) or value < 0:
-            value = default
-        rates[key] = round(value, 2)
-    if rates["multiplier"] <= 0:
-        rates["multiplier"] = DEFAULT_PRICING["multiplier"]
-    return rates
+    return normalize_pricing(saved)
 
 
 def validate_pricing(data):
@@ -1016,7 +1021,7 @@ class Handler(SimpleHTTPRequestHandler):
                 ride["status"] = "requested"
                 ride.pop("driver_coords", None)
                 ride["driver_to_pickup_mi"] = 0.0
-                ride["fare"] = fare(ride["distance_mi"], 0.0)
+                ride["fare"] = fare(ride["distance_mi"], 0.0, ride.get("fare_rates"))
                 log_status(ride, "requested")
                 action = "recalled"
                 new_name = None
@@ -1245,13 +1250,14 @@ class Handler(SimpleHTTPRequestHandler):
                 approach = 0.0
             if not (0 <= approach <= 200):
                 return self.send_json(400, {"error": "driver_to_pickup_mi must be between 0 and 200"})
+            fare_rates = current_pricing()
             ride = {
                 "id": uuid.uuid4().hex[:8], "rider_name": name, "pickup": pickup, "dropoff": dropoff,
                 "pickup_coords": pickup_coords,
                 "dropoff_coords": parse_coords(data.get("dropoff_coords")),
                 "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
-                "fare_rates": current_pricing(),
-                "fare": fare(miles, approach, current_pricing()), "status": "requested",
+                "fare_rates": fare_rates,
+                "fare": fare(miles, approach, fare_rates), "status": "requested",
                 "payment_method": payment, "rider_account_id": user["id"] if user else None,
                 "driver": None, "created": time.time(),
                 "status_log": [{"status": "requested", "at": time.time()}],
@@ -1456,7 +1462,7 @@ class Handler(SimpleHTTPRequestHandler):
                         ride["driver_account_id"] = None
                         ride.pop("driver_coords", None)
                         ride["driver_to_pickup_mi"] = 0.0
-                        ride["fare"] = fare(ride["distance_mi"], 0.0)
+                        ride["fare"] = fare(ride["distance_mi"], 0.0, ride.get("fare_rates"))
                         ride["status"] = "requested"
                         log_status(ride, "requested")
                     else:
