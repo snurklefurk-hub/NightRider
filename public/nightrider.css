@@ -441,3 +441,7 @@ button.pressed{animation:pressflair .4s ease-out}
 .pricing-grid label{margin:.25rem 0}
 .pricing-grid input{display:block;margin-top:.25rem}
 @media (max-width:640px){.pricing-grid{grid-template-columns:1fr}}
+
+/* Dispatch refresh control: compact and aligned to the status card's right edge. */
+.dispatch-refresh-row{display:flex;justify-content:flex-end;width:100%;max-width:none!important;margin:.35rem 0}
+.dispatch-refresh-button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;min-width:40px;padding:0;margin:0;border-radius:6px;font-size:1.45rem;line-height:1}
