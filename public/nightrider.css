@@ -301,8 +301,6 @@ button.pressed{animation:pressflair .4s ease-out}
       "status status"
       "rides chat"
       "drivers chat"
-      "directory directory"
-      "rideradmin counts"
       "export export";
     gap:.85rem 1rem;align-items:start}
   .dispatch-main>h1{grid-area:title;margin:.1rem 0}
@@ -314,8 +312,8 @@ button.pressed{animation:pressflair .4s ease-out}
   #dispatchStatus #conn{display:inline-block;margin:.25rem 0 0}
   #rideBoard{grid-area:rides;margin:0;min-width:0}
   #rideBoard .ridecards{grid-template-columns:repeat(auto-fit,minmax(245px,1fr));}
-  #chatCard{grid-area:chat;position:sticky;top:5.2rem;margin:0;display:flex;flex-direction:column;
-    max-height:calc(100vh - 6.2rem);min-height:440px}
+  #chatCard{grid-area:chat;position:static;top:auto;margin:0;display:flex;flex-direction:column;
+    max-height:none;min-height:0;align-self:start}
   #chatCard .chatlog{flex:1 1 auto;max-height:none;min-height:180px}
   #chatCard .chatrow{flex:0 0 auto}
   #driverBoard{grid-area:drivers;margin:0}
@@ -353,8 +351,6 @@ button.pressed{animation:pressflair .4s ease-out}
       "status status"
       "rides rides"
       "drivers chat"
-      "rideradmin counts"
-      "directory directory"
       "export export";
     gap:.6rem .85rem;align-items:start}
   .dispatch-main>h1{grid-area:title;font-size:1.35rem;margin:0}
@@ -386,8 +382,8 @@ button.pressed{animation:pressflair .4s ease-out}
   .ride-detail .row{display:flex;flex-wrap:wrap;gap:.35rem}
   .ride-detail select{max-width:14rem}
   .ride-detail button{margin:.35rem .25rem 0 0;padding:.28rem .55rem;font-size:.63rem}
-  #chatCard{grid-area:chat;top:4rem;max-height:calc(100vh - 4.7rem);min-height:390px;margin:0}
-  #chatCard .chatlog{min-height:200px}
+  #chatCard{grid-area:chat;position:static;top:auto;max-height:none;min-height:0;align-self:start;margin:0}
+  #chatCard .chatlog{flex:0 0 360px;height:360px;max-height:360px;min-height:180px}
   #driverBoard{grid-area:drivers;margin:0}
   #driverBoard>p.muted{display:none}
   #driverAdmin{grid-area:driveradmin;margin:0}
@@ -420,4 +416,20 @@ button.pressed{animation:pressflair .4s ease-out}
   .dispatch-footer-actions{justify-content:stretch}
   .dispatch-footer-actions button{flex:1 1 100%}
   #dispatchFooterMsg{order:-1;width:100%;margin:0}
+}
+
+
+/* Dispatch utility panels and export presets. */
+.dispatch-data-modal{width:min(1180px,calc(100vw - 2rem));max-width:1180px;
+  max-height:88vh;overflow:auto}
+.dispatch-data-modal>.card{margin:0}
+.dispatch-data-modal #riderDirectory table{white-space:nowrap}
+.dispatch-data-modal .counts-strip{gap:.8rem}
+.export-range-presets{display:flex;flex-wrap:wrap;gap:.5rem;margin:.8rem 0}
+.export-range-presets button{margin:0;padding:.45rem .75rem;font-size:.72rem}
+.export-range-presets button[aria-pressed="true"]{background:rgba(var(--cyan-rgb),.18);color:var(--cyan);
+  border-color:var(--cyan);box-shadow:0 0 0 1px rgba(var(--cyan-rgb),.24)}
+@media (min-width:1200px){
+  #chatCard{position:static;top:auto;align-self:start;max-height:none;min-height:0;height:auto}
+  #chatCard .chatlog{flex:0 0 360px;height:360px;max-height:360px;min-height:180px}
 }
