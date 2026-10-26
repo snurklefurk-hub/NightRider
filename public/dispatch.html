@@ -127,6 +127,7 @@
   function statusWord(s) { return CFG.statusLabels[s] || s; }
   var cursor = 0;          /* last event seq we have seen */
   var ridesById = {};
+  var expandedRideIds = {};
   var polling = false;
   var seenRides = false;
   var chatSeen = 0;        /* newest message timestamp we have rendered */
@@ -219,7 +220,7 @@
       var all = d.rides || [];
       ridesById = {};
       all.forEach(function (r) { ridesById[r.id] = r; });
-      renderRows(all.slice(0, 5));
+      renderRows(all.slice(0, 10));
       renderCounts(all);
       renderRiders();
       $("msg").textContent = "";
@@ -331,33 +332,52 @@
     var body = $("rows"); body.innerHTML = "";
     if (!rides.length) { body.innerHTML = '<p class="muted">No rides yet.</p>'; return; }
     rides.forEach(function (r) {
-      var card = document.createElement("div");
+      var card = document.createElement("details");
       card.className = "ridecard";
-      card.innerHTML =
-        '<div class="ridehead"><strong class="rid">' + esc(r.id) + "</strong>" +
-        '<span class="status">' + esc(statusWord(r.status)) + "</span></div>" +
+      card.open = !!expandedRideIds[r.id];
+      card.addEventListener("toggle", function () {
+        expandedRideIds[r.id] = card.open;
+      });
+
+      var summary = document.createElement("summary");
+      summary.className = "ride-summary";
+      summary.innerHTML =
+        '<div class="ride-summary-head"><strong class="rid">' + esc(r.id) + "</strong>" +
+        '<span class="status">' + esc(statusWord(r.status)) + "</span>" +
+        '<span class="ride-expand-label">' + (card.open ? "Hide details" : "View details") + "</span></div>" +
+        '<div class="ride-summary-meta"><strong>' + esc(r.rider_name) + "</strong>" +
+        "<span>" + esc(r.driver || "Unassigned") + "</span>" +
+        "<span>" + money(r.fare) + "</span></div>" +
+        '<div class="ride-summary-route" title="' + esc(r.pickup + " → " + r.dropoff) + '">' +
+        esc(r.pickup) + " <span aria-hidden=\"true\">→</span> " + esc(r.dropoff) + "</div>";
+      card.appendChild(summary);
+
+      var detail = document.createElement("div");
+      detail.className = "ride-detail";
+      detail.innerHTML =
         '<p class="riderline"><strong>' + esc(r.rider_name) + '</strong> ' +
         '<span class="tiny muted">rider ' + esc(r.rider_id || "—") + "</span></p>" +
         '<p class="routeline"><span class="muted">From</span> ' + esc(r.pickup) +
         '<br><span class="muted">To</span> ' + esc(r.dropoff) + "</p>" +
-        '<div class="metaline"><span>' + r.distance_mi + ' mi</span><span>' + money(r.fare) + "</span>" +
-        "<span>" + esc(r.driver || "\u2014") + "</span><span>" + ackCell(r) + "</span></div>";
+        '<div class="metaline"><span>' + r.distance_mi + " mi</span><span>" + money(r.fare) + "</span>" +
+        "<span>" + esc(r.driver || "—") + "</span><span>" + ackCell(r) + "</span></div>";
       var stages = stageBlock(r);
-      if (stages) { card.appendChild(stages); }
+      if (stages) { detail.appendChild(stages); }
       if (r.last_driver_release) {
         var releaseNote = document.createElement("p");
         releaseNote.className = "tiny muted";
         releaseNote.textContent = (r.status === "requested" ? "Cancelled by driver — returned to the open queue. " : "Previously cancelled/released by driver. ") +
           r.last_driver_release.driver + " · " + clock(r.last_driver_release.at);
-        card.appendChild(releaseNote);
+        detail.appendChild(releaseNote);
       }
       var assignment = assignmentControls(r);
-      if (assignment) { card.appendChild(assignment); }
+      if (assignment) { detail.appendChild(assignment); }
       if (r.status !== "completed" && r.status !== "cancelled") {
         var b = document.createElement("button"); b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Cancel";
         b.addEventListener("click", function () { cancel(r.id); });
-        card.appendChild(b);
+        detail.appendChild(b);
       }
+      card.appendChild(detail);
       body.appendChild(card);
     });
   }
