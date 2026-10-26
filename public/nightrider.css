@@ -211,17 +211,20 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .chatwrap.them{align-self:flex-start;align-items:flex-start}
 .chatline{font-size:.9rem;line-height:1.35;max-width:100%;padding:.45rem .7rem;border-radius:8px;overflow-wrap:anywhere;word-break:break-word}
 .chatline .who{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:.64rem;color:var(--mist);margin-bottom:.15rem}
-.chatline.me{align-self:flex-end;background:rgba(var(--cyan-rgb),.1);border:1px solid rgba(var(--cyan-rgb),.35);color:var(--ice);border-bottom-right-radius:2px}
-.chatline.them{align-self:flex-start;background:#102327;border:1px solid var(--frame-soft);color:var(--ice);border-bottom-left-radius:2px}
+.chatline.me{align-self:flex-end;background:rgba(var(--cyan-rgb),.1);border:1px solid var(--sender-color,rgba(var(--cyan-rgb),.35));color:var(--ice);border-bottom-right-radius:2px}
+.chatline.them{align-self:flex-start;background:#102327;border:1px solid var(--sender-color,var(--frame-soft));color:var(--ice);border-bottom-left-radius:2px}
 /* Private dispatch<->driver texts share the window but read gold with a dashed
    frame so they are never mistaken for the group thread. */
-.chatline.private{border-style:dashed;box-shadow:0 4px 14px rgba(255,195,107,.12)}
+.chatline.private{border-style:dashed;animation:private-breathe 2.2s ease-in-out infinite;}
+@keyframes private-breathe{0%,100%{box-shadow:0 0 0 rgba(255,255,255,0);filter:brightness(1)}50%{box-shadow:0 0 18px 3px color-mix(in srgb,var(--sender-color,#fff) 60%,transparent);filter:brightness(1.14)}}
 .chatline.me.private{background:rgba(255,195,107,.12);border-color:rgba(255,195,107,.65);color:#ffe0a8}
 .chatline.them.private{background:rgba(255,195,107,.08);border-color:rgba(255,195,107,.5);color:#ffe0a8}
 /* Small gold label above a private bubble. */
 .chatwrap .privlabel{text-transform:uppercase;letter-spacing:.14em;font-size:.58rem;font-weight:700;color:#ffc36b}
 /* Message row: the input grows, the two buttons stay equal and on-theme. */
 .chatrow{align-items:center}
+.chatreply{margin:0;padding:.3rem .6rem;font-size:.7rem;min-width:auto}
+#chatReplyHint,#rideChatReplyHint{cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .chatrow button{margin-top:0;flex:0 0 auto;min-width:6.5rem;padding:.7rem 1rem;font-size:.8rem}
 .chatrow button.alt{margin-left:0}
 .chatrow button.alt[aria-pressed="true"]{background:rgba(255,195,107,.16);border-color:#ffc36b;color:#ffe0a8;box-shadow:0 4px 14px rgba(255,195,107,.16)}
