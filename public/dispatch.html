@@ -59,8 +59,7 @@
     <button type="button" class="alt" id="exportOpen">Export ride log…</button>
     <button type="button" class="alt" id="copyDispatchLogin">Copy dispatch login URL</button>
     <button type="button" class="alt" id="driverAdminOpen">Driver accounts</button>
-    <button type="button" class="alt" id="riderAdminOpen">Rider accounts</button>
-    <button type="button" class="alt" id="riderDirectoryOpen">Known riders</button>
+    <button type="button" class="alt" id="riderAdminOpen">Riders</button>
     <button type="button" class="alt" id="countsOpen">Counts by status</button>
     <button type="button" class="alt" id="pricingOpen">Ride prices</button>
     <span id="dispatchFooterMsg" class="tiny muted" role="status" aria-live="polite"></span>
@@ -69,33 +68,24 @@
 </main>
 
 <div id="riderAdminModal" class="modal" hidden>
-  <div class="modal-card dispatch-data-modal" role="dialog" aria-modal="true" aria-label="Rider accounts">
+  <div class="modal-card dispatch-data-modal" role="dialog" aria-modal="true" aria-label="Riders">
     <div class="driver-admin-modal-head">
-      <span class="tiny muted">Rider accounts</span>
+      <span class="tiny muted">Riders</span>
       <button type="button" class="alt" id="riderAdminClose">Close</button>
     </div>
-      <div class="card" id="riderAdmin">
-    <h2>Rider accounts</h2>
-    <div id="riderAccounts"></div>
-  </div>
-  </div>
-</div>
-
-<div id="riderDirectoryModal" class="modal" hidden>
-  <div class="modal-card dispatch-data-modal" role="dialog" aria-modal="true" aria-label="Known riders">
-    <div class="driver-admin-modal-head">
-      <span class="tiny muted">Known riders</span>
-      <button type="button" class="alt" id="riderDirectoryClose">Close</button>
+    <div class="card" id="riderAdmin">
+      <h2>Rider accounts</h2>
+      <div id="riderAccounts"></div>
     </div>
-      <div class="card" id="riderDirectory">
-    <h2>Known riders</h2>
-    <div style="overflow:auto">
-      <table>
-        <thead><tr><th>Account ID</th><th>Names</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Last seen</th></tr></thead>
-        <tbody id="riderrows"></tbody>
-      </table>
+    <div class="card" id="riderDirectory">
+      <h2>Known riders</h2>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr><th>Account ID</th><th>Names</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Account created</th><th>Last seen</th></tr></thead>
+          <tbody id="riderrows"></tbody>
+        </table>
+      </div>
     </div>
-  </div>
   </div>
 </div>
 
@@ -107,6 +97,17 @@
     </div>
       <div class="card counts">
     <h3>Counts by status</h3>
+    <div id="countRanges" class="export-presets" role="group" aria-label="Ride creation time range">
+      <button type="button" class="alt count-range" data-seconds="3600" data-label="1 hour" aria-pressed="false">1 hour</button>
+      <button type="button" class="alt count-range" data-seconds="7200" data-label="2 hours" aria-pressed="false">2 hours</button>
+      <button type="button" class="alt count-range" data-seconds="21600" data-label="6 hours" aria-pressed="false">6 hours</button>
+      <button type="button" class="alt count-range" data-seconds="43200" data-label="12 hours" aria-pressed="false">12 hours</button>
+      <button type="button" class="alt count-range on" data-seconds="86400" data-label="24 hours" aria-pressed="true">24 hours</button>
+      <button type="button" class="alt count-range" data-seconds="604800" data-label="7 days" aria-pressed="false">7 days</button>
+      <button type="button" class="alt count-range" data-seconds="2592000" data-label="30 days" aria-pressed="false">30 days</button>
+      <button type="button" class="alt count-range" data-seconds="31536000" data-label="365 days" aria-pressed="false">365 days</button>
+    </div>
+    <p id="countsRangeLabel" class="tiny muted" aria-live="polite">Showing rides created in the last 24 hours</p>
     <div class="counts-strip" id="counts"></div>
   </div>
   </div>
@@ -487,19 +488,29 @@
     });
   }
 
+  var countWindowSeconds = 86400;
+  var selectedCountLabel = "24 hours";
+  var latestCountRides = [];
+
   function renderCounts(rides) {
+    latestCountRides = rides || [];
+    var cutoff = Date.now() / 1000 - countWindowSeconds;
+    var visibleRides = latestCountRides.filter(function (ride) {
+      return Number(ride.created) >= cutoff;
+    });
     var counts = {}; STATUSES.forEach(function (s) { counts[s] = 0; });
-    rides.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    visibleRides.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
     $("counts").innerHTML = STATUSES.map(function (s) {
       return '<span class="count"><span class="muted">' + s + '</span> <span class="num">' + counts[s] + "</span></span>";
     }).join("");
+    $("countsRangeLabel").textContent = "Showing rides created in the last " + selectedCountLabel;
   }
 
   function renderRiders() {
     api("/api/dispatch/riders", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
       var body = $("riderrows"); body.innerHTML = "";
       var riders = d.riders || [];
-      if (!riders.length) { body.innerHTML = '<tr><td colspan="7" class="muted">No riders yet.</td></tr>'; return; }
+      if (!riders.length) { body.innerHTML = '<tr><td colspan="8" class="muted">No riders yet.</td></tr>'; return; }
       riders.forEach(function (r) {
         var s = r.summary || {};
         var tr = document.createElement("tr");
@@ -510,6 +521,7 @@
           '<td class="num">' + (s.ratings || 0) + "</td>" +
           '<td class="num">' + (s.avg != null ? s.avg : "—") + "</td>" +
           '<td class="num">' + (s.issues || 0) + "</td>" +
+          '<td class="tiny muted">' + (r.account_created ? new Date(r.account_created * 1000).toLocaleString() : "—") + "</td>" +
           '<td class="tiny muted">' + (r.last_seen ? new Date(r.last_seen * 1000).toLocaleString() : "—") + "</td>";
         body.appendChild(tr);
       });
@@ -811,10 +823,20 @@
   }
   wirePageModal("driverAdminOpen", "driverAdminClose", "driverAdminModal");
   wirePageModal("riderAdminOpen", "riderAdminClose", "riderAdminModal");
-  wirePageModal("riderDirectoryOpen", "riderDirectoryClose", "riderDirectoryModal");
   wirePageModal("countsOpen", "countsClose", "countsModal");
   wirePageModal("pricingOpen", "pricingClose", "pricingModal");
-  wirePageModal("pricingOpen", "pricingClose", "pricingModal");
+  $("countRanges").addEventListener("click", function (event) {
+    var button = event.target.closest ? event.target.closest(".count-range") : null;
+    if (!button) { return; }
+    countWindowSeconds = Number(button.dataset.seconds) || 86400;
+    selectedCountLabel = button.dataset.label || "24 hours";
+    $("countRanges").querySelectorAll(".count-range").forEach(function (item) {
+      var selected = item === button;
+      item.classList.toggle("on", selected);
+      item.setAttribute("aria-pressed", selected ? "true" : "false");
+    });
+    renderCounts(latestCountRides);
+  });
   $("copyDispatchLogin").addEventListener("click", function () {
     var url = window.location.origin + "/account.html?next=%2Fdispatch.html";
     function fallbackCopy() {
