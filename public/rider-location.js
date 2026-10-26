@@ -9,6 +9,16 @@
   var writes = Promise.resolve();
   var sharingId = null;
 
+  function savedChoice() {
+    try { return localStorage.getItem("nightrider.locationSharing." + rideId); }
+    catch (error) { return null; }
+  }
+  function rememberChoice(on) {
+    if (!rideId) { return; }
+    try { localStorage.setItem("nightrider.locationSharing." + rideId, on ? "on" : "off"); }
+    catch (error) { /* Sharing still works when browser storage is unavailable. */ }
+  }
+
   function enqueue(id, body, checkGeneration) {
     writes = writes.catch(function () {}).then(function () {
       if (checkGeneration != null && (!enabled || generation !== checkGeneration)) { return; }
@@ -34,10 +44,10 @@
     if (watchId !== null && navigator.geolocation) { navigator.geolocation.clearWatch(watchId); }
     watchId = null;
     if (timer !== null) { clearInterval(timer); timer = null; }
-    message.textContent = text || "Live location is off.";
+    message.textContent = text || "Live sharing is off. Dispatch keeps your last shared point until the ride ends.";
     if (notify !== false && previousId && wasEnabled) {
       enqueue(previousId, { sharing: false, sharing_id: previousSharingId }).catch(function () {
-        if (!enabled) { message.textContent = "Sharing stopped on this device. The last fix expires automatically if you are offline."; }
+        if (!enabled) { message.textContent = "Live updates stopped on this device. Dispatch may still show your last known point."; }
       });
     }
   }
@@ -45,6 +55,7 @@
   function fail(error) {
     if (!enabled) { return; }
     if (error && error.code === 1) {
+      rememberChoice(false);
       stop("Location permission was denied. You can continue your ride without sharing.");
     } else {
       message.textContent = "Waiting for a location fix. Your ride can continue while we retry.";
@@ -76,14 +87,15 @@
 
   function receive(position) { if (enabled) { latest = position; publish(); } }
 
-  toggle.addEventListener("change", function () {
-    if (!toggle.checked) { stop(); return; }
+  function start() {
+    if (enabled) { toggle.checked = true; return; }
     if (!rideId || !navigator.geolocation) {
       toggle.checked = false;
       message.textContent = "This browser cannot share location. Your ride can continue without it.";
       return;
     }
     enabled = true; generation += 1; lastSent = 0;
+    toggle.checked = true;
     sharingId = window.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2);
     message.textContent = "Waiting for your permission and a location fix…";
     watchId = navigator.geolocation.watchPosition(receive, fail, {
@@ -96,14 +108,32 @@
         });
       } else { publish(); }
     }, 10000);
+  }
+
+  toggle.addEventListener("change", function () {
+    if (!toggle.checked) {
+      var turnOff = window.confirm("Turn off live location sharing? This may make pickup more difficult in congested or busy areas. Dispatch will keep your last known point for this ride, and your driver will use the pickup address you selected.");
+      if (!turnOff) { toggle.checked = true; return; }
+      rememberChoice(false);
+      stop();
+    } else {
+      rememberChoice(true);
+      start();
+    }
   });
 
   window.addEventListener("nightrider:ride", function (event) {
     var ride = event.detail;
     var active = ride && ride.id && ride.status !== "completed" && ride.status !== "cancelled";
-    if (!active || rideId !== ride.id) { stop("Live location is off."); }
-    rideId = active ? ride.id : null;
+    var nextRideId = active ? ride.id : null;
+    var changed = nextRideId !== rideId;
+    if (!active || changed) { stop("Live location is off."); }
+    rideId = nextRideId;
     panel.hidden = !active;
+    if (active && changed && savedChoice() !== "off") { start(); }
+  });
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted && rideId && savedChoice() !== "off") { start(); }
   });
   window.addEventListener("pagehide", function () {
     if (enabled && rideId && navigator.sendBeacon) {

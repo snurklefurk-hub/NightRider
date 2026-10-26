@@ -347,7 +347,7 @@ def dispatch_map_snapshot(store, now=None):
             RIDER_REVOKED_SHARES.pop(key, None)
     for ride_id, fix in list(RIDER_LOCATIONS.items()):
         ride = store.get("rides", {}).get(ride_id)
-        if not ride or ride.get("status") in ("completed", "cancelled") or now - fix["at"] > LOCATION_FRESH_SECONDS:
+        if not ride or ride.get("status") in ("completed", "cancelled"):
             RIDER_LOCATIONS.pop(ride_id, None)
     active_rides = [r for r in store.get("rides", {}).values()
                     if r.get("status") not in ("completed", "cancelled")]
@@ -369,10 +369,12 @@ def dispatch_map_snapshot(store, now=None):
             "id", "rider_name", "driver", "status", "pickup", "dropoff",
             "pickup_coords", "dropoff_coords", "distance_mi", "created")}
         fix = RIDER_LOCATIONS.get(ride["id"])
-        if fix and now - fix["at"] <= LOCATION_FRESH_SECONDS:
+        if fix:
             item["rider_location"] = {key: fix[key] for key in ("coords", "at", "accuracy")}
+            item["rider_location"]["sharing"] = fix.get("sharing", True)
+            item["rider_location"]["live"] = bool(fix.get("sharing", True) and
+                now - fix["at"] <= LOCATION_FRESH_SECONDS)
         else:
-            RIDER_LOCATIONS.pop(ride["id"], None)
             item["rider_location"] = None
         rides.append(item)
     return {"rides": rides, "drivers": drivers, "now": now,
@@ -1356,7 +1358,8 @@ class Handler(SimpleHTTPRequestHandler):
                 sharing_id = data.get("sharing_id")
                 valid_sharing_id = isinstance(sharing_id, str) and 8 <= len(sharing_id) <= 80
                 if data.get("sharing") is False:
-                    RIDER_LOCATIONS.pop(ride_id, None)
+                    if ride_id in RIDER_LOCATIONS:
+                        RIDER_LOCATIONS[ride_id]["sharing"] = False
                     if valid_sharing_id:
                         RIDER_REVOKED_SHARES[(ride_id, sharing_id)] = time.time()
                     return self.send_json(200, {"sharing": False})
@@ -1371,7 +1374,7 @@ class Handler(SimpleHTTPRequestHandler):
                 fix, error = read_location(data)
                 if error:
                     return self.send_json(400, {"error": error})
-                RIDER_LOCATIONS[ride_id] = dict(fix, sharing_id=sharing_id)
+                RIDER_LOCATIONS[ride_id] = dict(fix, sharing_id=sharing_id, sharing=True)
             return self.send_json(200, {"sharing": True, "at": fix["at"]})
 
         if path == "/api/rides":

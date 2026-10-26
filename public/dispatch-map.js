@@ -42,6 +42,9 @@
     return Math.abs(value[0]) <= 90 && Math.abs(value[1]) <= 180 ? value : null;
   }
   function now() { return snapshot.now + (Date.now() - snapshotReceived) / 1000; }
+  function riderIsLive(fix) {
+    return fix && fix.sharing !== false && fix.live !== false && now() - fix.at <= 120;
+  }
   function age(at) {
     if (!at) { return "No location fix"; }
     var seconds = Math.max(0, Math.round(now() - at));
@@ -98,6 +101,9 @@
       if (signature !== item.signature) { item.marker.setIcon(markerIcon(kind, color, stale)); item.signature = signature; }
       item.marker.setTooltipContent(document.createTextNode(title));
     }
+    item.marker.options.title = title;
+    var element = item.marker.getElement();
+    if (element) { element.title = title; element.setAttribute("aria-label", title); }
   }
 
   function routeKey(start, end, moving) {
@@ -205,11 +211,15 @@
         info + "<br><b>Pickup:</b> " + esc(ride.pickup), rideLayer, used, false);
       syncMarker("dropoff:" + ride.id, ride.dropoff_coords, "dropoff", "#ff6f91", "Drop-off · " + title,
         info + "<br><b>Drop-off:</b> " + esc(ride.dropoff), rideLayer, used, false);
-      if (ride.rider_location && now() - ride.rider_location.at <= 120) {
+      if (ride.rider_location) {
         var fix = ride.rider_location;
-        syncMarker("rider:" + ride.id, fix.coords, "rider", "#ffc36b", "Live rider · " + title,
-          info + "<br>Shared with Dispatch · " + esc(age(fix.at)) +
-          (fix.accuracy != null ? "<br>Accuracy: about " + Math.round(fix.accuracy) + " m" : ""), riderLayer, used, false);
+        var live = riderIsLive(fix);
+        var locationLabel = live ? "Live rider" : "Last known rider";
+        var sharingLabel = live ? "Live location shared with Dispatch" :
+          fix.sharing === false ? "Location sharing is off · last known position" : "No fresh location update · last known position";
+        syncMarker("rider:" + ride.id, fix.coords, "rider", "#ffc36b", locationLabel + " · " + title,
+          info + "<br>" + sharingLabel + "<br>Recorded " + esc(new Date(fix.at * 1000).toLocaleString()) + " · " + esc(age(fix.at)) +
+          (fix.accuracy != null ? "<br>Accuracy: about " + Math.round(fix.accuracy) + " m" : ""), riderLayer, used, !live);
       }
     });
     if (localPosition) {
@@ -291,7 +301,10 @@
           " mi, about " + Math.max(1, Math.round(leg.minutes)) + " min. ";
       }
     }
-    text += ride.rider_location && now() - ride.rider_location.at <= 120 ? "Rider location shared with Dispatch." : "Rider live location is not being shared.";
+    var riderFix = ride.rider_location;
+    text += riderIsLive(riderFix) ? "Rider location shared with Dispatch." : riderFix ?
+      (riderFix.sharing === false ? "Rider sharing is off. " : "No fresh rider location. ") +
+      "Last known point recorded " + new Date(riderFix.at * 1000).toLocaleString() + "." : "No rider location has been shared.";
     out.textContent = text;
   }
   function refresh() {

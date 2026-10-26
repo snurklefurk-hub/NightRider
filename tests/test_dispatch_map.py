@@ -102,13 +102,28 @@ class DispatchMapTests(unittest.TestCase):
         self.assertNotIn("rider_location", server.STORE["rides"]["ride-1"])
         self.save_mock.assert_not_called()
 
-    def test_stop_and_expiration_remove_rider_location(self):
+    def test_stopped_or_stale_rider_location_remains_last_known_until_ride_ends(self):
         self.call("/api/rides/ride-1/location", self.fix(), "rider")
         server.RIDER_LOCATIONS["ride-1"]["at"] = time.time() - 121
-        self.assertIsNone(self.call("/api/dispatch/map")[1]["rides"][0]["rider_location"])
-        self.assertNotIn("ride-1", server.RIDER_LOCATIONS)
+        stale = self.call("/api/dispatch/map")[1]["rides"][0]["rider_location"]
+        self.assertFalse(stale["live"])
+        self.assertTrue(stale["sharing"])
+        self.assertEqual(stale["coords"], [32.081, -81.091])
         self.call("/api/rides/ride-1/location", self.fix(), "rider")
         self.assertEqual(self.call("/api/rides/ride-1/location", {"sharing": False}, "rider")[0], 200)
+        last_known = self.call("/api/dispatch/map")[1]["rides"][0]["rider_location"]
+        self.assertFalse(last_known["live"])
+        self.assertFalse(last_known["sharing"])
+        self.assertEqual(last_known["coords"], [32.081, -81.091])
+        self.assertNotIn("sharing_id", last_known)
+        _, public = self.call("/api/rides/ride-1", user="driver")
+        self.assertNotIn("rider_location", public)
+        self.ride["status"] = "cancelled"
+        self.assertEqual(self.call("/api/dispatch/map")[1]["rides"], [])
+        self.assertNotIn("ride-1", server.RIDER_LOCATIONS)
+
+    def test_turning_off_without_a_fix_does_not_invent_a_location(self):
+        self.call("/api/rides/ride-1/location", {"sharing": False}, "rider")
         self.assertIsNone(self.call("/api/dispatch/map")[1]["rides"][0]["rider_location"])
 
     def test_ride_completion_clears_location_and_prevents_more_updates(self):
@@ -124,7 +139,7 @@ class DispatchMapTests(unittest.TestCase):
         self.call("/api/rides/ride-1/location", self.fix(), "rider")
         self.call("/api/rides/ride-1/location", {"sharing": False, "sharing_id": "sharing-session-1"}, "rider")
         self.assertEqual(self.call("/api/rides/ride-1/location", self.fix(), "rider")[0], 409)
-        self.assertNotIn("ride-1", server.RIDER_LOCATIONS)
+        self.assertFalse(server.RIDER_LOCATIONS["ride-1"]["sharing"])
         new_session = self.fix(sharing_id="sharing-session-2")
         self.assertEqual(self.call("/api/rides/ride-1/location", new_session, "rider")[0], 200)
 

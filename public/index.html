@@ -132,7 +132,7 @@
       <input type="checkbox" id="riderLocationShare">
       <span>Share my live location with Dispatch</span>
     </label>
-    <p class="tiny muted">Optional. Shared only with Dispatch during this ride while this page is open. You can stop at any time.</p>
+    <p class="tiny muted">On by default with your browser's permission. Live updates go only to Dispatch while this page is open. You can turn sharing off; Dispatch keeps the last shared point until your ride ends.</p>
     <p id="riderLocationMessage" class="tiny muted" role="status" aria-live="polite">Live location is off.</p>
   </div>
   <div id="rideChatCard" class="card" hidden>
@@ -149,7 +149,7 @@
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="/rider-location.js?v=1"></script>
+<script src="/rider-location.js?v=2"></script>
 <script>
 (function () {
   "use strict";
