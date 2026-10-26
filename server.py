@@ -144,6 +144,10 @@ def unified_chat_messages(user, since=0.0):
                 item.setdefault("audience", "shared")
                 messages.append(item)
     for message in messages:
+        message["mine"] = (
+            message.get("role") == role and
+            (role in ("driver", "dispatch") or message.get("from") == name)
+        )
         if message.get("role") == "dispatch":
             message["chat_color"] = DISPATCH_CHAT_COLOR
             if message.get("channel") == "private":
@@ -822,7 +826,7 @@ class Handler(SimpleHTTPRequestHandler):
 
         if role == "rider":
             return self.send_json(400, {"error": "A ride is required to message."})
-        private = role == "driver" or bool(to_driver)
+        private = bool((data or {}).get("private")) if role == "driver" else bool(to_driver)
         if role == "dispatch" and to_driver:
             accounts = auth.list_users("driver")
             target = next((account for account in accounts
@@ -832,7 +836,7 @@ class Handler(SimpleHTTPRequestHandler):
             to_driver = target["display_name"]
         elif role == "dispatch":
             to_driver = ""
-        else:
+        elif role == "driver":
             to_driver = user["display_name"] if private else ""
         with LOCK:
             message = add_message(
