@@ -144,10 +144,17 @@ def unified_chat_messages(user, since=0.0):
                 item.setdefault("audience", "shared")
                 messages.append(item)
     for message in messages:
-        message["mine"] = (
-            message.get("role") == role and
-            (role in ("driver", "dispatch") or message.get("from") == name)
-        )
+        if message.get("message_kind") == "ride":
+            message["mine"] = (
+                (role == "dispatch" and message.get("role") == "dispatch") or
+                (role == "driver" and message.get("role") == "driver") or
+                (role == "rider" and message.get("role") == "rider" and message.get("from") == name)
+            )
+        else:
+            message["mine"] = (
+                (role == "dispatch" and message.get("role") == "dispatch") or
+                (role == "driver" and message.get("role") == "driver" and message.get("from") == name)
+            )
         if message.get("role") == "dispatch":
             message["chat_color"] = DISPATCH_CHAT_COLOR
             if message.get("channel") == "private":
