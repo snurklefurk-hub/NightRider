@@ -110,7 +110,13 @@ def driver_chat_color(user_id):
         if not color:
             used = set(colors.values())
             choices = [value for value in DRIVER_CHAT_COLORS if value not in used]
-            color = random.SystemRandom().choice(choices or DRIVER_CHAT_COLORS)
+            if choices:
+                color = random.SystemRandom().choice(choices)
+            else:
+                rng = random.SystemRandom()
+                color = "#%02x%02x%02x" % tuple(rng.randint(128, 255) for _ in range(3))
+                while color in used:
+                    color = "#%02x%02x%02x" % tuple(rng.randint(128, 255) for _ in range(3))
             colors[user_id] = color
             save(STORE)
         return color
@@ -275,7 +281,7 @@ def dispatch_driver(rec, now=None):
     }
 
 
-def add_message(store, sender, text, driver=None, private=False):
+def add_message(store, sender, text, driver=None, private=False, role=None):
     """Append one text to the shared conversation and return it.
 
     A group text (private=False) is seen by dispatch and every driver. A
@@ -288,7 +294,7 @@ def add_message(store, sender, text, driver=None, private=False):
     sender = clean_text(sender, 60) or "dispatch"
     private = bool(private)
     msg = {"id": uuid.uuid4().hex[:8], "from": sender,
-           "role": "dispatch" if sender == "dispatch" else "driver",
+           "role": role or ("dispatch" if sender == "dispatch" else "driver"),
            "channel": "private" if private else "group",
            "driver": clean_text(driver, 60) if private else None,
            "text": text, "at": time.time()}
@@ -852,6 +858,7 @@ class Handler(SimpleHTTPRequestHandler):
                 text,
                 driver=to_driver or None,
                 private=private,
+                role=role,
             )
             save(STORE)
         record_event("driver_message" if role == "driver" else "dispatch_message",
