@@ -1,5 +1,5 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
-import datetime, hmac, json, math, os, threading, time, urllib.parse, uuid
+import datetime, hmac, json, math, os, random, threading, time, urllib.parse, uuid
 import auth
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
@@ -71,6 +71,7 @@ def ensure_store(store):
     store.setdefault("drivers", {})
     store.setdefault("messages", [])
     store.setdefault("ride_messages", [])
+    store.setdefault("driver_colors", {})
     return store
 
 
@@ -89,6 +90,76 @@ if os.environ.get("NIGHTRIDER_REQUIRE_DATABASE", "true").lower() == "true" and n
 if os.environ.get("DATABASE_URL", "").strip():
     auth.initialize()
 STORE = ensure_store(load())
+
+DRIVER_CHAT_COLORS = [
+    "#ff6b6b", "#ffa94d", "#ffd43b", "#a9e34b", "#38d9a9", "#3bc9db",
+    "#4dabf7", "#748ffc", "#9775fa", "#da77f2", "#f783ac", "#ff8787",
+]
+PASSENGER_CHAT_COLOR = "#45e0c2"
+DISPATCH_CHAT_COLOR = "#ffffff"
+
+
+def driver_chat_color(user_id):
+    """Persist a distinct bright chat color for each driver login."""
+    user_id = str(user_id or "")
+    if not user_id:
+        return "#8dd3ff"
+    with LOCK:
+        colors = STORE.setdefault("driver_colors", {})
+        color = colors.get(user_id)
+        if not color:
+            used = set(colors.values())
+            choices = [value for value in DRIVER_CHAT_COLORS if value not in used]
+            color = random.SystemRandom().choice(choices or DRIVER_CHAT_COLORS)
+            colors[user_id] = color
+            save(STORE)
+        return color
+
+
+def driver_chat_color_map():
+    out = {}
+    for account in auth.list_users("driver"):
+        out[account["display_name"]] = driver_chat_color(account["id"])
+    return out
+
+
+def unified_chat_messages(user, since=0.0):
+    role = user["role"]
+    account_id = user["id"]
+    name = user["display_name"]
+    colors = driver_chat_color_map()
+    with LOCK:
+        if role == "dispatch":
+            messages = [dict(m, message_kind="team") for m in thread_messages(STORE, "dispatch", since)]
+            rides = list(STORE["rides"].values())
+        elif role == "driver":
+            messages = [dict(m, message_kind="team") for m in thread_messages(STORE, name, since)]
+            rides = [r for r in STORE["rides"].values() if r.get("driver_account_id") == account_id]
+        else:
+            messages = []
+            rides = [r for r in STORE["rides"].values() if r.get("rider_account_id") == account_id]
+        for ride in rides:
+            for message in visible_ride_messages(STORE, ride["id"], role, since):
+                item = dict(message, message_kind="ride")
+                item.setdefault("audience", "shared")
+                messages.append(item)
+    for message in messages:
+        if message.get("role") == "dispatch":
+            message["chat_color"] = DISPATCH_CHAT_COLOR
+            if message.get("channel") == "private":
+                message["audience"] = "dispatch"
+        elif message.get("role") == "rider":
+            message["chat_color"] = PASSENGER_CHAT_COLOR
+        else:
+            driver_name = message.get("from") or ""
+            if message.get("message_kind") == "ride":
+                ride = STORE["rides"].get(message.get("ride_id"), {})
+                driver_name = ride.get("driver") or driver_name
+            message["chat_color"] = colors.get(driver_name, "#8dd3ff")
+    messages.sort(key=lambda message: float(message.get("at") or 0))
+    return messages
+
+
 LOGIN_FAILURES = {}
 LOGIN_FAILURES_LOCK = threading.Lock()
 SIGNUP_ATTEMPTS = {}
@@ -723,6 +794,60 @@ class Handler(SimpleHTTPRequestHandler):
             raise ValueError("payload too large")
         return json.loads(self.rfile.read(n) or b"{}")
 
+    def post_chat_message(self, user, data):
+        text = clean_text((data or {}).get("text"), 1000)
+        if not text:
+            return self.send_json(400, {"error": "Message text is required."})
+        role = user["role"]
+        ride_id = clean_text((data or {}).get("ride_id"), 80)
+        audience = clean_text((data or {}).get("audience"), 20) or "shared"
+        to_driver = clean_text((data or {}).get("to_driver"), 60)
+        if ride_id:
+            with LOCK:
+                ride = STORE["rides"].get(ride_id)
+                if not ride:
+                    return self.send_json(404, {"error": "Ride not found."})
+                if role == "rider" and ride.get("rider_account_id") != user["id"]:
+                    return self.send_json(404, {"error": "Ride not found."})
+                if role == "driver" and ride.get("driver_account_id") != user["id"]:
+                    return self.send_json(403, {"error": "You are not assigned to this ride."})
+                message, error = add_ride_message(STORE, ride_id, user, {
+                    "text": text, "audience": audience,
+                })
+                if error:
+                    return self.send_json(400, {"error": error})
+                save(STORE)
+            record_event("ride_message", ride=ride_id, message=message)
+            return self.send_json(201, {"ok": True, "message": message})
+
+        if role == "rider":
+            return self.send_json(400, {"error": "A ride is required to message."})
+        private = role == "driver" or bool(to_driver)
+        if role == "dispatch" and to_driver:
+            accounts = auth.list_users("driver")
+            target = next((account for account in accounts
+                           if account["id"] == to_driver or account["display_name"] == to_driver), None)
+            if not target:
+                return self.send_json(404, {"error": "Driver not found."})
+            to_driver = target["display_name"]
+        elif role == "dispatch":
+            to_driver = ""
+        else:
+            to_driver = user["display_name"] if private else ""
+        with LOCK:
+            message = add_message(
+                STORE,
+                user["display_name"] if role != "dispatch" else "dispatch",
+                text,
+                driver=to_driver or None,
+                private=private,
+            )
+            save(STORE)
+        record_event("driver_message" if role == "driver" else "dispatch_message",
+                     driver=user["display_name"] if role == "driver" else None,
+                     message=message)
+        return self.send_json(201, {"ok": True, "message": message})
+
     def driver_message(self, name, data):
         """Store one text from a driver page: a group text, or private to
         dispatch when the driver marks it private."""
@@ -891,6 +1016,11 @@ class Handler(SimpleHTTPRequestHandler):
         if path.startswith("/api/"):
             if path == "/api/auth/me":
                 return self.account_endpoint(path)
+            if path == "/api/chat/messages":
+                user = self.require_role("rider", "driver", "dispatch")
+                if not user:
+                    return
+                return self.send_json(200, {"messages": unified_chat_messages(user, _num(qs, "since", 0)), "now": time.time()})
             if path == "/api/dispatch/":
                 return self.send_json(404, {"error": "not found"})
             if path.startswith("/api/dispatch/"):
@@ -1004,6 +1134,11 @@ class Handler(SimpleHTTPRequestHandler):
 
         if path.startswith("/api/auth/"):
             return self.account_endpoint(path, data)
+        if path == "/api/chat/messages":
+            user = self.require_role("rider", "driver", "dispatch")
+            if not user:
+                return
+            return self.post_chat_message(user, data)
 
         if path == "/api/rides":
             user = self.require_role("rider")
@@ -1087,6 +1222,7 @@ class Handler(SimpleHTTPRequestHandler):
                                                   data.get("password"), "driver")
                 if error:
                     return self.send_json(400, {"error": error})
+                created["chat_color"] = driver_chat_color(created["id"])
                 return self.send_json(201, {"user": created})
             if len(parts) == 5 and parts[2] == "users" and parts[4] == "delete":
                 user_id = parts[3]
