@@ -288,3 +288,52 @@ button.pressed{animation:pressflair .4s ease-out}
 .efield{display:flex;flex-direction:column;gap:.25rem;margin:.6rem 0}
 .efield label{text-transform:uppercase;letter-spacing:.1em;font-size:.68rem;color:var(--mist)}
 .efield input{width:100%}
+
+
+/* Desktop dispatch board: keep the live ride queue and single chat window in
+   view together, then place crew and account tools in predictable columns. */
+@media (min-width:1100px){
+  .dispatch header{position:sticky;top:0;z-index:30;padding:.7rem 1.6rem}
+  .dispatch-main{max-width:1680px;padding:1.2rem 1.6rem 2rem;
+    display:grid;grid-template-columns:minmax(0,1.45fr) minmax(370px,.85fr);
+    grid-template-areas:
+      "title title"
+      "status status"
+      "rides chat"
+      "drivers chat"
+      "driveradmin driveradmin"
+      "directory directory"
+      "rideradmin counts"
+      "export export";
+    gap:.85rem 1rem;align-items:start}
+  .dispatch-main>h1{grid-area:title;margin:.1rem 0}
+  #dispatchStatus{grid-area:status;margin:0;padding:.8rem 1rem}
+  #dispatchStatus>p:first-child{margin:.1rem 0 .5rem}
+  #dispatchStatus .row{max-width:560px}
+  #dispatchStatus .row button{margin-top:.3rem}
+  #dispatchStatus #msg{display:inline-block;margin:.25rem 1rem 0 0}
+  #dispatchStatus #conn{display:inline-block;margin:.25rem 0 0}
+  #rideBoard{grid-area:rides;margin:0;min-width:0}
+  #rideBoard .ridecards{grid-template-columns:repeat(auto-fit,minmax(245px,1fr));}
+  #chatCard{grid-area:chat;position:sticky;top:5.2rem;margin:0;display:flex;flex-direction:column;
+    max-height:calc(100vh - 6.2rem);min-height:440px}
+  #chatCard .chatlog{flex:1 1 auto;max-height:none;min-height:180px}
+  #chatCard .chatrow{flex:0 0 auto}
+  #driverBoard{grid-area:drivers;margin:0}
+  #driverBoard #drivers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:.15rem .65rem}
+  #driverAdmin{grid-area:driveradmin;margin:0}
+  #driverAdmin form .row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:end;gap:.7rem}
+  #driverAdmin form .row label{margin:.3rem 0}
+  #riderDirectory{grid-area:directory;margin:0}
+  #riderDirectory>div{max-height:340px;overflow:auto}
+  #riderDirectory table{white-space:nowrap}
+  #riderAdmin{grid-area:rideradmin;margin:0;height:100%}
+  .dispatch-main>.counts{grid-area:counts;margin:0;height:100%}
+  .dispatch-main>.exportbar{grid-area:export;justify-self:end;padding:.1rem 0}
+  .dispatch-main .card{scroll-margin-top:5rem}
+}
+@media (min-width:760px) and (max-width:1099px){
+  .dispatch-main{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}
+  .dispatch-main>h1,#dispatchStatus,#rideBoard,#chatCard,#riderDirectory,.dispatch-main>.exportbar{grid-column:1/-1}
+  #rideBoard .ridecards{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+}
