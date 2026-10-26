@@ -16,10 +16,10 @@
     <button type="button" class="alt" id="signOut">Sign out</button>
   </nav>
 </header>
-<main>
+<main class="dispatch-main">
   <h1>Dispatch</h1>
 
-  <div class="card">
+  <div class="card" id="dispatchStatus">
     <p class="muted">Live board. Dispatch holds a connection open and is woken the instant a rider
       requests a ride — no polling every few seconds. Each incoming request is acknowledged back to
       the rider as a handshake, so nothing is silently dropped.</p>
@@ -31,14 +31,14 @@
     <p class="tiny muted" id="conn">Connecting…</p>
   </div>
 
-  <div class="card">
+  <div class="card" id="driverBoard">
     <h2>Active drivers <span class="tiny muted" id="drivercount"></span></h2>
     <p class="muted">Every driver page that checked in within the last 90 seconds shows here.
       Use the Team text card below to reach one driver or the whole crew.</p>
     <div id="drivers"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="driverAdmin">
     <h2>Driver accounts</h2>
     <form id="driverAccountForm">
       <div class="row">
@@ -64,12 +64,12 @@
     <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
   </div>
 
-  <div class="card">
+  <div class="card" id="rideBoard">
     <h2>Recent rides <span class="tiny muted">(last 5)</span></h2>
     <div id="rows" class="ridecards"></div>
   </div>
 
-  <div class="card">
+  <div class="card" id="riderDirectory">
     <h2>Known riders <span class="tiny muted">(NightRider account IDs — staff only)</span></h2>
     <div style="overflow:auto">
       <table>
@@ -79,7 +79,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="riderAdmin">
     <h2>Rider accounts</h2>
     <p class="tiny muted">If a rider loses access, reset their password after confirming their identity in person or by phone.</p>
     <div id="riderAccounts"></div>
