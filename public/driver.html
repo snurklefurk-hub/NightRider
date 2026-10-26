@@ -62,7 +62,6 @@
   }
 
   /* ---- presence + dispatch texting -------------------------------------- */
-  var selectedRideChatId = "";
   var chatSeen = 0;
   var chatName = "";
   var chatLoading = false;
@@ -84,11 +83,11 @@
       chatReplyTarget = { ride_id: message.ride_id,
         audience: message.audience === "dispatch" ? "dispatch" : "shared" };
       $("chatReplyHint").textContent = "Replying in ride " + message.ride_id +
-        (chatReplyTarget.audience === "dispatch" ? " · Dispatch only" : " · rider and Dispatch");
+        (chatReplyTarget.audience === "dispatch" ? " · Dispatch only" : " · rider and Dispatch") + " · click to cancel";
       $("chatPrivate").hidden = true;
     } else if (message.role === "dispatch") {
       chatReplyTarget = { private: true };
-      $("chatReplyHint").textContent = "Replying privately to Dispatch";
+      $("chatReplyHint").textContent = "Replying privately to Dispatch · click to cancel";
       $("chatPrivate").hidden = true;
     } else {
       chatReplyTarget = null;
@@ -101,6 +100,7 @@
   function clearChatReply() {
     chatReplyTarget = null; $("chatReplyHint").hidden = true;
     $("chatPrivate").hidden = false;
+    $("chatText").placeholder = privateOn() ? "Private note to Dispatch…" : "Message the team…";
   }
 
   function loadChat() {
