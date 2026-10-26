@@ -1100,7 +1100,23 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/dispatch/drivers":
             now = time.time()
             with LOCK:
-                out = [dispatch_driver(rec, now) for rec in STORE.get("drivers", {}).values()]
+                out = []
+                active_statuses = ("accepted", "to_pickup", "at_pickup", "to_dropoff", "at_dropoff")
+                for rec in STORE.get("drivers", {}).values():
+                    driver = dispatch_driver(rec, now)
+                    current_ride = next((
+                        ride for ride in sorted(
+                            STORE.get("rides", {}).values(),
+                            key=lambda item: float(item.get("created") or 0),
+                            reverse=True
+                        )
+                        if ride.get("driver") == rec.get("name") and
+                        ride.get("status") in active_statuses
+                    ), None)
+                    if current_ride:
+                        driver["ride_id"] = current_ride.get("id")
+                        driver["ride_status"] = current_ride.get("status")
+                    out.append(driver)
             out.sort(key=lambda d: (not d["active"], -float(d.get("last_seen") or 0)))
             return self.send_json(200, {"drivers": out, "window_s": DRIVER_ACTIVE_WINDOW, "now": now})
         if path == "/api/dispatch/messages":
