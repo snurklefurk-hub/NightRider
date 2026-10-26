@@ -353,8 +353,8 @@ button.pressed{animation:pressflair .4s ease-out}
       "status status"
       "rides rides"
       "drivers chat"
+      "rideradmin counts"
       "directory directory"
-      "counts counts"
       "export export";
     gap:.6rem .85rem;align-items:start}
   .dispatch-main>h1{grid-area:title;font-size:1.35rem;margin:0}
