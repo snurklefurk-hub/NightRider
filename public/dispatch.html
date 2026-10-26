@@ -412,7 +412,6 @@
             "</span></div>";
           box.appendChild(el);
         });
-        syncRecipients();
       }).catch(function () {});
   }
 
@@ -489,19 +488,6 @@
       }).catch(function () {});
   }
 
-  /* Keep the To picker in step with the drivers on the board. */
-  function syncRecipients() {
-    var sel = $("chatTo");
-    if (!sel) { return; }
-    var keep = sel.value || "all";
-    var opts = '<option value="all">Everyone (group)</option>';
-    driverNames.forEach(function (n) {
-      opts += '<option value="' + esc(n) + '">' + esc(n) + " (private)</option>";
-    });
-    sel.innerHTML = opts;
-    sel.value = (keep === "all" || driverNames.indexOf(keep) >= 0) ? keep : "all";
-  }
-
   /* ---- unread text cue: pulse the card, preview the newest waiting text -- */
   function applyUnread() {
     var card = $("chatCard");
@@ -550,13 +536,13 @@
       chatReplyTarget = { ride_id: message.ride_id,
         audience: message.audience === "dispatch" ? "dispatch" : "shared" };
       $("chatReplyHint").textContent = "Replying in ride " + message.ride_id +
-        (chatReplyTarget.audience === "dispatch" ? " · Dispatch only" : " · rider, driver, and Dispatch");
+        (chatReplyTarget.audience === "dispatch" ? " · Dispatch only" : " · rider, driver, and Dispatch") + " · click to cancel";
     } else if (message.role === "driver") {
       chatReplyTarget = { to_driver: message.from };
-      $("chatReplyHint").textContent = "Replying privately to " + message.from;
+      $("chatReplyHint").textContent = "Replying privately to " + message.from + " · click to cancel";
     } else {
       chatReplyTarget = null;
-      $("chatReplyHint").textContent = "Replying to the team";
+      $("chatReplyHint").textContent = "Replying to the team · click to cancel";
     }
     $("chatReplyHint").hidden = false;
     $("chatText").focus();
