@@ -424,14 +424,17 @@
     // $5 flag drop + $1/mi for the trip + $0.25/mi from the driver's location
     // to the pickup. The test driver is always at Savannah City Hall, so the
     // third leg is priced from there.
+    updateFareEstimate();
+    $("requestBtn").disabled = false;
+    $("optMsg").textContent = "";
+  }
+
+  function updateFareEstimate() {
     var multiplier = Number(RATES.multiplier || 1);
     var tripFare = round2(RATES.trip_per_mile * state.miles * multiplier);
     state.approachMi = approachMiles(state.pickup);
     var approachFare = round2(RATES.approach_per_mile * state.approachMi * multiplier);
-    // Riders see the bottom line only — the rate breakdown is not shown.
     $("fareTotal").textContent = money(round2(RATES.flag_drop * multiplier + tripFare + approachFare));
-    $("requestBtn").disabled = false;
-    $("optMsg").textContent = "";
   }
 
   function backToSearch() {
@@ -443,8 +446,24 @@
   /* -------- request + status -------- */
   function requestRide() {
     if (!state.pickup || !state.dropoff) { $("optMsg").textContent = "Set both pickup and drop-off."; return; }
-    $("optMsg").textContent = "";
-    openPayModal();
+    $("optMsg").textContent = "Checking the current fare…";
+    $("requestBtn").disabled = true;
+    fetch("/api/config", { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) { throw new Error("Could not check current prices."); }
+        return r.json();
+      })
+      .then(function (config) {
+        if (!config.rates) { throw new Error("Current prices are unavailable."); }
+        RATES = config.rates;
+        updateFareEstimate();
+        $("optMsg").textContent = "";
+        openPayModal();
+      })
+      .catch(function (error) {
+        $("optMsg").textContent = error.message + " Please try again.";
+      })
+      .then(function () { $("requestBtn").disabled = false; });
   }
 
   function openPayModal() {
