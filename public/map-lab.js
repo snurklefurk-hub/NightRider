@@ -477,7 +477,7 @@
   window.addEventListener("beforeunload", () => { if (activeRequest) activeRequest.abort(); });
   updateRideSelect();
   updateCamera();
-}})().catch(function (error) {
+})().catch(function (error) {
   const notice = document.getElementById("labNotice");
   if (notice) notice.textContent = "Map Lab startup failed: " +
     (error && error.message ? error.message : "unknown error") + ".";
