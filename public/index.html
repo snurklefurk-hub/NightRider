@@ -128,15 +128,10 @@
   </div>
   <div id="rideChatCard" class="card" hidden>
     <h2>Ride messages</h2>
-    <p class="tiny muted" id="rideChatHelp">Messages to your driver are also visible to Dispatch. Dispatch-only messages are not shown to your driver.</p>
+    <p class="tiny muted" id="rideChatHelp">Messages with your driver and Dispatch stay together here. Dispatch-only replies are marked private.</p>
     <div class="chatlog" id="rideChatLog" aria-live="polite"></div>
+    <p id="rideChatReplyHint" class="tiny muted" hidden></p>
     <div class="row chatrow">
-      <label for="rideChatAudience">To
-        <select id="rideChatAudience">
-          <option value="shared">Driver + Dispatch</option>
-          <option value="dispatch">Dispatch only</option>
-        </select>
-      </label>
       <input id="rideChatText" type="text" maxlength="1000" placeholder="Write a message…" style="flex:1;min-width:0">
       <button type="button" id="rideChatSend">Send</button>
     </div>
@@ -534,9 +529,8 @@
     if (ride.status === "requested") {
       showMatching();
       $("rideChatCard").hidden = false;
-      $("rideChatAudience").value = "dispatch";
-      $("rideChatAudience").querySelector('option[value="shared"]').disabled = true;
-      $("rideChatHelp").textContent = "You can message Dispatch while a driver is being assigned. Messages to Dispatch are not shown to drivers.";
+      rideChatDefaultAudience = "dispatch";
+      $("rideChatHelp").textContent = "You can message Dispatch while a driver is being assigned. Messages to Dispatch are private from drivers.";
       loadRideMessages();
       $("ackMsg").textContent = ride.last_driver_release
         ? "Your driver " + ride.last_driver_release.driver + " could not take the ride. Dispatch is finding another driver."
@@ -546,6 +540,7 @@
       return;
     }
     $("stepMatching").hidden = true; $("stepSearch").hidden = true; $("stepOptions").hidden = true; $("stepTrip").hidden = false;
+    rideChatDefaultAudience = "shared";
     $("tripStatus").textContent = statusWord(ride.status);
     $("tripFare").textContent = money(ride.fare);
     var cancelledNotice = $("tripCancelledNotice");
@@ -586,26 +581,48 @@
     }
   }
 
+  function setRiderChatReply(message) {
+    rideChatReplyTarget = {
+      ride_id: message.ride_id || state.rideId,
+      audience: message.audience === "dispatch" ? "dispatch" : "shared"
+    };
+    $("rideChatReplyHint").textContent = "Replying in ride " + rideChatReplyTarget.ride_id +
+      (rideChatReplyTarget.audience === "dispatch" ? " · Dispatch only" : " · driver and Dispatch") +
+      " · tap to cancel";
+    $("rideChatReplyHint").hidden = false;
+    $("rideChatText").focus();
+  }
+
+  function clearRiderChatReply() {
+    rideChatReplyTarget = null; $("rideChatReplyHint").hidden = true;
+  }
+
   function loadRideMessages() {
     if (!state.rideId) { return; }
-    fetch("/api/rides/" + encodeURIComponent(state.rideId) + "/messages", { cache: "no-store" })
+    fetch("/api/chat/messages", { cache:"no-store" })
       .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || "Could not load messages."); return d; }); })
       .then(function (data) {
-        var log = $("rideChatLog");
-        log.innerHTML = "";
+        var log = $("rideChatLog"); log.innerHTML = "";
         (data.messages || []).forEach(function (m) {
           var wrap = document.createElement("div");
-          wrap.className = "chatwrap " + (m.role === "rider" ? "me" : "them");
+          var mine = !!m.mine;
+          var priv = m.audience === "dispatch" || m.channel === "private";
+          wrap.className = "chatwrap " + (mine ? "me" : "them");
           var line = document.createElement("div");
-          line.className = "chatline " + (m.role === "rider" ? "me" : "them") +
-            (m.audience === "dispatch" ? " private" : "");
-          var who = document.createElement("span");
-          who.className = "who";
-          who.textContent = (m.role === "rider" ? "You" : m.from) +
-            (m.audience === "dispatch" ? " · Dispatch only" : "");
-          line.appendChild(who);
-          line.appendChild(document.createTextNode(m.text));
+          line.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
+          var color = /^#[0-9a-f]{6}$/i.test(m.chat_color || "") ? m.chat_color : (m.role === "dispatch" ? "#ffffff" : "#45e0c2");
+          line.style.setProperty("--sender-color", color);
+          var who = document.createElement("span"); who.className = "who"; who.style.color = color;
+          who.textContent = (mine ? "You" : (m.from || "Dispatch")) +
+            (m.ride_id ? " · Ride " + m.ride_id : "") + (priv ? " · private to Dispatch" : "");
+          line.appendChild(who); line.appendChild(document.createTextNode(m.text || ""));
           wrap.appendChild(line);
+          if (!mine && m.ride_id) {
+            var reply = document.createElement("button"); reply.type = "button";
+            reply.className = "alt chatreply"; reply.textContent = "Reply";
+            reply.addEventListener("click", function () { setRiderChatReply(m); });
+            wrap.appendChild(reply);
+          }
           log.appendChild(wrap);
         });
         log.scrollTop = log.scrollHeight;
@@ -616,18 +633,19 @@
     var text = $("rideChatText").value.trim();
     if (!state.rideId || !text || $("rideChatSend").disabled) { return; }
     $("rideChatSend").disabled = true;
-    fetch("/api/rides/" + encodeURIComponent(state.rideId) + "/message", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({text:text, audience:$("rideChatAudience").value})
+    var body = Object.assign({text:text}, rideChatReplyTarget || {
+      ride_id: state.rideId, audience: rideChatDefaultAudience
+    });
+    fetch("/api/chat/messages", {
+      method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)
     }).then(function (r) {
       return r.json().then(function (data) {
         if (!r.ok) { throw new Error(data.error || "Could not send message."); }
         return data;
       });
     }).then(function () {
-      $("rideChatText").value = "";
-      $("rideChatMsg").textContent = "";
-      loadRideMessages();
+      $("rideChatText").value = ""; $("rideChatMsg").textContent = "";
+      clearRiderChatReply(); loadRideMessages();
     }).catch(function (error) {
       $("rideChatMsg").textContent = error.message;
     }).then(function () { $("rideChatSend").disabled = false; });
@@ -810,6 +828,7 @@
   $("payCancel").addEventListener("click", closePayModal);
   $("cancelMatch").addEventListener("click", cancelMatch);
   $("cancelTrip").addEventListener("click", cancelRide);
+  $("rideChatReplyHint").addEventListener("click", clearRiderChatReply);
   $("rideChatSend").addEventListener("click", sendRideMessage);
   $("rideChatText").addEventListener("keydown", function (event) {
     if (event.key === "Enter") { event.preventDefault(); sendRideMessage(); }
