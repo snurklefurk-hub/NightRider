@@ -77,7 +77,7 @@
     .catch(function () { mapTileLayer(true); });
 
   function markerIcon(kind, color, stale) {
-    color = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#8bbcff";
+    color = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#5ae6a5";
     var glyph = { driver: "D", pickup: "P", dropoff: "X", rider: "R", dispatch: "S" }[kind];
     return L.divIcon({
       className: "nr-map-marker" + (stale ? " is-stale" : ""),
@@ -163,7 +163,7 @@
   function syncRoute(id, data, approach, used) {
     used[id] = true;
     var options = {
-      color: data.fallback ? "#99aaa7" : approach ? "#ffc36b" : "#2fe9ff",
+      color: data.fallback ? "#9bb7a5" : approach ? "#f4b860" : "#19d47b",
       weight: selectedId ? 5 : 3, opacity: data.fallback ? 0.65 : 0.85,
       dashArray: data.fallback ? "3 9" : approach ? "8 7" : null
     };
@@ -207,9 +207,9 @@
       var title = "Ride " + ride.id + " · " + (ride.rider_name || "Rider");
       var info = "<strong>" + esc(title) + "</strong><br>" + esc(labels[ride.status] || ride.status) +
         "<br>" + esc(ride.driver || "Unassigned");
-      syncMarker("pickup:" + ride.id, ride.pickup_coords, "pickup", "#2ee6a0", "Pickup · " + title,
+      syncMarker("pickup:" + ride.id, ride.pickup_coords, "pickup", "#19d47b", "Pickup · " + title,
         info + "<br><b>Pickup:</b> " + esc(ride.pickup), rideLayer, used, false);
-      syncMarker("dropoff:" + ride.id, ride.dropoff_coords, "dropoff", "#ff6f91", "Drop-off · " + title,
+      syncMarker("dropoff:" + ride.id, ride.dropoff_coords, "dropoff", "#d95c4f", "Drop-off · " + title,
         info + "<br><b>Drop-off:</b> " + esc(ride.dropoff), rideLayer, used, false);
       if (ride.rider_location) {
         var fix = ride.rider_location;
@@ -217,17 +217,17 @@
         var locationLabel = live ? "Live rider" : "Last known rider";
         var sharingLabel = live ? "Live location shared with Dispatch" :
           fix.sharing === false ? "Location sharing is off · last known position" : "No fresh location update · last known position";
-        syncMarker("rider:" + ride.id, fix.coords, "rider", "#ffc36b", locationLabel + " · " + title,
+        syncMarker("rider:" + ride.id, fix.coords, "rider", "#f4b860", locationLabel + " · " + title,
           info + "<br>" + sharingLabel + "<br>Recorded " + esc(new Date(fix.at * 1000).toLocaleString()) + " · " + esc(age(fix.at)) +
           (fix.accuracy != null ? "<br>Accuracy: about " + Math.round(fix.accuracy) + " m" : ""), riderLayer, used, !live);
       }
     });
     if (localPosition) {
-      syncMarker("dispatch", localPosition.coords, "dispatch", "#effff7", "Your dispatch location",
+      syncMarker("dispatch", localPosition.coords, "dispatch", "#f2f0df", "Your dispatch location",
         "<strong>Your dispatch location</strong><br>" + esc(new Date(localPosition.at).toLocaleTimeString()) +
         "<br>Accuracy: about " + Math.round(localPosition.accuracy) + " m", dispatchLayer, used, false);
       if (!dispatcherAccuracy) {
-        dispatcherAccuracy = L.circle(localPosition.coords, { color: "#effff7", weight: 1, fillOpacity: 0.06,
+        dispatcherAccuracy = L.circle(localPosition.coords, { color: "#f2f0df", weight: 1, fillOpacity: 0.06,
           radius: localPosition.accuracy, interactive: false }).addTo(dispatchLayer);
       } else { dispatcherAccuracy.setLatLng(localPosition.coords).setRadius(localPosition.accuracy); }
     } else if (dispatcherAccuracy) { dispatchLayer.removeLayer(dispatcherAccuracy); dispatcherAccuracy = null; }

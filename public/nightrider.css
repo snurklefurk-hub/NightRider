@@ -1,71 +1,71 @@
-/* NightRider shared skin — Tidal Chrome + Emerald Night: petrol-black surfaces,
-   cyan chrome, emerald route accents, cool silver type and restrained gold. */
+/* NightRider shared skin — Midnight Transit: Verdant Edition.
+   Forest surfaces, emerald signals, warm cream type and transit amber. */
 :root{
   color-scheme:dark;
-  --paper:#030b08; --paper-2:#07140d; --indigo:#10271b;
-  --void:#06130d; --panel:#0b1d13; --sheet:#07140d;
-  --ink:#06131a; --ink-soft:#17343a;
-  --cyan:#2fe9ff; --cyan-rgb:47,233,255;
-  --plum:#2ee6a0; --plum-rgb:46,230,160;
-  --rose:#ff6f91; --rose-rgb:255,111,145;
-  --lamp:#ffc36b;
-  --ice:#f3fdfb; --mist:#8faeb3;
-  --line:#31533e; --danger:#ff6f91; --ok:#2ee6a0;
-  --frame:1px solid rgba(47,233,255,.34);
-  --frame-soft:1px solid rgba(143,174,179,.24);
+  --paper:#071b12; --paper-2:#0e2b1e; --indigo:#173a29;
+  --void:#071b12; --panel:#0e2b1e; --sheet:#0b2419;
+  --ink:#071b12; --ink-soft:#173a29;
+  --cyan:#19d47b; --cyan-rgb:25,212,123;
+  --plum:#5ae6a5; --plum-rgb:90,230,165;
+  --rose:#d95c4f; --rose-rgb:217,92,79;
+  --lamp:#f4b860;
+  --ice:#f2f0df; --mist:#9bb7a5;
+  --line:#416b52; --danger:#d95c4f; --ok:#19d47b;
+  --frame:1px solid rgba(25,212,123,.38);
+  --frame-soft:1px solid rgba(155,183,165,.25);
   --block:0 8px 24px rgba(0,0,0,.24);
   --block-lift:0 12px 30px rgba(0,0,0,.34);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;min-height:100vh;color:var(--ice);
-  background:linear-gradient(180deg,#030b08 0%,#07140d 55%,#08160f 100%);
+  background:linear-gradient(180deg,#071b12 0%,#0b2419 55%,#0e2b1e 100%);
   font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
 /* Scroll-reactive retrowave skyline: the horizon stays distant while the
    star field and floor move at different speeds behind the interface. */
 .parallax-scene{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;contain:strict}
 .parallax-stars{position:absolute;inset:-20% 0 0;opacity:.42;
-  background-image:radial-gradient(circle at 12% 18%,#effff7 0 1px,transparent 1.8px),
-    radial-gradient(circle at 76% 14%,#effff7 0 1px,transparent 1.8px),
-    radial-gradient(circle at 88% 39%,#effff7 0 1px,transparent 1.8px),
-    radial-gradient(circle at 32% 32%,#ffcf82 0 1px,transparent 1.8px),
-    radial-gradient(circle at 57% 12%,#effff7 0 1px,transparent 1.8px),
-    radial-gradient(circle at 21% 54%,#effff7 0 1px,transparent 1.8px),
-    radial-gradient(circle at 68% 48%,#effff7 0 1px,transparent 1.8px),
-    radial-gradient(circle at 44% 24%,#2ee6a0 0 1px,transparent 1.8px);
+  background-image:radial-gradient(circle at 12% 18%,#f2f0df 0 1px,transparent 1.8px),
+    radial-gradient(circle at 76% 14%,#f2f0df 0 1px,transparent 1.8px),
+    radial-gradient(circle at 88% 39%,#f2f0df 0 1px,transparent 1.8px),
+    radial-gradient(circle at 32% 32%,#f4b860 0 1px,transparent 1.8px),
+    radial-gradient(circle at 57% 12%,#f2f0df 0 1px,transparent 1.8px),
+    radial-gradient(circle at 21% 54%,#f2f0df 0 1px,transparent 1.8px),
+    radial-gradient(circle at 68% 48%,#f2f0df 0 1px,transparent 1.8px),
+    radial-gradient(circle at 44% 24%,#5ae6a5 0 1px,transparent 1.8px);
   background-size:420px 310px,510px 360px,620px 440px,700px 500px,360px 280px,540px 420px,760px 460px,460px 380px}
 .parallax-sun{position:absolute;left:50%;top:27vh;width:clamp(150px,22vw,310px);aspect-ratio:1;
   border-radius:50%;opacity:.18;transform:translate3d(-50%,0,0);
-  background:repeating-linear-gradient(to bottom,transparent 0 15px,rgba(3,11,8,.96) 15px 19px),
-    linear-gradient(180deg,#fff1c7 0%,#ffc36b 48%,#ff6f91 100%);
-  filter:drop-shadow(0 0 44px rgba(255,195,107,.18))}
+  background:repeating-linear-gradient(to bottom,transparent 0 15px,rgba(7,27,18,.96) 15px 19px),
+    linear-gradient(180deg,#f2f0df 0%,#f4b860 48%,#19d47b 100%);
+  filter:drop-shadow(0 0 44px rgba(244,184,96,.2))}
 .parallax-horizon{position:absolute;top:60vh;left:0;right:0;height:1px;
-  background:linear-gradient(90deg,transparent 0%,rgba(46,230,160,.6) 18%,rgba(47,233,255,.55) 50%,rgba(46,230,160,.6) 82%,transparent 100%);
-  box-shadow:0 0 22px rgba(46,230,160,.35)}
+  background:linear-gradient(90deg,transparent 0%,rgba(90,230,165,.55) 18%,rgba(25,212,123,.72) 50%,rgba(90,230,165,.55) 82%,transparent 100%);
+  box-shadow:0 0 22px rgba(25,212,123,.34)}
 .parallax-grid{position:absolute;top:60vh;left:-45vw;width:190vw;height:100vh;transform-origin:50% 0;
   transform:perspective(420px) rotateX(63deg);opacity:.3;
-  background-image:repeating-linear-gradient(90deg,rgba(46,230,160,.58) 0 1px,transparent 1px 54px),
-    repeating-linear-gradient(0deg,rgba(46,230,160,.56) 0 1px,transparent 1px 34px);
+  background-image:repeating-linear-gradient(90deg,rgba(25,212,123,.52) 0 1px,transparent 1px 54px),
+    repeating-linear-gradient(0deg,rgba(25,212,123,.5) 0 1px,transparent 1px 34px);
   -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 92%);
   mask-image:linear-gradient(to bottom,rgba(0,0,0,.8),transparent 92%)}
 @media (prefers-reduced-motion:reduce){.parallax-scene *{transform:none!important;scroll-behavior:auto!important}}
 header,main{position:relative;z-index:1}
-header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:1px solid rgba(46,230,160,.28);background:rgba(3,11,8,.78);backdrop-filter:blur(12px);flex-wrap:wrap}
+header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:1px solid rgba(25,212,123,.3);background:rgba(7,27,18,.86);backdrop-filter:blur(12px);flex-wrap:wrap}
 .brand{display:inline-flex;align-items:center;gap:.52rem;font:800 1.25rem/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--ice);text-decoration:none}
-.brand::before{content:"";display:inline-block;width:1.75rem;height:1.75rem;flex:0 0 auto;background:url("/nightrider-mark.svg") center/contain no-repeat;filter:drop-shadow(0 0 8px rgba(46,230,160,.3))}
+.brand::before{content:"";display:inline-block;width:1.75rem;height:1.75rem;flex:0 0 auto;background:url("/nightrider-mark.svg?v=talmadge-1") center/contain no-repeat;filter:drop-shadow(0 0 8px rgba(25,212,123,.24))}
 .brand span{color:var(--cyan)}
 nav a{color:var(--mist);margin-left:1rem;text-decoration:none;text-transform:uppercase;letter-spacing:.12em;font-size:.8rem}
 nav a[aria-current="page"],nav a:hover,nav a:focus-visible{color:var(--ice);outline:none;border-bottom:2px solid var(--cyan)}
 main{max-width:1120px;margin:0 auto;padding:2rem 1.5rem}
 h1{font:800 1.65rem/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.12em;margin:.2rem 0 1rem;color:var(--ice)}
 h2{font:750 1.02rem/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.1em;margin:0 0 .6rem;color:var(--cyan)}
-.card{background:rgba(8,26,17,.9);border:1px solid rgba(46,230,160,.38);border-radius:14px;padding:1.25rem;margin-bottom:1rem;min-width:0;box-shadow:0 12px 32px rgba(0,0,0,.28);backdrop-filter:blur(8px)}
+.card{background:rgba(14,43,30,.9);border:1px solid rgba(25,212,123,.4);border-radius:14px;padding:1.25rem;margin-bottom:1rem;min-width:0;box-shadow:0 12px 32px rgba(2,12,8,.32);backdrop-filter:blur(8px)}
 label{display:block;margin:.7rem 0 .25rem;color:var(--cyan);font-size:.75rem;text-transform:uppercase;letter-spacing:.14em}
 input,select{width:100%;padding:.6rem .7rem;background:rgba(3,13,8,.88);border:1px solid rgba(143,174,179,.28);color:var(--ice);border-radius:10px;font:inherit}
 input:focus,select:focus{outline:none;border-color:var(--cyan);box-shadow:2px 2px 0 rgba(var(--cyan-rgb),.28)}
 input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
 button{margin-top:1rem;padding:.7rem 1.4rem;border:1px solid var(--ink);border-radius:999px;background:var(--panel);color:var(--ice);font:inherit;font-weight:700;text-transform:uppercase;letter-spacing:.14em;cursor:pointer;box-shadow:var(--block);transition:box-shadow .15s,background .15s,transform .15s}
-button:hover{background:#18383d;box-shadow:var(--block-lift);transform:translate(-1px,-1px)}
+button:hover{background:#173a29;box-shadow:var(--block-lift);transform:translate(-1px,-1px)}
 button.alt{border-color:var(--plum);color:var(--plum);margin-left:.5rem;background:rgba(var(--plum-rgb),.08)}
 button.alt:hover{background:rgba(var(--plum-rgb),.16);box-shadow:5px 5px 0 rgba(var(--plum-rgb),.3);transform:translate(-1px,-1px)}
 button:disabled{opacity:.45;cursor:not-allowed;box-shadow:none;transform:none}
@@ -83,8 +83,8 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .rider{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden}
 .rider header{flex:0 0 auto;padding:.8rem 1.1rem}
 .rider .brand{font-size:1.15rem}
-#map{position:relative;flex:1 1 auto;min-height:0;z-index:1;background:#071915}
-.sheet{position:relative;z-index:20;flex:0 0 auto;background:var(--sheet);border-top:1px solid rgba(47,233,255,.32);
+#map{position:relative;flex:1 1 auto;min-height:0;z-index:1;background:#0b2419}
+.sheet{position:relative;z-index:20;flex:0 0 auto;background:var(--sheet);border-top:1px solid rgba(25,212,123,.34);
   box-shadow:0 -10px 26px rgba(0,0,0,.36);
   padding:1rem 1.1rem calc(1rem + env(safe-area-inset-bottom));max-height:66vh;overflow:auto}
 .sheet .grab{width:52px;height:4px;border-radius:999px;background:rgba(143,174,179,.42);margin:0 auto .9rem}
@@ -104,17 +104,17 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .results .dist{display:block;color:var(--cyan);font-size:.72rem;opacity:.85}
 
 .option{display:flex;align-items:center;gap:.9rem;width:100%;text-align:left;border:var(--frame-soft);border-radius:6px;background:var(--panel);padding:.7rem .8rem;margin:0 0 .5rem;cursor:pointer;box-shadow:none;text-transform:none;letter-spacing:0;font-weight:400;color:var(--ice)}
-.option:hover{background:#18383d;box-shadow:none}
+.option:hover{background:#173a29;box-shadow:none}
 .option.sel{border-color:var(--cyan);box-shadow:4px 4px 0 rgba(var(--cyan-rgb),.25)}
 .option .car{font-size:1.5rem;width:2rem;text-align:center}
 .option .info{flex:1 1 auto;min-width:0}
 .option .name{display:block;font-weight:700;text-transform:uppercase;letter-spacing:.1em;font-size:.82rem;color:var(--cyan)}
 .option .meta{display:block;color:var(--mist);font-size:.75rem}
 .option .price{font-variant-numeric:tabular-nums;font-weight:700;color:var(--lamp)}
-.cta{width:100%;background:var(--cyan);color:#04202a;border-color:var(--cyan);font-size:1rem;padding:.95rem;margin-top:.5rem;text-shadow:none;box-shadow:var(--block-lift)}
-.cta:hover{background:#71f3ff;color:#04202a}
-.cta.pink{background:var(--plum);border-color:var(--plum);color:#032018;box-shadow:var(--block-lift)}
-.cta.pink:hover{background:#63f0b4;color:#032018}
+.cta{width:100%;background:var(--cyan);color:#071b12;border-color:var(--cyan);font-size:1rem;padding:.95rem;margin-top:.5rem;text-shadow:none;box-shadow:var(--block-lift)}
+.cta:hover{background:#5ae6a5;color:#071b12}
+.cta.pink{background:var(--plum);border-color:var(--plum);color:#071b12;box-shadow:var(--block-lift)}
+.cta.pink:hover{background:#89efbd;color:#071b12}
 .row{display:flex;gap:.6rem}
 .row>*{flex:1 1 0}
 .tripbar{display:flex;justify-content:space-between;gap:1rem;align-items:center;border:var(--frame-soft);border-radius:6px;padding:.6rem .8rem;margin-bottom:.8rem;background:var(--panel)}
@@ -130,14 +130,14 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 .steps li.done::before{background:var(--ink);border-color:var(--ink)}
 .pulse{display:inline-block;width:9px;height:9px;background:var(--plum);box-shadow:0 0 0 2px rgba(var(--plum-rgb),.25);margin-right:.5rem;vertical-align:middle}
 @media (prefers-reduced-motion:no-preference){.pulse{animation:p 1.1s ease-in-out infinite}@keyframes p{0%,100%{opacity:1}50%{opacity:.25}}}
-.leaflet-container{background:#071915;font:inherit}
-.leaflet-bar a{background:#10282d!important;color:#dffaff!important;border-color:#36545b!important}
-.leaflet-bar a:hover{background:#18383d!important}
-.leaflet-popup-content-wrapper{background:#102327;color:#f3fdfb;border:1px solid #36545b;border-radius:6px}
-.leaflet-popup-tip{background:#102327}
-.leaflet-control-attribution{background:rgba(6,19,26,.86)!important;color:#8faeb3!important;font-size:.65rem!important}
+.leaflet-container{background:#0b2419;font:inherit}
+.leaflet-bar a{background:#173a29!important;color:#f2f0df!important;border-color:#416b52!important}
+.leaflet-bar a:hover{background:#24533b!important}
+.leaflet-popup-content-wrapper{background:#173a29;color:#f2f0df;border:1px solid #416b52;border-radius:6px}
+.leaflet-popup-tip{background:#173a29}
+.leaflet-control-attribution{background:rgba(7,27,18,.88)!important;color:#9bb7a5!important;font-size:.65rem!important}
 /* Route markers use chrome and emerald rings for contrast on dark map tiles. */
-.pin{width:16px;height:16px;border-radius:50%;border:3px solid #c9d7e8;box-sizing:border-box;box-shadow:0 1px 5px rgba(0,0,0,.55)}
+.pin{width:16px;height:16px;border-radius:50%;border:3px solid #f2f0df;box-sizing:border-box;box-shadow:0 1px 5px rgba(0,0,0,.55)}
 .pin.pick{background:var(--cyan)}
 .pin.drop{background:var(--plum)}
 /* Test driver parked at Savannah City Hall: an inked crosshair with a slow
@@ -157,7 +157,7 @@ th{color:var(--cyan);font-weight:normal;font-size:.72rem;text-transform:uppercas
 body.rider::before{display:none}
 
 /* Dispatch uses the driver's plain-color treatment without decorative art. */
-body.dispatch{background:linear-gradient(180deg,#030b08 0%,#07140d 100%)}
+body.dispatch{background:linear-gradient(180deg,#071b12 0%,#0e2b1e 100%)}
 
 /* ---------- Fare breakdown (single fare, no ride types) ---------- */
 .farebox{border:var(--frame-soft);border-radius:6px;background:var(--panel);margin:.2rem 0 .9rem}
@@ -165,7 +165,7 @@ body.dispatch{background:linear-gradient(180deg,#030b08 0%,#07140d 100%)}
 .farerow:last-child{border-bottom:0}
 .farerow .num{color:var(--ice);letter-spacing:.04em}
 .farerow .muted{text-transform:none;letter-spacing:.02em;font-size:.74rem}
-.farerow.total{border-top:1px solid rgba(47,233,255,.28);color:var(--ice);font-weight:700}
+.farerow.total{border-top:1px solid rgba(25,212,123,.3);color:var(--ice);font-weight:700}
 .farerow.total .num{color:var(--cyan);font-size:1.05rem}
 
 /* ---------- Android / iOS safe areas ----------
@@ -223,22 +223,22 @@ main{padding-bottom:calc(2rem + var(--safe-bottom));
 .chatline{font-size:.9rem;line-height:1.35;max-width:100%;padding:.45rem .7rem;border-radius:8px;overflow-wrap:anywhere;word-break:break-word}
 .chatline .who{display:block;text-transform:uppercase;letter-spacing:.08em;font-size:.64rem;color:var(--mist);margin-bottom:.15rem}
 .chatline.me{align-self:flex-end;background:rgba(var(--cyan-rgb),.1);border:1px solid var(--sender-color,rgba(var(--cyan-rgb),.35));color:var(--ice);border-bottom-right-radius:2px}
-.chatline.them{align-self:flex-start;background:#102327;border:1px solid var(--sender-color,var(--frame-soft));color:var(--ice);border-bottom-left-radius:2px}
+.chatline.them{align-self:flex-start;background:#173a29;border:1px solid var(--sender-color,var(--frame-soft));color:var(--ice);border-bottom-left-radius:2px}
 /* Private dispatch<->driver texts share the window but read gold with a dashed
    frame so they are never mistaken for the group thread. */
 .chatline.private{border-style:dashed;animation:private-breathe 2.2s ease-in-out infinite;}
 @keyframes private-breathe{0%,100%{box-shadow:0 0 0 rgba(255,255,255,0);filter:brightness(1)}50%{box-shadow:0 0 18px 3px color-mix(in srgb,var(--sender-color,#fff) 60%,transparent);filter:brightness(1.14)}}
-.chatline.me.private{background:rgba(255,195,107,.12);border-color:rgba(255,195,107,.65);color:#ffe0a8}
-.chatline.them.private{background:rgba(255,195,107,.08);border-color:rgba(255,195,107,.5);color:#ffe0a8}
+.chatline.me.private{background:rgba(244,184,96,.14);border-color:rgba(244,184,96,.68);color:#f7d49e}
+.chatline.them.private{background:rgba(244,184,96,.1);border-color:rgba(244,184,96,.54);color:#f7d49e}
 /* Small gold label above a private bubble. */
-.chatwrap .privlabel{text-transform:uppercase;letter-spacing:.14em;font-size:.58rem;font-weight:700;color:#ffc36b}
+.chatwrap .privlabel{text-transform:uppercase;letter-spacing:.14em;font-size:.58rem;font-weight:700;color:#f4b860}
 /* Message row: the input grows, the two buttons stay equal and on-theme. */
 .chatrow{align-items:center}
 .chatreply{margin:0;padding:.3rem .6rem;font-size:.7rem;min-width:auto}
 #chatReplyHint,#rideChatReplyHint{cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .chatrow button{margin-top:0;flex:0 0 auto;min-width:6.5rem;padding:.7rem 1rem;font-size:.8rem}
 .chatrow button.alt{margin-left:0}
-.chatrow button.alt[aria-pressed="true"]{background:rgba(255,195,107,.16);border-color:#ffc36b;color:#ffe0a8;box-shadow:0 4px 14px rgba(255,195,107,.16)}
+.chatrow button.alt[aria-pressed="true"]{background:rgba(244,184,96,.18);border-color:#f4b860;color:#f7d49e;box-shadow:0 4px 14px rgba(244,184,96,.18)}
 .privwrap{display:flex;align-items:center;gap:.4rem;margin-top:.5rem;font-size:.82rem;color:var(--mist)}
 .privwrap input{width:auto}
 .privwrap select{width:auto}
@@ -337,7 +337,7 @@ button.pressed{animation:pressflair .4s ease-out}
 
 
 /* Dispatch function cards: reduce the surface opacity by half. */
-.dispatch .card{background:rgba(8,26,17,.45)}
+.dispatch .card{background:rgba(14,43,30,.56)}
 
 
 /* 1080p dispatch workstation layout: full-width 5 × 2 ride board first,

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NightRider — Driver</title>
-<link rel="stylesheet" href="nightrider.css?v=dispatch-map-1">
-  <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="nightrider.css?v=verdant-1">
+  <link rel="icon" href="/nightrider-mark.svg?v=talmadge-1" type="image/svg+xml">
 </head>
 <body>
 <header>
@@ -159,7 +159,7 @@
           wrap.className = "chatwrap " + (mine ? "me" : "them");
           var div = document.createElement("div");
           div.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
-          var color = /^#[0-9a-f]{6}$/i.test(m.chat_color || "") ? m.chat_color : "#ffffff";
+          var color = /^#[0-9a-f]{6}$/i.test(m.chat_color || "") ? m.chat_color : "#f2f0df";
           div.style.setProperty("--sender-color", color);
           var who = document.createElement("span"); who.className = "who";
           who.style.color = color;

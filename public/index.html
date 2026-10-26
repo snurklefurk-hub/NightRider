@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NightRider — Request a ride</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="nightrider.css?v=dispatch-map-1">
-  <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="nightrider.css?v=verdant-1">
+  <link rel="icon" href="/nightrider-mark.svg?v=talmadge-1" type="image/svg+xml">
 </head>
 <body class="rider">
 <header>
@@ -287,7 +287,7 @@
   function setRoute(pts, miles, minutes) {
     if (state.routeLine) { map.removeLayer(state.routeLine); }
     // Chrome-cyan route line reads clearly over the dark map.
-    state.routeLine = L.polyline(pts, { color: "#2fe9ff", weight: 5, opacity: .95, lineCap: "round" }).addTo(map);
+    state.routeLine = L.polyline(pts, { color: "#19d47b", weight: 5, opacity: .95, lineCap: "round" }).addTo(map);
     map.fitBounds(state.routeLine.getBounds(), { padding: [50, 90] });
     state.miles = Math.round(miles * 10) / 10;
     state.minutes = Math.max(1, Math.round(minutes));
@@ -640,7 +640,7 @@
           wrap.className = "chatwrap " + (mine ? "me" : "them");
           var line = document.createElement("div");
           line.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
-          var color = /^#[0-9a-f]{6}$/i.test(m.chat_color || "") ? m.chat_color : (m.role === "dispatch" ? "#ffffff" : "#45e0c2");
+          var color = /^#[0-9a-f]{6}$/i.test(m.chat_color || "") ? m.chat_color : (m.role === "dispatch" ? "#f2f0df" : "#5ae6a5");
           line.style.setProperty("--sender-color", color);
           var who = document.createElement("span"); who.className = "who"; who.style.color = color;
           who.textContent = (mine ? "You" : (m.from || "Dispatch")) +

@@ -1,27 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">NightRider Talmadge Horizon</title>
+  <desc id="desc">A simplified cable-stayed bridge crossing a striped moon in emerald, cream and amber.</desc>
   <defs>
-    <linearGradient id="night" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#10271b"/>
-      <stop offset="1" stop-color="#030b08"/>
-    </linearGradient>
-    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff1c7"/>
-      <stop offset="1" stop-color="#ffb64d"/>
-    </linearGradient>
-    <clipPath id="round"><rect x="3" y="3" width="122" height="122" rx="28"/></clipPath>
+    <clipPath id="icon-frame"><rect x="3" y="3" width="122" height="122" rx="28"/></clipPath>
+    <clipPath id="moon"><circle cx="67" cy="53" r="39"/></clipPath>
   </defs>
-  <g clip-path="url(#round)">
-    <rect width="128" height="128" fill="url(#night)"/>
-    <circle cx="64" cy="54" r="27" fill="url(#sun)"/>
-    <path d="M0 49h128v4H0zm0 12h128v5H0z" fill="#06130d" opacity=".8"/>
-    <path d="M0 72h128" stroke="#2ee6a0" stroke-width="2"/>
-    <path d="M64 72L8 128M64 72L28 128M64 72L48 128M64 72v56M64 72l16 56M64 72l36 56M64 72l56 56" stroke="#2ee6a0" stroke-opacity=".76" stroke-width="1.4"/>
-    <path d="M0 82h128M0 94h128M0 109h128M0 128h128" stroke="#2ee6a0" stroke-opacity=".68" stroke-width="1.4"/>
-    <path d="M26 128L58 77L67 77L105 128" fill="#06130d" fill-opacity=".7" stroke="#ffca70" stroke-width="2"/>
-    <path d="M64 120V109M64 101V93M64 87V82" stroke="#f3fdfb" stroke-width="2.5" stroke-linecap="round"/>
-    <circle cx="64" cy="72" r="3.5" fill="#f3fdfb"/>
-    <circle cx="17" cy="20" r="1.3" fill="#f3fdfb"/>
-    <circle cx="96" cy="18" r="1" fill="#f3fdfb"/>
-    <circle cx="109" cy="38" r="1.2" fill="#f3fdfb"/>
+  <g clip-path="url(#icon-frame)">
+    <rect width="128" height="128" fill="#071b12"/>
+    <g clip-path="url(#moon)">
+      <rect x="25" y="14" width="84" height="16" fill="#f2f0df"/>
+      <rect x="20" y="34" width="94" height="14" fill="#f2f0df"/>
+      <rect x="18" y="52" width="98" height="12" fill="#5ae6a5"/>
+      <rect x="20" y="68" width="94" height="11" fill="#19d47b"/>
+      <rect x="27" y="83" width="80" height="9" fill="#148f57"/>
+    </g>
+    <path d="M3 101 L125 74 L125 84 L3 111 Z" fill="#19d47b"/>
+    <path d="M4 101 L125 74" fill="none" stroke="#f2f0df" stroke-width="2.5"/>
+    <path d="M29 91 L31 66 L36 66 L38 89 Z M40 89 L39 66 L44 66 L47 87 Z M31 69 L44 69 L44 73 L31 73 Z" fill="#f2f0df"/>
+    <path d="M72 86 L76 38 L83 38 L84 83 Z M89 82 L88 38 L95 38 L99 80 Z M77 42 L94 42 L94 48 L77 48 Z" fill="#f2f0df"/>
+    <g fill="none" stroke="#f2f0df" stroke-linecap="round">
+      <path d="M33 70 L15 97 M36 70 L24 95 M40 70 L55 89 M43 70 L63 87" stroke-width="2"/>
+      <path d="M79 45 L49 91 M81 45 L61 88 M84 45 L73 86 M91 45 L104 79 M93 45 L115 77 M94 45 L124 75" stroke-width="2.7"/>
+    </g>
+    <path d="M63 92 L73 88 L78 89 L68 94 Z" fill="#f4b860"/>
+    <path d="M35 116 H91 M45 121 H82 M54 125 H73" fill="none" stroke="#5ae6a5" stroke-width="2.4" stroke-linecap="round" opacity=".78"/>
   </g>
+  <rect x="3.5" y="3.5" width="121" height="121" rx="27.5" fill="none" stroke="#416b52"/>
 </svg>
