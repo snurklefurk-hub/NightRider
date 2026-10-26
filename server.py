@@ -581,6 +581,8 @@ def current_pricing():
 
 def validate_pricing(data):
     """Validate the four dispatch-editable fare inputs."""
+    if not isinstance(data, dict):
+        return None, "Enter a valid number for every price."
     limits = {
         "flag_drop": 10000.0,
         "approach_per_mile": 10000.0,
