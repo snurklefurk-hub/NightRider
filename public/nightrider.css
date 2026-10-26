@@ -345,7 +345,7 @@ button.pressed{animation:pressflair .4s ease-out}
 
 /* 1080p dispatch workstation layout: full-width 5 × 2 ride board first,
    with live chat and driver tools immediately beneath it. */
-@media (min-width:1600px) and (min-height:850px){
+@media (min-width:1200px){
   .dispatch header{padding:.45rem 1.1rem}
   .dispatch-main{width:100%;max-width:1880px;padding:.6rem 1.1rem 1rem;margin:0 auto;
     display:grid;grid-template-columns:minmax(0,1.5fr) minmax(400px,.9fr);
