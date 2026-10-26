@@ -26,6 +26,12 @@ DATA_FILE = os.path.join(BASE, "rides.json")
 LOCK = threading.Lock()
 STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
             "at_dropoff", "completed", "cancelled"]
+DEFAULT_PRICING = {
+    "flag_drop": 5.00,
+    "approach_per_mile": 0.25,
+    "trip_per_mile": 1.00,
+    "multiplier": 1.00,
+}
 # The driver's ride workflow: each press moves the ride to the next stage.
 NEXT = {
     "accepted": "to_pickup",
@@ -72,6 +78,13 @@ def ensure_store(store):
     store.setdefault("messages", [])
     store.setdefault("ride_messages", [])
     store.setdefault("driver_colors", {})
+    saved_pricing = store.get("pricing")
+    if not isinstance(saved_pricing, dict):
+        saved_pricing = {}
+    store["pricing"] = dict(DEFAULT_PRICING, **saved_pricing)
+    for ride in (store.get("rides") or {}).values():
+        if isinstance(ride, dict):
+            ride.setdefault("fare_rates", dict(store["pricing"]))
     return store
 
 
@@ -538,11 +551,50 @@ def export_log(store, start=None, end=None):
 
 
 # ---- Fares -------------------------------------------------------------
-# $5.00 flag drop, plus $1.00 per mile of the trip (pickup -> drop-off),
-# plus $0.25 per mile the driver spends getting to the pickup.
-FLAG_DROP = 5.00
-TRIP_PER_MILE = 1.00
-APPROACH_PER_MILE = 0.25
+# Defaults retained for local clients that import these constants.
+FLAG_DROP = DEFAULT_PRICING["flag_drop"]
+TRIP_PER_MILE = DEFAULT_PRICING["trip_per_mile"]
+APPROACH_PER_MILE = DEFAULT_PRICING["approach_per_mile"]
+
+
+def current_pricing():
+    """Return a validated snapshot of the persisted dispatch fare settings."""
+    saved = STORE.get("pricing", {}) if "STORE" in globals() else {}
+    rates = {}
+    for key, default in DEFAULT_PRICING.items():
+        try:
+            value = float(saved.get(key, default))
+        except (TypeError, ValueError):
+            value = default
+        if not math.isfinite(value) or value < 0:
+            value = default
+        rates[key] = round(value, 2)
+    if rates["multiplier"] <= 0:
+        rates["multiplier"] = DEFAULT_PRICING["multiplier"]
+    return rates
+
+
+def validate_pricing(data):
+    """Validate the four dispatch-editable fare inputs."""
+    limits = {
+        "flag_drop": 10000.0,
+        "approach_per_mile": 10000.0,
+        "trip_per_mile": 10000.0,
+        "multiplier": 100.0,
+    }
+    rates = {}
+    for key, maximum in limits.items():
+        try:
+            value = float(data.get(key))
+        except (TypeError, ValueError):
+            return None, "Enter a valid number for every price."
+        if not math.isfinite(value) or value < 0 or value > maximum:
+            return None, "Prices must be between $0 and $10,000; multiplier must be between 0.01 and 100."
+        rates[key] = round(value, 2)
+    if rates["multiplier"] < 0.01:
+        return None, "Multiplier must be between 0.01 and 100."
+    return rates, None
+
 
 def _miles(value):
     """Coerce a distance to a non-negative float; bad input counts as 0."""
@@ -552,23 +604,30 @@ def _miles(value):
         return 0.0
 
 
-def fare(distance_mi, driver_to_pickup_mi=0.0):
-    """$5 flag drop + $1.00/mi trip + $0.25/mi driver -> pickup."""
-    total = FLAG_DROP + TRIP_PER_MILE * _miles(distance_mi) + APPROACH_PER_MILE * _miles(driver_to_pickup_mi)
-    return round(total, 2)
-
-
-def fare_breakdown(distance_mi, driver_to_pickup_mi=0.0):
-    """The itemised fare so the client never has to re-derive the formula."""
+def fare(distance_mi, driver_to_pickup_mi=0.0, rates=None):
+    """Flag drop plus the two per-mile legs, all adjusted by the multiplier."""
+    rates = rates or current_pricing()
     trip = _miles(distance_mi)
     approach = _miles(driver_to_pickup_mi)
+    subtotal = (rates["flag_drop"] + rates["trip_per_mile"] * trip +
+                rates["approach_per_mile"] * approach)
+    return round(subtotal * rates["multiplier"], 2)
+
+
+def fare_breakdown(distance_mi, driver_to_pickup_mi=0.0, rates=None):
+    """The itemised fare so the client never has to re-derive the formula."""
+    rates = rates or current_pricing()
+    trip = _miles(distance_mi)
+    approach = _miles(driver_to_pickup_mi)
+    multiplier = rates["multiplier"]
     return {
-        "flag_drop": FLAG_DROP,
+        "flag_drop": round(rates["flag_drop"] * multiplier, 2),
         "trip_mi": round(trip, 1),
-        "trip_fare": round(TRIP_PER_MILE * trip, 2),
+        "trip_fare": round(rates["trip_per_mile"] * trip * multiplier, 2),
         "driver_to_pickup_mi": round(approach, 1),
-        "approach_fare": round(APPROACH_PER_MILE * approach, 2),
-        "total": fare(trip, approach),
+        "approach_fare": round(rates["approach_per_mile"] * approach * multiplier, 2),
+        "multiplier": multiplier,
+        "total": fare(trip, approach, rates),
     }
 
 
@@ -947,7 +1006,7 @@ class Handler(SimpleHTTPRequestHandler):
                 ride["status"] = "accepted"
                 ride.pop("driver_coords", None)
                 ride["driver_to_pickup_mi"] = 0.0
-                ride["fare"] = fare(ride["distance_mi"], 0.0)
+                ride["fare"] = fare(ride["distance_mi"], 0.0, ride.get("fare_rates"))
                 log_status(ride, "accepted")
                 action = "assigned" if not previous_id else "reassigned"
                 new_name = driver["display_name"]
@@ -974,6 +1033,8 @@ class Handler(SimpleHTTPRequestHandler):
         return self.send_json(200, snapshot)
 
     def dispatch_get(self, path, qs):
+        if path == "/api/dispatch/pricing":
+            return self.send_json(200, {"pricing": current_pricing()})
         if path == "/api/dispatch/users":
             return self.send_json(200, {"users": auth.list_users("driver")})
         if path == "/api/dispatch/rider-accounts":
@@ -1055,11 +1116,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "country": os.environ.get("ADDRESS_COUNTRY", "us").strip().lower(),
                     # One source of truth: the client prices the preview with
                     # these rates instead of hard-coding its own copy.
-                    "rates": {
-                        "flag_drop": FLAG_DROP,
-                        "trip_per_mile": TRIP_PER_MILE,
-                        "approach_per_mile": APPROACH_PER_MILE,
-                    },
+                    "rates": current_pricing(),
                     "demoDriver": DEMO_DRIVER if os.environ.get("NIGHTRIDER_ENABLE_DEMO_DRIVER", "false").lower() == "true" else None,
                     # Shared status labels + driver stage actions so the
                     # driver and dispatch boards never drift apart.
@@ -1193,7 +1250,8 @@ class Handler(SimpleHTTPRequestHandler):
                 "pickup_coords": pickup_coords,
                 "dropoff_coords": parse_coords(data.get("dropoff_coords")),
                 "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
-                "fare": fare(miles, approach), "status": "requested",
+                "fare_rates": current_pricing(),
+                "fare": fare(miles, approach, current_pricing()), "status": "requested",
                 "payment_method": payment, "rider_account_id": user["id"] if user else None,
                 "driver": None, "created": time.time(),
                 "status_log": [{"status": "requested", "at": time.time()}],
@@ -1235,6 +1293,15 @@ class Handler(SimpleHTTPRequestHandler):
             user = self.require_role("dispatch")
             if os.environ.get("DATABASE_URL", "").strip() and not user:
                 return
+            if len(parts) == 3 and parts[2] == "pricing":
+                rates, error = validate_pricing(data or {})
+                if error:
+                    return self.send_json(400, {"error": error})
+                with LOCK:
+                    STORE["pricing"] = rates
+                    save(STORE)
+                record_event("pricing_updated", rates=rates)
+                return self.send_json(200, {"ok": True, "pricing": rates})
             if len(parts) == 3 and parts[2] == "users":
                 created, error = auth.create_user(data.get("username"), data.get("display_name"),
                                                   data.get("password"), "driver")
@@ -1364,7 +1431,7 @@ class Handler(SimpleHTTPRequestHandler):
                     if approach is not None:
                         ride["driver_to_pickup_mi"] = round(approach, 1)
                         ride["driver_coords"] = dcoords
-                        ride["fare"] = fare(ride["distance_mi"], ride["driver_to_pickup_mi"])
+                        ride["fare"] = fare(ride["distance_mi"], ride["driver_to_pickup_mi"], ride.get("fare_rates"))
                 elif action == "advance":
                     if user and (user["role"] != "driver" or ride.get("driver_account_id") != user["id"]):
                         return self.send_json(403, {"error": "not allowed"})
