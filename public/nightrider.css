@@ -433,3 +433,11 @@ button.pressed{animation:pressflair .4s ease-out}
   #chatCard{position:static;top:auto;align-self:start;max-height:none;min-height:0;height:auto}
   #chatCard .chatlog{flex:0 0 360px;height:360px;max-height:360px;min-height:180px}
 }
+
+
+/* Dispatch fare editor. */
+.pricing-modal{max-width:920px}
+.pricing-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem 1rem}
+.pricing-grid label{margin:.25rem 0}
+.pricing-grid input{display:block;margin-top:.25rem}
+@media (max-width:640px){.pricing-grid{grid-template-columns:1fr}}
