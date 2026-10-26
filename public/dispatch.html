@@ -174,6 +174,7 @@
   var cursor = 0;          /* last event seq we have seen */
   var ridesById = {};
   var expandedRideIds = {};
+  var exportQuickRange = null;
   var polling = false;
   var seenRides = false;
   var chatSeen = 0;        /* newest message timestamp we have rendered */
@@ -668,8 +669,13 @@
   /* ---- export ----------------------------------------------------------- */
   function doExport() {
     var qs = [];
-    if ($("from").value) { qs.push("from=" + encodeURIComponent($("from").value)); }
-    if ($("to").value) { qs.push("to=" + encodeURIComponent($("to").value)); }
+    if (exportQuickRange) {
+      qs.push("from=" + encodeURIComponent(exportQuickRange.from));
+      qs.push("to=" + encodeURIComponent(exportQuickRange.to));
+    } else {
+      if ($("from").value) { qs.push("from=" + encodeURIComponent($("from").value)); }
+      if ($("to").value) { qs.push("to=" + encodeURIComponent($("to").value)); }
+    }
     $("exportmsg").textContent = "Building log…";
     api("/api/dispatch/export" + (qs.length ? "?" + qs.join("&") : ""), { cache: "no-store" })
       .then(function (r) {
@@ -691,23 +697,63 @@
   /* ---- wiring ----------------------------------------------------------- */
   $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); pollChat(); });
 
-  $("exportOpen").addEventListener("click", function () { $("exportModal").hidden = false; $("exportmsg").textContent = ""; });
-  $("exportClose").addEventListener("click", function () { $("exportModal").hidden = true; });
-  $("driverAdminOpen").addEventListener("click", function () {
-    $("driverAdminModal").hidden = false;
-    $("driverAdminClose").focus();
-  });
-  function closeDriverAdmin() {
-    $("driverAdminModal").hidden = true;
-    $("driverAdminOpen").focus();
+  function clearQuickExportRange() {
+    exportQuickRange = null;
+    $("exportRangeSummary").hidden = true;
+    document.querySelectorAll("[data-export-hours]").forEach(function (button) {
+      button.setAttribute("aria-pressed", "false");
+    });
   }
-  $("driverAdminClose").addEventListener("click", closeDriverAdmin);
-  $("driverAdminModal").addEventListener("click", function (event) {
-    if (event.target === $("driverAdminModal")) { closeDriverAdmin(); }
+  $("exportOpen").addEventListener("click", function () {
+    clearQuickExportRange();
+    $("exportModal").hidden = false;
+    $("exportmsg").textContent = "";
   });
-  document.addEventListener("keydown", function (event) {
-    if (event.key === "Escape" && !$("driverAdminModal").hidden) { closeDriverAdmin(); }
+  $("exportClose").addEventListener("click", function () { $("exportModal").hidden = true; });
+  document.querySelectorAll("[data-export-hours]").forEach(function (button) {
+    button.setAttribute("aria-pressed", "false");
+    button.addEventListener("click", function () {
+      var endMs = Date.now();
+      var startMs = endMs - Number(button.getAttribute("data-export-hours")) * 60 * 60 * 1000;
+      exportQuickRange = {
+        from: new Date(startMs).toISOString(),
+        to: new Date(endMs).toISOString()
+      };
+      $("from").value = "";
+      $("to").value = "";
+      $("exportRangeSummary").textContent = button.textContent + ": " +
+        new Date(startMs).toLocaleString() + " – " + new Date(endMs).toLocaleString();
+      $("exportRangeSummary").hidden = false;
+      document.querySelectorAll("[data-export-hours]").forEach(function (option) {
+        option.setAttribute("aria-pressed", option === button ? "true" : "false");
+      });
+    });
   });
+  $("from").addEventListener("input", clearQuickExportRange);
+  $("to").addEventListener("input", clearQuickExportRange);
+
+  function wirePageModal(openId, closeId, modalId) {
+    var opener = $(openId), closer = $(closeId), modal = $(modalId);
+    function close() {
+      modal.hidden = true;
+      opener.focus();
+    }
+    opener.addEventListener("click", function () {
+      modal.hidden = false;
+      closer.focus();
+    });
+    closer.addEventListener("click", close);
+    modal.addEventListener("click", function (event) {
+      if (event.target === modal) { close(); }
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !modal.hidden) { close(); }
+    });
+  }
+  wirePageModal("driverAdminOpen", "driverAdminClose", "driverAdminModal");
+  wirePageModal("riderAdminOpen", "riderAdminClose", "riderAdminModal");
+  wirePageModal("riderDirectoryOpen", "riderDirectoryClose", "riderDirectoryModal");
+  wirePageModal("countsOpen", "countsClose", "countsModal");
   $("copyDispatchLogin").addEventListener("click", function () {
     var url = window.location.origin + "/account.html?next=%2Fdispatch.html";
     function fallbackCopy() {
