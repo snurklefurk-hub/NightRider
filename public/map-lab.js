@@ -31,6 +31,7 @@
   };
   const markers = new Map();
   const routeCache = new Map();
+  const routeInFlight = new Map();
   let snapshot = demoSnapshot(), selectedRideId = "LAB-01", liveMode = false;
   let selectedStyle = "midnight", localPosition = null, styleReady = false;
   let lastLiveSnapshotAt = 0, activeRequest = null, routeToken = 0;
@@ -39,7 +40,8 @@
     container: mapHost, style: FIORD,
     center: PRESETS.streets.center, zoom: PRESETS.streets.zoom,
     bearing: 0, pitch: 0, minPitch: 0, maxPitch: 0,
-    dragRotate: false, pitchWithRotate: false, renderWorldCopies: false,
+    dragRotate: false, pitchWithRotate: false, touchPitch: false,
+    renderWorldCopies: false,
     maxZoom: 19, minZoom: 3, attributionControl: true
   });
   // Pinch zoom is allowed; rotation and pitch never are.
@@ -239,6 +241,7 @@
     if (cached && Date.now() - cached.at < (cached.fallback ? 90000 : 1800000)) {
       return Promise.resolve(cached);
     }
+    if (routeInFlight.has(key)) return routeInFlight.get(key);
     // Serialize and rate-limit ALL calls; routing is a lab approximation only.
     const task = pendingRoute.catch(() => {}).then(async () => {
       const existing = routeCache.get(key);
@@ -280,6 +283,8 @@
       routeCache.set(key, result);
       return result;
     });
+    routeInFlight.set(key, task);
+    task.finally(() => routeInFlight.delete(key));
     pendingRoute = task.then(() => {}, () => {});
     return task;
   }
