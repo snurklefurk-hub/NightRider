@@ -237,7 +237,7 @@
 
   // Fare rates come from the server (/api/config) so the formula lives in one
   // place. These defaults only apply if that request fails.
-  var RATES = { flag_drop: 5, trip_per_mile: 1, approach_per_mile: 0.25 };
+  var RATES = { flag_drop: 5, trip_per_mile: 1, approach_per_mile: 0.25, multiplier: 1 };
   // Supplied by /api/config; the test driver that is always at City Hall.
   var DEMO_DRIVER = null;
 
@@ -424,11 +424,12 @@
     // $5 flag drop + $1/mi for the trip + $0.25/mi from the driver's location
     // to the pickup. The test driver is always at Savannah City Hall, so the
     // third leg is priced from there.
-    var tripFare = round2(RATES.trip_per_mile * state.miles);
+    var multiplier = Number(RATES.multiplier || 1);
+    var tripFare = round2(RATES.trip_per_mile * state.miles * multiplier);
     state.approachMi = approachMiles(state.pickup);
-    var approachFare = round2(RATES.approach_per_mile * state.approachMi);
+    var approachFare = round2(RATES.approach_per_mile * state.approachMi * multiplier);
     // Riders see the bottom line only — the rate breakdown is not shown.
-    $("fareTotal").textContent = money(round2(RATES.flag_drop + tripFare + approachFare));
+    $("fareTotal").textContent = money(round2(RATES.flag_drop * multiplier + tripFare + approachFare));
     $("requestBtn").disabled = false;
     $("optMsg").textContent = "";
   }
