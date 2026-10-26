@@ -350,7 +350,7 @@
       var secs = (next ? next.at : now) - entry.at;
       var live = !next && r.status === entry.status &&
         r.status !== "completed" && r.status !== "cancelled";
-      return { status: entry.status, secs: secs, live: live };
+      return { status: entry.status, at: entry.at, secs: secs, live: live };
     });
   }
 
@@ -366,7 +366,19 @@
     clocks.className = "stageclock";
     stages.forEach(function (s) {
       var span = document.createElement("span");
-      span.textContent = statusWord(s.status) + ": " + dur(s.secs) + (s.live ? "\u2026" : "");
+      var stageLabels = {
+        requested: "Ride requested",
+        accepted: "Driver accepted",
+        to_pickup: "Driver heading to pickup",
+        at_pickup: "Arrived at pickup",
+        to_dropoff: "Departed pickup for drop-off",
+        at_dropoff: "Arrived at destination",
+        completed: "Ride completed",
+        cancelled: "Ride cancelled"
+      };
+      var timestamp = s.at ? new Date(s.at * 1000).toLocaleString() : "Time unavailable";
+      span.textContent = (stageLabels[s.status] || statusWord(s.status)) + ": " +
+        timestamp + " · " + dur(s.secs) + (s.live ? "\u2026" : "");
       clocks.appendChild(span);
     });
     wrap.appendChild(clocks);
