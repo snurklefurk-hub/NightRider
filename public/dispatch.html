@@ -337,6 +337,8 @@
       card.open = !!expandedRideIds[r.id];
       card.addEventListener("toggle", function () {
         expandedRideIds[r.id] = card.open;
+        var label = card.querySelector(".ride-expand-label");
+        if (label) { label.textContent = card.open ? "Hide details" : "View details"; }
       });
 
       var summary = document.createElement("summary");
