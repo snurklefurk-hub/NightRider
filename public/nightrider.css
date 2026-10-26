@@ -301,7 +301,6 @@ button.pressed{animation:pressflair .4s ease-out}
       "status status"
       "rides chat"
       "drivers chat"
-      "driveradmin driveradmin"
       "directory directory"
       "rideradmin counts"
       "export export";
@@ -354,7 +353,6 @@ button.pressed{animation:pressflair .4s ease-out}
       "status status"
       "rides rides"
       "drivers chat"
-      "driveradmin rideradmin"
       "directory directory"
       "counts counts"
       "export export";
@@ -400,4 +398,26 @@ button.pressed{animation:pressflair .4s ease-out}
 }
 @media (min-width:1100px) and (max-width:1599px){
   #rideBoard .ridecards{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+
+
+/* Dispatch header and footer controls. */
+.dispatch .brand{font-size:1.8rem;gap:.72rem;letter-spacing:.14em}
+.dispatch .brand::before{width:2.65rem;height:2.65rem}
+.dispatch header{min-height:5.1rem}
+.dispatch-footer-actions{grid-area:export;justify-self:stretch!important;display:flex;align-items:center;
+  justify-content:flex-end;flex-wrap:wrap;gap:.55rem;padding:.35rem 0}
+.dispatch-footer-actions button{margin:0;padding:.55rem .95rem;font-size:.78rem}
+#dispatchFooterMsg{margin-right:auto}
+.driver-admin-modal{width:min(860px,calc(100vw - 2rem));max-width:860px;
+  max-height:88vh;overflow:auto}
+.driver-admin-modal-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  margin-bottom:.7rem}
+.driver-admin-modal-head h2{margin:0}
+.driver-admin-modal-head button{margin:0}
+.driver-admin-modal #driverAdmin{margin:0;padding:.85rem;border-radius:10px}
+@media (max-width:700px){
+  .dispatch-footer-actions{justify-content:stretch}
+  .dispatch-footer-actions button{flex:1 1 100%}
+  #dispatchFooterMsg{order:-1;width:100%;margin:0}
 }
