@@ -337,3 +337,7 @@ button.pressed{animation:pressflair .4s ease-out}
   .dispatch-main>h1,#dispatchStatus,#rideBoard,#chatCard,#riderDirectory,.dispatch-main>.exportbar{grid-column:1/-1}
   #rideBoard .ridecards{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
 }
+
+
+/* Dispatch function cards: reduce the surface opacity by half. */
+.dispatch .card{background:rgba(8,26,17,.45)}
