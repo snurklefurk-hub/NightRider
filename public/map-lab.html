@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#172635">
+  <title>NightRider — Midnight Vector Map Lab</title>
+  <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="/map-lab.css?v=1">
+  <script defer src="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.js"></script>
+  <script defer src="/map-lab-midnight.js?v=1"></script>
+  <script defer src="/map-lab.js?v=1"></script>
+</head>
+<body>
+  <header class="lab-header">
+    <div>
+      <a class="brand" href="/dispatch.html">NIGHTRIDER</a>
+      <span class="lab-tag">MIDNIGHT / VECTOR LAB</span>
+      <span class="experimental">Experimental · read-only</span>
+    </div>
+    <a class="back-link" href="/dispatch.html">Back to Dispatch</a>
+  </header>
+  <main class="lab-shell">
+    <section class="lab-controls" aria-label="Map preview controls">
+      <div class="control-group">
+        <label for="labStyle">Map style</label>
+        <select id="labStyle">
+          <option value="midnight">NightRider Midnight (Android match)</option>
+          <option value="fiord">Original Fiord</option>
+          <option value="dark">Original Dark</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="labLocation">Camera preset</label>
+        <select id="labLocation">
+          <option value="streets">Dallas city streets · Android default</option>
+          <option value="junction">Dallas interchange · Android preset</option>
+          <option value="savannah">Savannah · Dispatch region</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="labMode">Map data</label>
+        <select id="labMode">
+          <option value="demo">Demo markers and route</option>
+          <option value="live">Live dispatch · authorized, read-only</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label for="labRide">Focus ride</label>
+        <select id="labRide"><option value="">All locations</option></select>
+      </div>
+      <div class="control-actions">
+        <label class="toggle"><input id="labDrivers" type="checkbox" checked> Drivers</label>
+        <label class="toggle"><input id="labRiders" type="checkbox" checked> Rider locations</label>
+        <label class="toggle"><input id="labOffline" type="checkbox"> Offline drivers</label>
+        <button id="labFit" type="button">Fit markers</button>
+        <button id="labRefresh" type="button">Refresh</button>
+        <button id="labMyLocation" type="button" aria-pressed="false">My location</button>
+      </div>
+    </section>
+    <section class="map-stage" aria-label="NightRider vector map preview">
+      <div id="labMap" role="application" aria-label="Flat 2D NightRider Midnight vector map"></div>
+      <div class="map-ribbon">2D VECTOR · PITCH LOCKED TO 0° · NOT FOR LIVE NAVIGATION</div>
+      <div id="labNotice" role="status" aria-live="polite">Loading vector map…</div>
+    </section>
+    <footer class="lab-footer">
+      <div id="labSummary" role="status" aria-live="polite">Demo mode: no production operations are performed.</div>
+      <div class="legend" aria-label="Map legend">
+        <span><i class="dot driver"></i>Driver</span>
+        <span><i class="dot pickup"></i>Pickup</span>
+        <span><i class="dot dropoff"></i>Drop-off</span>
+        <span><i class="dot rider"></i>Rider</span>
+        <span><i class="dot dispatch"></i>Dispatcher</span>
+        <span><i class="line trip"></i>Trip</span>
+        <span><i class="line approach"></i>Approach</span>
+      </div>
+      <div id="labCamera" class="camera">Center: — · Zoom: —</div>
+      <p class="lab-note">This page is an isolated visual comparison, not the live Dispatch map. Live mode only reads the existing role-protected map endpoint; it never acknowledges, assigns, advances, or cancels rides. Your location is requested only if you press My location. OSRM estimates exclude traffic. OpenFreeMap and OpenStreetMap attribution is shown on the map.</p>
+    </footer>
+  </main>
+</body>
+</html>
