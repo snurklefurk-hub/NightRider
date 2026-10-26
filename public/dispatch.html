@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NightRider — Dispatch</title>
-<link rel="stylesheet" href="nightrider.css?v=dispatch-tools-8">
+<link rel="stylesheet" href="nightrider.css?v=dispatch-tools-9">
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
 </head>
 <body class="dispatch">
@@ -62,6 +62,7 @@
     <button type="button" class="alt" id="riderAdminOpen">Rider accounts</button>
     <button type="button" class="alt" id="riderDirectoryOpen">Known riders</button>
     <button type="button" class="alt" id="countsOpen">Counts by status</button>
+    <button type="button" class="alt" id="pricingOpen">Ride prices</button>
     <span id="dispatchFooterMsg" class="tiny muted" role="status" aria-live="polite"></span>
     <button type="button" class="alt" id="signOut">Sign out</button>
   </div>
@@ -108,6 +109,35 @@
     <h3>Counts by status</h3>
     <div class="counts-strip" id="counts"></div>
   </div>
+  </div>
+</div>
+
+<!-- Dispatch fare settings -->
+<div id="pricingModal" class="modal" hidden>
+  <div class="modal-card dispatch-data-modal pricing-modal" role="dialog" aria-modal="true" aria-labelledby="pricingTitle">
+    <div class="driver-admin-modal-head">
+      <h2 id="pricingTitle">Ride prices</h2>
+      <button type="button" class="alt" id="pricingClose">Close</button>
+    </div>
+    <p class="tiny muted">These prices apply to new ride requests. Existing rides keep the price they were quoted.</p>
+    <form id="pricingForm">
+      <div class="pricing-grid">
+        <label>Flag drop ($)
+          <input id="priceFlagDrop" type="number" min="0" max="10000" step="0.01" required>
+        </label>
+        <label>Driver to pickup ($ per mile)
+          <input id="priceApproach" type="number" min="0" max="10000" step="0.01" required>
+        </label>
+        <label>Pickup to drop-off ($ per mile)
+          <input id="priceTrip" type="number" min="0" max="10000" step="0.01" required>
+        </label>
+        <label>Multiplier
+          <input id="priceMultiplier" type="number" min="0.01" max="100" step="0.01" required>
+        </label>
+      </div>
+      <button type="submit" id="pricingSave">Save prices</button>
+      <p id="pricingMsg" class="msg" role="status" aria-live="polite"></p>
+    </form>
   </div>
 </div>
 
@@ -754,6 +784,7 @@
   wirePageModal("riderAdminOpen", "riderAdminClose", "riderAdminModal");
   wirePageModal("riderDirectoryOpen", "riderDirectoryClose", "riderDirectoryModal");
   wirePageModal("countsOpen", "countsClose", "countsModal");
+  wirePageModal("pricingOpen", "pricingClose", "pricingModal");
   $("copyDispatchLogin").addEventListener("click", function () {
     var url = window.location.origin + "/account.html?next=%2Fdispatch.html";
     function fallbackCopy() {
@@ -786,6 +817,52 @@
   $("chatText").addEventListener("keydown", function (e) {
     if (e.key === "Enter") { e.preventDefault(); sendChat(); }
   });
+  function fillPricingForm(pricing) {
+    $("priceFlagDrop").value = Number(pricing.flag_drop).toFixed(2);
+    $("priceApproach").value = Number(pricing.approach_per_mile).toFixed(2);
+    $("priceTrip").value = Number(pricing.trip_per_mile).toFixed(2);
+    $("priceMultiplier").value = Number(pricing.multiplier).toFixed(2);
+  }
+  function refreshPricing() {
+    $("pricingMsg").textContent = "Loading saved prices…";
+    api("/api/dispatch/pricing", {cache:"no-store"}).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) { throw new Error(data.error || "Could not load prices."); }
+        return data;
+      });
+    }).then(function (data) {
+      fillPricingForm(data.pricing || {});
+      $("pricingMsg").textContent = "";
+    }).catch(function (error) { $("pricingMsg").textContent = error.message; });
+  }
+  $("pricingOpen").addEventListener("click", refreshPricing);
+  $("pricingForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var button = $("pricingSave");
+    button.disabled = true;
+    $("pricingMsg").textContent = "Saving prices…";
+    var payload = {
+      flag_drop: Number($("priceFlagDrop").value),
+      approach_per_mile: Number($("priceApproach").value),
+      trip_per_mile: Number($("priceTrip").value),
+      multiplier: Number($("priceMultiplier").value)
+    };
+    api("/api/dispatch/pricing", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) { throw new Error(data.error || "Could not save prices."); }
+        return data;
+      });
+    }).then(function (data) {
+      fillPricingForm(data.pricing);
+      $("pricingMsg").textContent = "Prices saved. They will apply to future ride requests.";
+    }).catch(function (error) {
+      $("pricingMsg").textContent = error.message;
+    }).finally(function () { button.disabled = false; });
+  });
+
   $("driverAccountForm").addEventListener("submit", function (event) {
     event.preventDefault();
     var button = event.currentTarget.querySelector("button[type=submit]");
