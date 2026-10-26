@@ -446,9 +446,10 @@ def dispatch_ride(ride, store):
     return out
 
 
-def dispatch_rider(rec, store, detail=False):
+def dispatch_rider(rec, store, detail=False, account_created=None):
     out = {
         "id": rec.get("id"),
+        "account_created": account_created,
         "first_seen": rec.get("first_seen"),
         "last_seen": rec.get("last_seen"),
         "names": rec.get("names") or [],
@@ -1055,17 +1056,30 @@ class Handler(SimpleHTTPRequestHandler):
                 rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
                 return self.send_json(200, {"rides": [dispatch_ride(r, STORE) for r in rides]})
         if path == "/api/dispatch/riders":
+            accounts = {
+                "NR-" + account["id"][:10].upper(): account["created_at"]
+                for account in auth.list_users("rider")
+            }
             with LOCK:
-                out = [dispatch_rider(rec, STORE) for rec in (STORE.get("riders") or {}).values()]
+                out = [
+                    dispatch_rider(rec, STORE, account_created=accounts.get(rec.get("id")))
+                    for rec in (STORE.get("riders") or {}).values()
+                ]
             out.sort(key=lambda r: r.get("last_seen") or 0, reverse=True)
             return self.send_json(200, {"riders": out})
         if path.startswith("/api/dispatch/riders/"):
             rid = path.split("/")[4]
+            accounts = {
+                "NR-" + account["id"][:10].upper(): account["created_at"]
+                for account in auth.list_users("rider")
+            }
             with LOCK:
                 rec = (STORE.get("riders") or {}).get(rid)
                 if not rec:
                     return self.send_json(404, {"error": "not found"})
-                return self.send_json(200, dispatch_rider(rec, STORE, detail=True))
+                return self.send_json(200, dispatch_rider(
+                    rec, STORE, detail=True, account_created=accounts.get(rec.get("id"))
+                ))
         if path == "/api/dispatch/drivers":
             now = time.time()
             with LOCK:
