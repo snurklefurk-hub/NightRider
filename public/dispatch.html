@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NightRider — Dispatch</title>
-<link rel="stylesheet" href="nightrider.css?v=dispatch-tools-10">
+<link rel="stylesheet" href="nightrider.css?v=dispatch-tools-11">
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
 </head>
 <body class="dispatch">
@@ -22,8 +22,8 @@
     <p class="muted">Live board. Dispatch holds a connection open and is woken the instant a rider
       requests a ride — no polling every few seconds. Each incoming request is acknowledged back to
       the rider as a handshake, so nothing is silently dropped.</p>
-    <div class="row">
-      <button type="button" id="refresh">Force refresh</button>
+    <div class="dispatch-refresh-row">
+      <button type="button" id="refresh" class="dispatch-refresh-button" title="Force refresh" aria-label="Force refresh">↻</button>
     </div>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
     <p class="tiny muted" id="conn">Connecting…</p>
@@ -56,12 +56,12 @@
 
 
   <div class="exportbar dispatch-footer-actions">
-    <button type="button" class="alt" id="exportOpen">Export ride log…</button>
+    <button type="button" class="alt" id="exportOpen">Export ride log</button>
     <button type="button" class="alt" id="copyDispatchLogin">Copy dispatch login URL</button>
     <button type="button" class="alt" id="driverAdminOpen">Driver accounts</button>
     <button type="button" class="alt" id="riderAdminOpen">Rider accounts</button>
     <button type="button" class="alt" id="countsOpen">Counts by status</button>
-    <button type="button" class="alt" id="pricingOpen">Ride prices</button>
+    <button type="button" class="alt" id="pricingOpen">Ride rates</button>
     <span id="dispatchFooterMsg" class="tiny muted" role="status" aria-live="polite"></span>
     <button type="button" class="alt" id="signOut">Sign out</button>
   </div>
@@ -113,7 +113,7 @@
 <div id="pricingModal" class="modal" hidden>
   <div class="modal-card dispatch-data-modal pricing-modal" role="dialog" aria-modal="true" aria-labelledby="pricingTitle">
     <div class="driver-admin-modal-head">
-      <h2 id="pricingTitle">Ride prices</h2>
+      <h2 id="pricingTitle">Ride rates</h2>
       <button type="button" class="alt" id="pricingClose">Close</button>
     </div>
     <p class="tiny muted">These prices apply to new ride requests. Existing rides keep the price they were quoted.</p>
@@ -142,7 +142,7 @@
 <div id="pricingModal" class="modal" hidden>
   <div class="modal-card dispatch-data-modal pricing-modal" role="dialog" aria-modal="true" aria-labelledby="pricingTitle">
     <div class="driver-admin-modal-head">
-      <h2 id="pricingTitle">Ride prices</h2>
+      <h2 id="pricingTitle">Ride rates</h2>
       <button type="button" class="alt" id="pricingClose">Close</button>
     </div>
     <p class="tiny muted">These prices apply to new ride requests. Existing rides keep the price they were quoted.</p>
@@ -538,10 +538,19 @@
           var el = document.createElement("div");
           el.className = "tripbar driverrow" + (dr.active ? "" : " idle");
           el.setAttribute("data-driver", dr.name);
+          var currentStatus = dr.ride_status || dr.status;
+          var currentStage = {
+            accepted: "Driver accepted",
+            to_pickup: "Heading to pickup",
+            at_pickup: "At pickup",
+            to_dropoff: "Heading to drop-off",
+            at_dropoff: "At drop-off"
+          }[currentStatus] || statusWord(currentStatus);
           el.innerHTML = "<div><span class=\"status" + (dr.active ? " ok" : "") + "\">" +
             (dr.active ? "active" : "idle") + "</span> <strong>" + esc(dr.name) + "</strong> " +
-            '<span class="muted">' + esc(statusWord(dr.status)) +
-            (dr.active ? " \u00b7 seen " + Math.round(dr.idle_s) + "s ago" : " \u00b7 last seen " + clock(dr.last_seen)) +
+            '<span class="muted">' + esc(currentStage) +
+            (dr.ride_id ? " · ride " + esc(dr.ride_id) : "") +
+            (dr.active ? " · seen " + Math.round(dr.idle_s) + "s ago" : " · last seen " + clock(dr.last_seen)) +
             "</span></div>";
           box.appendChild(el);
         });
