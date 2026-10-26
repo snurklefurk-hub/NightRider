@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NightRider — Dispatch</title>
-<link rel="stylesheet" href="nightrider.css?v=dispatch-footer-tools-6">
+<link rel="stylesheet" href="nightrider.css?v=dispatch-tools-7">
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
 </head>
 <body class="dispatch">
@@ -24,7 +24,6 @@
       the rider as a handshake, so nothing is silently dropped.</p>
     <div class="row">
       <button type="button" id="refresh">Force refresh</button>
-      <button type="button" class="alt" id="sound" aria-pressed="true">Sound: On</button>
     </div>
     <p class="msg" id="msg" role="status" aria-live="polite"></p>
     <p class="tiny muted" id="conn">Connecting…</p>
@@ -50,12 +49,45 @@
   </div>
 
   <div class="card" id="rideBoard">
-    <h2>Recent rides <span class="tiny muted">(10 latest · 5 per row)</span></h2>
+    <h2>Recent rides</h2>
     <div id="rows" class="ridecards"></div>
   </div>
 
-  <div class="card" id="riderDirectory">
-    <h2>Known riders <span class="tiny muted">(NightRider account IDs — staff only)</span></h2>
+
+
+  <div class="exportbar dispatch-footer-actions">
+    <button type="button" class="alt" id="exportOpen">Export ride log…</button>
+    <button type="button" class="alt" id="copyDispatchLogin">Copy dispatch login URL</button>
+    <button type="button" class="alt" id="driverAdminOpen">Driver accounts</button>
+    <button type="button" class="alt" id="riderAdminOpen">Rider accounts</button>
+    <button type="button" class="alt" id="riderDirectoryOpen">Known riders</button>
+    <button type="button" class="alt" id="countsOpen">Counts by status</button>
+    <span id="dispatchFooterMsg" class="tiny muted" role="status" aria-live="polite"></span>
+    <button type="button" class="alt" id="signOut">Sign out</button>
+  </div>
+</main>
+
+<div id="riderAdminModal" class="modal" hidden>
+  <div class="modal-card dispatch-data-modal" role="dialog" aria-modal="true" aria-label="Rider accounts">
+    <div class="driver-admin-modal-head">
+      <span class="tiny muted">Rider accounts</span>
+      <button type="button" class="alt" id="riderAdminClose">Close</button>
+    </div>
+      <div class="card" id="riderAdmin">
+    <h2>Rider accounts</h2>
+    <div id="riderAccounts"></div>
+  </div>
+  </div>
+</div>
+
+<div id="riderDirectoryModal" class="modal" hidden>
+  <div class="modal-card dispatch-data-modal" role="dialog" aria-modal="true" aria-label="Known riders">
+    <div class="driver-admin-modal-head">
+      <span class="tiny muted">Known riders</span>
+      <button type="button" class="alt" id="riderDirectoryClose">Close</button>
+    </div>
+      <div class="card" id="riderDirectory">
+    <h2>Known riders</h2>
     <div style="overflow:auto">
       <table>
         <thead><tr><th>Account ID</th><th>Names</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Last seen</th></tr></thead>
@@ -63,26 +95,21 @@
       </table>
     </div>
   </div>
-
-  <div class="card" id="riderAdmin">
-    <h2>Rider accounts</h2>
-    <p class="tiny muted">If a rider loses access, reset their password after confirming their identity in person or by phone.</p>
-    <div id="riderAccounts"></div>
   </div>
+</div>
 
-  <div class="card counts">
-    <h3>Counts <span class="tiny muted">by status</span></h3>
+<div id="countsModal" class="modal" hidden>
+  <div class="modal-card dispatch-data-modal" role="dialog" aria-modal="true" aria-label="Counts by status">
+    <div class="driver-admin-modal-head">
+      <span class="tiny muted">Counts by status</span>
+      <button type="button" class="alt" id="countsClose">Close</button>
+    </div>
+      <div class="card counts">
+    <h3>Counts by status</h3>
     <div class="counts-strip" id="counts"></div>
   </div>
-
-  <div class="exportbar dispatch-footer-actions">
-    <button type="button" class="alt" id="exportOpen">Export ride log…</button>
-    <button type="button" class="alt" id="copyDispatchLogin">Copy dispatch login URL</button>
-    <button type="button" class="alt" id="driverAdminOpen">Driver accounts</button>
-    <span id="dispatchFooterMsg" class="tiny muted" role="status" aria-live="polite"></span>
-    <button type="button" class="alt" id="signOut">Sign out</button>
   </div>
-</main>
+</div>
 
 <!-- Driver account management, opened from the page footer -->
 <div id="driverAdminModal" class="modal" hidden>
@@ -113,6 +140,13 @@
     <p class="prompt" id="exportTitle">Export ride log</p>
     <p class="tiny muted">Choose a period (leave blank for everything) and download a plain-text log of
       every ride, with the hidden rider IDs, dispatch acknowledgments and ratings.</p>
+    <div class="export-range-presets" role="group" aria-label="Quick export ranges">
+      <button type="button" class="alt" data-export-hours="1">Last hour</button>
+      <button type="button" class="alt" data-export-hours="24">Last 24 hours</button>
+      <button type="button" class="alt" data-export-hours="168">Last week</button>
+      <button type="button" class="alt" data-export-hours="720">Last month</button>
+    </div>
+    <p id="exportRangeSummary" class="tiny muted" role="status" aria-live="polite" hidden></p>
     <div class="efield">
       <label for="from">From</label>
       <input id="from" type="date">
@@ -152,10 +186,7 @@
   var chatUnreadText = ""; /* first 25 chars of the newest waiting text */
   var driverNames = [];    /* names currently listed on the board */
   var driverAccounts = []; /* enabled accounts that can receive a ride */
-  var soundOn = true;      /* audio cue on/off */
-  var audioCtx = null;
-  var cueTimer = null;     /* repeats a quiet cue while texts wait */
-  var PREVIEW = 25;        /* characters shown in the unread preview */
+    var PREVIEW = 25;        /* characters shown in the unread preview */
   function preview(s) {
     s = String(s == null ? "" : s).replace(/\s+/g, " ").trim();
     return s.length > PREVIEW ? s.slice(0, PREVIEW) + "\u2026" : s;
@@ -536,33 +567,6 @@
     }
   }
 
-  function beep() {
-    if (!soundOn) { return; }
-    try {
-      if (!audioCtx) {
-        var AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) { return; }
-        audioCtx = new AC();
-      }
-      if (audioCtx.state === "suspended") { audioCtx.resume(); }
-      var t = audioCtx.currentTime;
-      [880, 1180].forEach(function (f, i) {
-        var o = audioCtx.createOscillator();
-        var g = audioCtx.createGain();
-        o.type = "sine";
-        o.frequency.value = f;
-        var start = t + i * 0.12;
-        g.gain.setValueAtTime(0.0001, start);
-        g.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, start + 0.11);
-        o.connect(g);
-        g.connect(audioCtx.destination);
-        o.start(start);
-        o.stop(start + 0.12);
-      });
-    } catch (e) { /* audio is a nicety, never break the board */ }
-  }
-
   /* Render new messages into the one shared window. Group texts and the
      private texts dispatch is party to all appear here; private ones are
      amber and tagged so they are never mistaken for the group thread. */
@@ -634,7 +638,7 @@
         if (privateIncoming) {
           var last = msgs.filter(function (m) { return m.channel === "private" || m.audience === "dispatch"; });
           if (last.length) { chatUnreadText = last[last.length - 1].text; }
-          chatUnread = true; beep(); applyUnread();
+          chatUnread = true; applyUnread();
         }
       }).catch(function () {}).then(function () { chatPolling = false; });
   }
@@ -687,41 +691,6 @@
   /* ---- wiring ----------------------------------------------------------- */
   $("refresh").addEventListener("click", function () { refresh(); renderRiders(); refreshDrivers(); pollChat(); });
 
-  /* A persistent, unobtrusive cue: while any text is waiting, replay a soft
-     single tone every few seconds until dispatch opens the thread. */
-  function softCue() {
-    if (!soundOn) { return; }
-    try {
-      if (!audioCtx) {
-        var AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) { return; }
-        audioCtx = new AC();
-      }
-      if (audioCtx.state === "suspended") { audioCtx.resume(); }
-      var t = audioCtx.currentTime;
-      var o = audioCtx.createOscillator();
-      var g = audioCtx.createGain();
-      o.type = "sine";
-      o.frequency.value = 1040;
-      g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.05, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
-      o.connect(g);
-      g.connect(audioCtx.destination);
-      o.start(t);
-      o.stop(t + 0.18);
-    } catch (e) { /* audio is a nicety, never break the board */ }
-  }
-
-  cueTimer = setInterval(function () {
-    if (chatUnread) { softCue(); }
-  }, 4000);
-  $("sound").addEventListener("click", function () {
-    soundOn = !soundOn;
-    $("sound").textContent = "Sound: " + (soundOn ? "On" : "Off");
-    $("sound").setAttribute("aria-pressed", soundOn ? "true" : "false");
-    if (soundOn) { beep(); }   /* also unlocks audio on the first click */
-  });
   $("exportOpen").addEventListener("click", function () { $("exportModal").hidden = false; $("exportmsg").textContent = ""; });
   $("exportClose").addEventListener("click", function () { $("exportModal").hidden = true; });
   $("driverAdminOpen").addEventListener("click", function () {
