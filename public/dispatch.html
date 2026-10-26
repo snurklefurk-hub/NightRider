@@ -724,6 +724,47 @@
   });
   $("exportOpen").addEventListener("click", function () { $("exportModal").hidden = false; $("exportmsg").textContent = ""; });
   $("exportClose").addEventListener("click", function () { $("exportModal").hidden = true; });
+  $("driverAdminOpen").addEventListener("click", function () {
+    $("driverAdminModal").hidden = false;
+    $("driverAdminClose").focus();
+  });
+  function closeDriverAdmin() {
+    $("driverAdminModal").hidden = true;
+    $("driverAdminOpen").focus();
+  }
+  $("driverAdminClose").addEventListener("click", closeDriverAdmin);
+  $("driverAdminModal").addEventListener("click", function (event) {
+    if (event.target === $("driverAdminModal")) { closeDriverAdmin(); }
+  });
+  document.addEventListener("keydown", function (event) {
+    if (event.key === "Escape" && !$("driverAdminModal").hidden) { closeDriverAdmin(); }
+  });
+  $("copyDispatchLogin").addEventListener("click", function () {
+    var url = window.location.origin + "/account.html?next=%2Fdispatch.html";
+    function fallbackCopy() {
+      var field = document.createElement("textarea");
+      field.value = url;
+      field.setAttribute("readonly", "");
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      var copied = false;
+      try { copied = document.execCommand("copy"); } catch (_) {}
+      field.remove();
+      return copied;
+    }
+    function report(copied) {
+      $("dispatchFooterMsg").textContent = copied ?
+        "Dispatch login URL copied." : "Could not copy automatically. Open /account.html?next=%2Fdispatch.html";
+    }
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(url).then(function () { report(true); })
+        .catch(function () { report(fallbackCopy()); });
+    } else {
+      report(fallbackCopy());
+    }
+  });
   $("export").addEventListener("click", doExport);
   $("chatSend").addEventListener("click", sendChat);
 
