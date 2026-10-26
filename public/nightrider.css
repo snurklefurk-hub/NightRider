@@ -341,3 +341,63 @@ button.pressed{animation:pressflair .4s ease-out}
 
 /* Dispatch function cards: reduce the surface opacity by half. */
 .dispatch .card{background:rgba(8,26,17,.45)}
+
+
+/* 1080p dispatch workstation layout: full-width 5 × 2 ride board first,
+   with live chat and driver tools immediately beneath it. */
+@media (min-width:1600px) and (min-height:850px){
+  .dispatch header{padding:.45rem 1.1rem}
+  .dispatch-main{width:100%;max-width:1880px;padding:.6rem 1.1rem 1rem;margin:0 auto;
+    display:grid;grid-template-columns:minmax(0,1.5fr) minmax(400px,.9fr);
+    grid-template-areas:
+      "title title"
+      "status status"
+      "rides rides"
+      "drivers chat"
+      "driveradmin rideradmin"
+      "directory directory"
+      "counts counts"
+      "export export";
+    gap:.6rem .85rem;align-items:start}
+  .dispatch-main>h1{grid-area:title;font-size:1.35rem;margin:0}
+  #dispatchStatus{grid-area:status;margin:0;padding:.55rem .8rem}
+  #dispatchStatus>p:first-child{display:none}
+  #dispatchStatus .row{max-width:440px}
+  #dispatchStatus .row button{margin-top:0;padding:.45rem .9rem}
+  #dispatchStatus #msg,#dispatchStatus #conn{display:inline-block;margin:.15rem .8rem 0 0}
+  #rideBoard{grid-area:rides;margin:0;padding:.65rem .8rem}
+  #rideBoard .ridecards{grid-template-columns:repeat(5,minmax(0,1fr));gap:.5rem}
+  #rideBoard .ridecard{min-width:0;min-height:0;padding:.45rem .55rem;border-radius:9px}
+  .ride-summary{display:block;list-style:none;cursor:pointer;min-width:0}
+  .ride-summary::-webkit-details-marker{display:none}
+  .ride-summary:focus-visible{outline:2px solid var(--cyan);outline-offset:3px;border-radius:5px}
+  .ride-summary-head{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:.35rem}
+  .ride-summary .rid{font-size:.76rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ride-summary .status{font-size:.58rem;padding:.06rem .35rem;white-space:nowrap}
+  .ride-expand-label{font-size:.58rem;color:var(--cyan);white-space:nowrap}
+  .ride-summary-meta{display:flex;justify-content:space-between;gap:.4rem;margin-top:.32rem;
+    font-size:.68rem;line-height:1.2;min-width:0}
+  .ride-summary-meta>*{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ride-summary-meta strong{color:var(--ice)}
+  .ride-summary-route{margin-top:.3rem;color:var(--mist);font-size:.65rem;line-height:1.2;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ridecard[open] .ride-summary{padding-bottom:.4rem;border-bottom:1px solid rgba(143,174,179,.2)}
+  .ride-detail{padding-top:.35rem}
+  .ride-detail .routeline{max-height:5.2em;overflow:auto}
+  .ride-detail .stageclock{max-height:4.4em;overflow:auto}
+  .ride-detail .row{display:flex;flex-wrap:wrap;gap:.35rem}
+  .ride-detail select{max-width:14rem}
+  .ride-detail button{margin:.35rem .25rem 0 0;padding:.28rem .55rem;font-size:.63rem}
+  #chatCard{grid-area:chat;top:4rem;max-height:calc(100vh - 4.7rem);min-height:390px;margin:0}
+  #chatCard .chatlog{min-height:200px}
+  #driverBoard{grid-area:drivers;margin:0}
+  #driverBoard>p.muted{display:none}
+  #driverAdmin{grid-area:driveradmin;margin:0}
+  #riderAdmin{grid-area:rideradmin;margin:0}
+  #riderDirectory{grid-area:directory;margin:0}
+  .dispatch-main>.counts{grid-area:counts;margin:0}
+  .dispatch-main>.exportbar{grid-area:export;margin:0;padding:0}
+}
+@media (min-width:1100px) and (max-width:1599px){
+  #rideBoard .ridecards{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
