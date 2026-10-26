@@ -557,6 +557,23 @@ def export_log(store, start=None, end=None):
         lines.append("  Status:   " + str(r.get("status"))
                      + ("   (dispatch ack " + fmt_ts(ack["at"]) + " by " + str(ack.get("by"))
                         + ", " + str(ack.get("latency_s")) + "s)" if ack else "   (no dispatch ack)"))
+        timeline = r.get("status_log") or []
+        if timeline:
+            lines.append("  Stage timeline:")
+            for entry in timeline:
+                stage = entry.get("status") or "unknown"
+                stage_label = {
+                    "requested": "Ride requested",
+                    "accepted": "Driver accepted",
+                    "to_pickup": "Driver heading to pickup",
+                    "at_pickup": "Arrived at pickup",
+                    "to_dropoff": "Departed pickup for drop-off",
+                    "at_dropoff": "Arrived at destination",
+                    "completed": "Ride completed",
+                    "cancelled": "Ride cancelled",
+                }.get(stage, STATUS_LABELS.get(stage, stage.replace("_", " ").title()))
+                if entry.get("at") is not None:
+                    lines.append("    " + stage_label + ": " + fmt_ts(entry["at"]))
         for entry in r.get("ratings") or []:
             lines.append("  Rating:   " + str(entry.get("by")) + " " + str(entry.get("stars")) + "/5"
                          + ("  by " + str(entry["by_name"]) if entry.get("by_name") else "")
