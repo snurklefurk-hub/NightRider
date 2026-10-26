@@ -569,8 +569,7 @@
       li.classList.toggle("done", i < idx);
     });
     $("rideChatCard").hidden = false;
-    $("rideChatAudience").querySelector('option[value="shared"]').disabled = false;
-    $("rideChatHelp").textContent = "Messages to your driver are also visible to Dispatch. Dispatch-only messages are not shown to your driver.";
+    $("rideChatHelp").textContent = "Messages with your driver and Dispatch stay together here. Use Reply on a message to keep your response private when needed.";
     loadRideMessages();
     showDriverRating(ride);
     if (ride.status === "completed" || ride.status === "cancelled") {
