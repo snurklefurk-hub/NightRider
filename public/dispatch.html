@@ -59,7 +59,7 @@
     <button type="button" class="alt" id="exportOpen">Export ride log…</button>
     <button type="button" class="alt" id="copyDispatchLogin">Copy dispatch login URL</button>
     <button type="button" class="alt" id="driverAdminOpen">Driver accounts</button>
-    <button type="button" class="alt" id="riderAdminOpen">Riders</button>
+    <button type="button" class="alt" id="riderAdminOpen">Rider accounts</button>
     <button type="button" class="alt" id="countsOpen">Counts by status</button>
     <button type="button" class="alt" id="pricingOpen">Ride prices</button>
     <span id="dispatchFooterMsg" class="tiny muted" role="status" aria-live="polite"></span>
@@ -73,15 +73,11 @@
       <span class="tiny muted">Riders</span>
       <button type="button" class="alt" id="riderAdminClose">Close</button>
     </div>
-    <div class="card" id="riderAdmin">
-      <h2>Rider accounts</h2>
-      <div id="riderAccounts"></div>
-    </div>
     <div class="card" id="riderDirectory">
-      <h2>Known riders</h2>
+      <h2>Rider accounts</h2>
       <div style="overflow:auto">
         <table>
-          <thead><tr><th>Account ID</th><th>Names</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Account created</th><th>Last seen</th></tr></thead>
+          <thead><tr><th>Rider</th><th>Account ID</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Account created</th><th>Last seen</th><th>Account actions</th></tr></thead>
           <tbody id="riderrows"></tbody>
         </table>
       </div>
@@ -247,6 +243,8 @@
   var chatUnreadText = ""; /* first 25 chars of the newest waiting text */
   var driverNames = [];    /* names currently listed on the board */
   var driverAccounts = []; /* enabled accounts that can receive a ride */
+  var riderAccountUsers = [];
+  var knownRiderRecords = [];
     var PREVIEW = 25;        /* characters shown in the unread preview */
   function preview(s) {
     s = String(s == null ? "" : s).replace(/\s+/g, " ").trim();
@@ -520,23 +518,8 @@
 
   function renderRiders() {
     api("/api/dispatch/riders", { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (d) {
-      var body = $("riderrows"); body.innerHTML = "";
-      var riders = d.riders || [];
-      if (!riders.length) { body.innerHTML = '<tr><td colspan="8" class="muted">No riders yet.</td></tr>'; return; }
-      riders.forEach(function (r) {
-        var s = r.summary || {};
-        var tr = document.createElement("tr");
-        tr.innerHTML =
-          '<td class="tiny">' + esc(r.id) + "</td>" +
-          "<td>" + esc((r.names || []).join(", ") || "—") + "</td>" +
-          '<td class="num">' + (s.rides || 0) + "</td>" +
-          '<td class="num">' + (s.ratings || 0) + "</td>" +
-          '<td class="num">' + (s.avg != null ? s.avg : "—") + "</td>" +
-          '<td class="num">' + (s.issues || 0) + "</td>" +
-          '<td class="tiny muted">' + (r.account_created ? new Date(r.account_created * 1000).toLocaleString() : "—") + "</td>" +
-          '<td class="tiny muted">' + (r.last_seen ? new Date(r.last_seen * 1000).toLocaleString() : "—") + "</td>";
-        body.appendChild(tr);
-      });
+      knownRiderRecords = d.riders || [];
+      renderRiderDirectory();
     }).catch(function () {});
   }
 
@@ -622,19 +605,57 @@
       .catch(function (error) { window.alert(error.message); });
   }
 
+  function renderRiderDirectory() {
+    var body = $("riderrows"); body.innerHTML = "";
+    var riderById = {};
+    knownRiderRecords.forEach(function (r) { riderById[r.id] = r; });
+    var matched = {};
+    var rows = riderAccountUsers.map(function (user) {
+      var id = "NR-" + String(user.id || "").slice(0, 10).toUpperCase();
+      var known = riderById[id] || null;
+      if (known) { matched[id] = true; }
+      return { user: user, known: known, id: id };
+    });
+    knownRiderRecords.forEach(function (known) {
+      if (!matched[known.id]) { rows.push({ user: null, known: known, id: known.id }); }
+    });
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="9" class="muted">No rider accounts yet.</td></tr>';
+      return;
+    }
+    rows.forEach(function (entry) {
+      var user = entry.user, known = entry.known, summary = known && known.summary || {};
+      var tr = document.createElement("tr");
+      var name = user ? user.display_name : ((known && known.names || []).join(", ") || "No login account");
+      var username = user ? user.username : "";
+      tr.innerHTML =
+        "<td><strong>" + esc(name) + "</strong>" + (username ? ' <span class="tiny muted">' + esc(username) + "</span>" : "") + "</td>" +
+        '<td class="tiny">' + esc(entry.id) + "</td>" +
+        '<td class="num">' + (summary.rides || 0) + "</td>" +
+        '<td class="num">' + (summary.ratings || 0) + "</td>" +
+        '<td class="num">' + (summary.avg != null ? summary.avg : "—") + "</td>" +
+        '<td class="num">' + (summary.issues || 0) + "</td>" +
+        '<td class="tiny muted">' + (user && user.created_at ? new Date(user.created_at * 1000).toLocaleString() : "—") + "</td>" +
+        '<td class="tiny muted">' + (known && known.last_seen ? new Date(known.last_seen * 1000).toLocaleString() : "—") + "</td>";
+      var actionCell = document.createElement("td");
+      if (user) {
+        var reset = document.createElement("button"); reset.type = "button"; reset.className = "alt";
+        reset.textContent = "Reset password";
+        reset.addEventListener("click", function () { resetAccountPassword(user); });
+        actionCell.appendChild(reset);
+      } else {
+        actionCell.textContent = "—";
+      }
+      tr.appendChild(actionCell);
+      body.appendChild(tr);
+    });
+  }
+
   function refreshRiderAccounts() {
     api("/api/dispatch/rider-accounts", {cache:"no-store"}).then(function (r) { return r.json(); })
       .then(function (data) {
-        var box = $("riderAccounts"); box.innerHTML = "";
-        (data.users || []).forEach(function (u) {
-          var row = document.createElement("div"); row.className = "tripbar";
-          row.innerHTML = "<span><strong>" + esc(u.display_name) + "</strong> <span class=\"muted\">" + esc(u.username) + "</span></span>";
-          var reset = document.createElement("button"); reset.type = "button"; reset.className = "alt";
-          reset.textContent = "Reset password";
-          reset.addEventListener("click", function () { resetAccountPassword(u); });
-          row.appendChild(reset); box.appendChild(row);
-        });
-        if (!box.children.length) box.innerHTML = '<p class="muted">No rider accounts yet.</p>';
+        riderAccountUsers = data.users || [];
+        renderRiderDirectory();
       }).catch(function () {});
   }
 
