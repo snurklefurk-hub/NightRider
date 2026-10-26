@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NightRider — Driver</title>
-<link rel="stylesheet" href="nightrider.css">
+<link rel="stylesheet" href="nightrider.css?v=dispatch-map-1">
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
 </head>
 <body>
@@ -22,6 +22,8 @@
     <p class="muted">Signed in as <strong id="driverName">—</strong></p>
     <button type="button" id="refresh">Refresh open rides</button>
     <button type="button" class="alt" id="useTestDriver">Use test driver (Savannah City Hall)</button>
+    <button type="button" class="alt" id="driverShareLocation" aria-pressed="false">Share location with Dispatch</button>
+    <p class="tiny muted" id="driverLocationStatus" role="status" aria-live="polite">Location is not being shared from this browser.</p>
     <p class="msg" id="msg"></p>
   </div>
   <div class="card">
@@ -73,11 +75,47 @@
   /* Heartbeat so dispatch can list this driver as active. The status is the
      ride stage this driver is currently in, or "available" when idle. */
   var myStage = "available";
+  var driverGps = null, driverWatch = null, driverSharing = false, locationWasUsed = false;
   function ping(status) {
     var d = driver();
     if (!d) { return; }
-    api("/api/drivers/ping", { name: d, status: status || myStage || "available" }).catch(function () {});
+    var body = { name: d, status: status || myStage || "available" };
+    if (locationWasUsed) { body.location_sharing = driverSharing; }
+    if (driverSharing && driverGps && Date.now() - driverGps.timestamp <= 110000) {
+      body.coords = { lat: driverGps.coords.latitude, lng: driverGps.coords.longitude };
+      body.location_at = driverGps.timestamp / 1000;
+      body.accuracy = driverGps.coords.accuracy;
+    }
+    api("/api/drivers/ping", body).catch(function () {});
   }
+  function driverPosition(position) {
+    if (!driverSharing) { return; }
+    driverGps = position;
+    $("driverLocationStatus").textContent = "Location shared with Dispatch while this page is open · " + new Date(position.timestamp).toLocaleTimeString();
+  }
+  function stopDriverLocation() {
+    driverSharing = false; driverGps = null;
+    if (driverWatch !== null) { navigator.geolocation.clearWatch(driverWatch); driverWatch = null; }
+    $("driverShareLocation").textContent = "Share location with Dispatch";
+    $("driverShareLocation").setAttribute("aria-pressed", "false");
+    $("driverLocationStatus").textContent = "Location sharing is off.";
+    ping();
+  }
+  $("driverShareLocation").addEventListener("click", function () {
+    if (driverSharing) { stopDriverLocation(); return; }
+    if (!navigator.geolocation) { $("driverLocationStatus").textContent = "This browser cannot share location."; return; }
+    locationWasUsed = true; driverSharing = true;
+    $("driverShareLocation").textContent = "Stop sharing location";
+    $("driverShareLocation").setAttribute("aria-pressed", "true");
+    $("driverLocationStatus").textContent = "Waiting for a location fix…";
+    driverWatch = navigator.geolocation.watchPosition(function (position) { driverPosition(position); ping(); }, function (error) {
+      if (error.code === 1) { stopDriverLocation(); }
+      $("driverLocationStatus").textContent = error.code === 1 ? "Location permission denied. Allow it in your browser to share with Dispatch." : "Waiting for a fresh location fix…";
+    }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 });
+  });
+  window.addEventListener("pagehide", function () {
+    if (driverWatch !== null) { navigator.geolocation.clearWatch(driverWatch); }
+  });
 
   function setChatReply(message) {
     if (message.ride_id) {
@@ -354,7 +392,14 @@
   }).catch(function () { $("msg").textContent = "Could not load your NightRider account."; });
   setInterval(load, 5000);
   setInterval(loadChat, 4000);
-  setInterval(function () { ping(); }, 30000);
+  setInterval(function () {
+    if (driverSharing && (!driverGps || Date.now() - driverGps.timestamp > 20000)) {
+      navigator.geolocation.getCurrentPosition(driverPosition, function () {}, {
+        enableHighAccuracy: true, maximumAge: 10000, timeout: 15000
+      });
+    }
+    ping();
+  }, 10000);
 })();
 </script>
 <script>
@@ -366,4 +411,5 @@ document.getElementById("signOut").addEventListener("click", function () {
   <script src="/nightrider-motion.js"></script>
 </body>
 </html>
+
 

@@ -445,3 +445,9 @@ button.pressed{animation:pressflair .4s ease-out}
 /* Dispatch refresh control: compact and aligned to the status card's right edge. */
 .dispatch-refresh-row{display:flex;justify-content:flex-end;width:100%;max-width:none!important;margin:.35rem 0}
 .dispatch-refresh-button{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;min-width:40px;padding:0;margin:0;border-radius:6px;font-size:1.45rem;line-height:1}
+
+.rider-location-panel{padding:.7rem .8rem;margin:.75rem 0}
+.location-sharing-toggle{display:flex;align-items:center;gap:.65rem;color:var(--ice);font-size:.82rem}
+.location-sharing-toggle input{width:auto;flex:0 0 auto;accent-color:var(--ok);margin:0}
+.rider-location-panel p{margin:.4rem 0 0}
+

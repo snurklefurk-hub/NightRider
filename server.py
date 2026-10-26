@@ -270,13 +270,17 @@ def read_events(since, ride=None, timeout=25.0):
 # Anything seen inside DRIVER_ACTIVE_WINDOW counts as "active" on dispatch.
 DRIVER_ACTIVE_WINDOW = 90.0
 MESSAGE_LIMIT = 500
+# Live rider fixes stay in memory, outside ride history and database snapshots.
+LOCATION_FRESH_SECONDS = 120.0
+RIDER_LOCATIONS = {}
+RIDER_REVOKED_SHARES = {}
 # A driver is available/idle/offline, or reports the ride stage they are in
 # ("accepted", "to_pickup", ...) so dispatch sees live stage status.
 DRIVER_STATUSES = ("available", "busy", "offline", "accepted", "to_pickup",
                    "at_pickup", "to_dropoff", "at_dropoff", "completed")
 
 
-def touch_driver(store, name, coords=None, status=None):
+def touch_driver(store, name, coords=None, status=None, location_at=None, accuracy=None):
     """Record a driver heartbeat and return the stored record."""
     name = clean_text(name, 60)
     if not name:
@@ -286,6 +290,8 @@ def touch_driver(store, name, coords=None, status=None):
     rec["last_seen"] = time.time()
     if coords:
         rec["coords"] = coords
+        rec["location_at"] = location_at if location_at is not None else time.time()
+        rec["location_accuracy"] = accuracy
     if status in DRIVER_STATUSES:
         rec["status"] = status
     rec.setdefault("status", "available")
@@ -307,7 +313,70 @@ def dispatch_driver(rec, now=None):
         "last_seen": rec.get("last_seen"),
         "idle_s": round(max(0.0, now - float(rec.get("last_seen") or 0)), 1),
         "coords": rec.get("coords"),
+        "location_at": rec.get("location_at"),
+        "location_accuracy": rec.get("location_accuracy"),
     }
+
+
+def read_location(data, now=None):
+    """Accept a recent device fix; never turn a cached old fix into a live one."""
+    now = time.time() if now is None else now
+    if not isinstance(data, dict):
+        return None, "Send a location object."
+    coords = parse_coords(data.get("coords"))
+    if coords is None:
+        return None, "A valid latitude and longitude are required."
+    try:
+        at = float(data.get("location_at", now))
+        accuracy = data.get("accuracy")
+        accuracy = float(accuracy) if accuracy is not None else None
+    except (TypeError, ValueError, OverflowError):
+        return None, "Invalid location timestamp or accuracy."
+    if not math.isfinite(at) or not now - LOCATION_FRESH_SECONDS <= at <= now + 30:
+        return None, "This location is too old. Request a new location fix."
+    if accuracy is not None and (not math.isfinite(accuracy) or not 0 <= accuracy <= 100000):
+        return None, "Invalid location accuracy."
+    return {"coords": coords, "at": min(at, now), "accuracy": accuracy}, None
+
+
+def dispatch_map_snapshot(store, now=None):
+    """Only dispatch receives live rider positions, and only during active rides."""
+    now = time.time() if now is None else now
+    for key, revoked_at in list(RIDER_REVOKED_SHARES.items()):
+        if now - revoked_at > 300:
+            RIDER_REVOKED_SHARES.pop(key, None)
+    for ride_id, fix in list(RIDER_LOCATIONS.items()):
+        ride = store.get("rides", {}).get(ride_id)
+        if not ride or ride.get("status") in ("completed", "cancelled") or now - fix["at"] > LOCATION_FRESH_SECONDS:
+            RIDER_LOCATIONS.pop(ride_id, None)
+    active_rides = [r for r in store.get("rides", {}).values()
+                    if r.get("status") not in ("completed", "cancelled")]
+    active_rides.sort(key=lambda r: r.get("created") or 0, reverse=True)
+    drivers = []
+    for rec in store.get("drivers", {}).values():
+        item = dispatch_driver(rec, now)
+        item["color"] = store.get("driver_colors", {}).get(rec.get("account_id"), "#8bbcff")
+        item["location_fresh"] = bool(item.get("location_at") and
+            now - float(item["location_at"]) <= LOCATION_FRESH_SECONDS)
+        current = next((r for r in active_rides if r.get("driver") == rec.get("name")), None)
+        if current:
+            item["ride_id"] = current["id"]
+            item["status"] = current["status"]
+        drivers.append(item)
+    rides = []
+    for ride in active_rides:
+        item = {key: ride.get(key) for key in (
+            "id", "rider_name", "driver", "status", "pickup", "dropoff",
+            "pickup_coords", "dropoff_coords", "distance_mi", "created")}
+        fix = RIDER_LOCATIONS.get(ride["id"])
+        if fix and now - fix["at"] <= LOCATION_FRESH_SECONDS:
+            item["rider_location"] = {key: fix[key] for key in ("coords", "at", "accuracy")}
+        else:
+            RIDER_LOCATIONS.pop(ride["id"], None)
+            item["rider_location"] = None
+        rides.append(item)
+    return {"rides": rides, "drivers": drivers, "now": now,
+            "location_fresh_seconds": LOCATION_FRESH_SECONDS}
 
 
 def add_message(store, sender, text, driver=None, private=False, role=None):
@@ -1058,6 +1127,10 @@ class Handler(SimpleHTTPRequestHandler):
         return self.send_json(200, snapshot)
 
     def dispatch_get(self, path, qs):
+        if path == "/api/dispatch/map":
+            with LOCK:
+                snapshot = dispatch_map_snapshot(STORE)
+            return self.send_json(200, snapshot)
         if path == "/api/dispatch/pricing":
             return self.send_json(200, {"pricing": current_pricing()})
         if path == "/api/dispatch/users":
@@ -1157,7 +1230,7 @@ class Handler(SimpleHTTPRequestHandler):
             if path == "/api/dispatch/":
                 return self.send_json(404, {"error": "not found"})
             if path.startswith("/api/dispatch/"):
-                if os.environ.get("DATABASE_URL", "").strip() and not self.require_role("dispatch"):
+                if (path == "/api/dispatch/map" or os.environ.get("DATABASE_URL", "").strip()) and not self.require_role("dispatch"):
                     return
                 return self.dispatch_get(path, qs)
             if path == "/api/config":
@@ -1269,6 +1342,38 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             return self.post_chat_message(user, data)
 
+        if path.startswith("/api/rides/") and path.endswith("/location"):
+            user = self.require_role("rider")
+            if not user:
+                return
+            if not isinstance(data, dict):
+                return self.send_json(400, {"error": "Send a location object."})
+            ride_id = path.split("/")[3]
+            with LOCK:
+                ride = STORE["rides"].get(ride_id)
+                if not ride or ride.get("rider_account_id") != user["id"]:
+                    return self.send_json(404, {"error": "not found"})
+                sharing_id = data.get("sharing_id")
+                valid_sharing_id = isinstance(sharing_id, str) and 8 <= len(sharing_id) <= 80
+                if data.get("sharing") is False:
+                    RIDER_LOCATIONS.pop(ride_id, None)
+                    if valid_sharing_id:
+                        RIDER_REVOKED_SHARES[(ride_id, sharing_id)] = time.time()
+                    return self.send_json(200, {"sharing": False})
+                if data.get("sharing") is not True:
+                    return self.send_json(400, {"error": "Choose whether to share your live location."})
+                if not valid_sharing_id:
+                    return self.send_json(400, {"error": "Start a new location sharing session."})
+                if (ride_id, sharing_id) in RIDER_REVOKED_SHARES:
+                    return self.send_json(409, {"error": "Location sharing was stopped."})
+                if ride.get("status") in ("completed", "cancelled"):
+                    return self.send_json(409, {"error": "This ride has ended. Location sharing is off."})
+                fix, error = read_location(data)
+                if error:
+                    return self.send_json(400, {"error": error})
+                RIDER_LOCATIONS[ride_id] = dict(fix, sharing_id=sharing_id)
+            return self.send_json(200, {"sharing": True, "at": fix["at"]})
+
         if path == "/api/rides":
             user = self.require_role("rider")
             if os.environ.get("DATABASE_URL", "").strip() and not user:
@@ -1336,9 +1441,21 @@ class Handler(SimpleHTTPRequestHandler):
             name = user["display_name"] if user else clean_text(data.get("name"), 60)
             if not name:
                 return self.send_json(400, {"error": "name required"})
-            coords = parse_coords(data.get("coords"))
+            fix = None
+            if data.get("coords") is not None:
+                fix, error = read_location(data)
+                if error:
+                    return self.send_json(400, {"error": error})
             with LOCK:
-                rec = touch_driver(STORE, name, coords, clean_text(data.get("status"), 20))
+                rec = touch_driver(STORE, name, fix["coords"] if fix else None,
+                    clean_text(data.get("status"), 20),
+                    location_at=fix["at"] if fix else None,
+                    accuracy=fix["accuracy"] if fix else None)
+                if user:
+                    rec["account_id"] = user["id"]
+                if data.get("location_sharing") is False:
+                    for key in ("coords", "location_at", "location_accuracy"):
+                        rec.pop(key, None)
                 save(STORE)
                 out = dispatch_driver(rec)
             return self.send_json(200, {"ok": True, "driver": out})
@@ -1523,6 +1640,8 @@ class Handler(SimpleHTTPRequestHandler):
                         log_status(ride, "cancelled")
                 else:
                     return self.send_json(404, {"error": "unknown action"})
+                if ride.get("status") in ("completed", "cancelled"):
+                    RIDER_LOCATIONS.pop(rid, None)
                 save(STORE)
                 snapshot = public_ride(ride, STORE)
             # Status changes are pushed the same way, so the rider's screen
@@ -1538,4 +1657,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", "8000"))
     print(f"NightRider listening on http://0.0.0.0:{port}")
     ThreadingHTTPServer(("0.0.0.0", port), Handler).serve_forever()
+
 

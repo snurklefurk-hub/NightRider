@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NightRider — Dispatch</title>
-<link rel="stylesheet" href="nightrider.css?v=dispatch-tools-11">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="nightrider.css?v=dispatch-map-1">
+<link rel="stylesheet" href="/dispatch-map.css?v=1">
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
 </head>
 <body class="dispatch">
@@ -29,6 +31,35 @@
     <p class="tiny muted" id="conn">Connecting…</p>
   </div>
 
+  <section class="card dispatch-map-card" id="dispatchMapCard" aria-labelledby="dispatchMapTitle">
+    <div class="dispatch-map-heading">
+      <h2 id="dispatchMapTitle">Live map</h2>
+      <div class="dispatch-map-actions">
+        <button type="button" class="alt" id="mapFitAll">Fit all</button>
+        <button type="button" class="alt" id="mapDispatchLocation" aria-pressed="false">Show my location</button>
+        <button type="button" class="alt" id="mapFullscreen">Full screen</button>
+      </div>
+    </div>
+    <div class="dispatch-map-filters">
+      <label for="mapRideSelect" class="tiny muted">Ride</label>
+      <select id="mapRideSelect"><option value="">All active rides</option></select>
+      <label class="map-offline-toggle"><input type="checkbox" id="mapShowOffline"> Show offline drivers</label>
+    </div>
+    <div id="dispatchMap" class="dispatch-map-canvas" role="region" aria-label="Live dispatch map showing drivers, ride endpoints, routes and shared rider locations"></div>
+    <div class="dispatch-map-legend" aria-label="Map legend">
+      <span><i class="legend-dot driver"></i>Driver</span>
+      <span><i class="legend-dot pickup"></i>Pickup</span>
+      <span><i class="legend-dot dropoff"></i>Drop-off</span>
+      <span><i class="legend-dot rider"></i>Rider</span>
+      <span><i class="legend-dot dispatch"></i>Dispatch</span>
+      <span><i class="legend-route"></i>Trip route</span>
+      <span><i class="legend-route approach"></i>Driver's current leg</span>
+    </div>
+    <p class="tiny muted" id="dispatchMapStatus" role="status" aria-live="polite">Loading live locations…</p>
+    <p class="tiny muted" id="mapRouteInfo">Choose a ride to focus its route. Routes are estimates and do not include live traffic.</p>
+  </section>
+
+  <div class="dispatch-side">
   <div class="card" id="driverBoard">
     <h2>Active drivers <span class="tiny muted" id="drivercount"></span></h2>
     <p class="muted">Every driver page that checked in within the last 90 seconds shows here.
@@ -46,6 +77,7 @@
       <button type="button" id="chatSend">Send</button>
     </div>
     <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
+  </div>
   </div>
 
   <div class="card" id="rideBoard">
@@ -138,35 +170,6 @@
   </div>
 </div>
 
-<!-- Dispatch fare settings -->
-<div id="pricingModal" class="modal" hidden>
-  <div class="modal-card dispatch-data-modal pricing-modal" role="dialog" aria-modal="true" aria-labelledby="pricingTitle">
-    <div class="driver-admin-modal-head">
-      <h2 id="pricingTitle">Ride rates</h2>
-      <button type="button" class="alt" id="pricingClose">Close</button>
-    </div>
-    <p class="tiny muted">These prices apply to new ride requests. Existing rides keep the price they were quoted.</p>
-    <form id="pricingForm">
-      <div class="pricing-grid">
-        <label>Flag drop ($)
-          <input id="priceFlagDrop" type="number" min="0" max="10000" step="0.01" required>
-        </label>
-        <label>Driver to pickup ($ per mile)
-          <input id="priceApproach" type="number" min="0" max="10000" step="0.01" required>
-        </label>
-        <label>Pickup to drop-off ($ per mile)
-          <input id="priceTrip" type="number" min="0" max="10000" step="0.01" required>
-        </label>
-        <label>Multiplier
-          <input id="priceMultiplier" type="number" min="0.01" max="100" step="0.01" required>
-        </label>
-      </div>
-      <button type="submit" id="pricingSave">Save prices</button>
-      <p id="pricingMsg" class="msg" role="status" aria-live="polite"></p>
-    </form>
-  </div>
-</div>
-
 <!-- Driver account management, opened from the page footer -->
 <div id="driverAdminModal" class="modal" hidden>
   <div class="modal-card driver-admin-modal" role="dialog" aria-modal="true" aria-labelledby="driverAdminModalTitle">
@@ -219,6 +222,8 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/dispatch-map.js?v=1"></script>
 <script>
 (function () {
   "use strict";
@@ -290,6 +295,7 @@
   }
 
   function handle(ev) {
+    if (window.NightRiderDispatchMap) { window.NightRiderDispatchMap.refresh(); }
     if (ev.type === "ride_requested") {
       /* The handshake: acknowledge the moment we have the request in hand.
          The request itself lands in Recent rides via refresh(). */
@@ -488,6 +494,14 @@
       }
       var assignment = assignmentControls(r);
       if (assignment) { detail.appendChild(assignment); }
+      if (r.status !== "completed" && r.status !== "cancelled" && r.pickup_coords && r.dropoff_coords) {
+        var showMap = document.createElement("button");
+        showMap.type = "button"; showMap.className = "alt"; showMap.textContent = "Show on map";
+        showMap.addEventListener("click", function () {
+          if (window.NightRiderDispatchMap) { window.NightRiderDispatchMap.focusRide(r.id); }
+        });
+        detail.appendChild(showMap);
+      }
       if (r.status !== "completed" && r.status !== "cancelled") {
         var b = document.createElement("button"); b.type = "button"; b.className = "alt"; b.style.marginLeft = "0"; b.textContent = "Cancel";
         b.addEventListener("click", function () { cancel(r.id); });
@@ -552,6 +566,15 @@
             (dr.ride_id ? " · ride " + esc(dr.ride_id) : "") +
             (dr.active ? " · seen " + Math.round(dr.idle_s) + "s ago" : " · last seen " + clock(dr.last_seen)) +
             "</span></div>";
+          if (dr.coords && dr.location_at) {
+            var locate = document.createElement("button"); locate.type = "button"; locate.className = "alt driver-map-locate";
+            locate.textContent = "Locate";
+            locate.setAttribute("aria-label", "Locate " + dr.name + " on the map");
+            locate.addEventListener("click", function () {
+              if (window.NightRiderDispatchMap) { window.NightRiderDispatchMap.focusDriver(dr.name); }
+            });
+            el.appendChild(locate);
+          }
           box.appendChild(el);
         });
       }).catch(function () {});
@@ -957,52 +980,6 @@
     }).finally(function () { button.disabled = false; });
   });
 
-  function fillPricingForm(pricing) {
-    $("priceFlagDrop").value = Number(pricing.flag_drop).toFixed(2);
-    $("priceApproach").value = Number(pricing.approach_per_mile).toFixed(2);
-    $("priceTrip").value = Number(pricing.trip_per_mile).toFixed(2);
-    $("priceMultiplier").value = Number(pricing.multiplier).toFixed(2);
-  }
-  function refreshPricing() {
-    $("pricingMsg").textContent = "Loading saved prices…";
-    api("/api/dispatch/pricing", {cache:"no-store"}).then(function (r) {
-      return r.json().then(function (data) {
-        if (!r.ok) { throw new Error(data.error || "Could not load prices."); }
-        return data;
-      });
-    }).then(function (data) {
-      fillPricingForm(data.pricing || {});
-      $("pricingMsg").textContent = "";
-    }).catch(function (error) { $("pricingMsg").textContent = error.message; });
-  }
-  $("pricingOpen").addEventListener("click", refreshPricing);
-  $("pricingForm").addEventListener("submit", function (event) {
-    event.preventDefault();
-    var button = $("pricingSave");
-    button.disabled = true;
-    $("pricingMsg").textContent = "Saving prices…";
-    var payload = {
-      flag_drop: Number($("priceFlagDrop").value),
-      approach_per_mile: Number($("priceApproach").value),
-      trip_per_mile: Number($("priceTrip").value),
-      multiplier: Number($("priceMultiplier").value)
-    };
-    api("/api/dispatch/pricing", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload)
-    }).then(function (r) {
-      return r.json().then(function (data) {
-        if (!r.ok) { throw new Error(data.error || "Could not save prices."); }
-        return data;
-      });
-    }).then(function (data) {
-      fillPricingForm(data.pricing);
-      $("pricingMsg").textContent = "Prices saved. They will apply to future ride requests.";
-    }).catch(function (error) {
-      $("pricingMsg").textContent = error.message;
-    }).finally(function () { button.disabled = false; });
-  });
-
   $("driverAccountForm").addEventListener("submit", function (event) {
     event.preventDefault();
     var button = event.currentTarget.querySelector("button[type=submit]");
@@ -1049,4 +1026,5 @@ document.getElementById("signOut").addEventListener("click", function () {
   <script src="/nightrider-motion.js"></script>
 </body>
 </html>
+
 

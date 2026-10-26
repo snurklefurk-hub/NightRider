@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NightRider — Request a ride</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="nightrider.css">
+<link rel="stylesheet" href="nightrider.css?v=dispatch-map-1">
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
 </head>
 <body class="rider">
@@ -127,6 +127,14 @@
       <p class="msg" id="riderRatingMsg" style="padding:0 .8rem"></p>
     </div>
   </div>
+  <div id="riderLocationPanel" class="farebox rider-location-panel" hidden>
+    <label class="location-sharing-toggle">
+      <input type="checkbox" id="riderLocationShare">
+      <span>Share my live location with Dispatch</span>
+    </label>
+    <p class="tiny muted">Optional. Shared only with Dispatch during this ride while this page is open. You can stop at any time.</p>
+    <p id="riderLocationMessage" class="tiny muted" role="status" aria-live="polite">Live location is off.</p>
+  </div>
   <div id="rideChatCard" class="card" hidden>
     <h2>Chat</h2>
     <p class="tiny muted" id="rideChatHelp">Messages with your driver and Dispatch stay together here. Dispatch-only replies are marked private.</p>
@@ -141,6 +149,7 @@
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/rider-location.js?v=1"></script>
 <script>
 (function () {
   "use strict";
@@ -547,6 +556,7 @@
 
   function renderRide(ride) {
     if (!ride || ride.error) { return; }
+    window.dispatchEvent(new CustomEvent("nightrider:ride", { detail: ride }));
     if (ride.status === "requested") {
       showMatching();
       $("rideChatCard").hidden = false;
@@ -740,6 +750,7 @@
   function cancelMatch() { cancelRide(); }
 
   function resetAll() {
+    window.dispatchEvent(new CustomEvent("nightrider:ride", { detail: null }));
     if (state.routeLine) { map.removeLayer(state.routeLine); state.routeLine = null; }
     if (state.pickupMarker) { map.removeLayer(state.pickupMarker); state.pickupMarker = null; }
     if (state.dropoffMarker) { map.removeLayer(state.dropoffMarker); state.dropoffMarker = null; }
@@ -871,4 +882,5 @@ document.getElementById("signOut").addEventListener("click", function () {
   <script src="/nightrider-motion.js"></script>
 </body>
 </html>
+
 
