@@ -11,7 +11,8 @@
   <!-- MapLibre v6 is an ES module; map-lab.js imports its .mjs bundle with a CDN fallback. -->
   <script defer src="/map-lab-midnight.js?v=1"></script>
   <script defer src="/map-theme.js?v=2"></script>
-  <script defer src="/map-lab.js?v=4"></script>
+  <script defer src="/map-lab-trace.js?v=1"></script>
+  <script defer src="/map-lab.js?v=5"></script>
   <link rel="stylesheet" href="/aero-theme.css?v=2">
   <script src="/aero-theme.js?v=2"></script>
 </head>
@@ -53,6 +54,12 @@
         <button id="labRefresh" type="button">Refresh</button>
         <button id="labMyLocation" type="button" aria-pressed="false">My location</button>
       </div>
+      <div class="control-actions lab-trace-tools">
+        <label for="labTraceFile">Review Android Field Test CSV (local file)</label>
+        <input id="labTraceFile" type="file" accept=".csv,text/csv,text/plain" aria-describedby="labTraceStatus">
+        <button id="labTraceClear" type="button" disabled>Clear trail</button>
+        <span id="labTraceStatus" role="status" aria-live="polite">No trace loaded · file stays in this browser tab</span>
+      </div>
     </section>
     <section class="map-stage" aria-label="NightRider vector map preview">
       <div id="labMap" role="application" aria-label="Flat 2D NightRider Midnight vector map"></div>
@@ -74,9 +81,10 @@
         <span><i class="dot dispatch"></i>Dispatcher</span>
         <span><i class="line trip"></i>Trip</span>
         <span><i class="line approach"></i>Approach</span>
+        <span><i class="line field-trace"></i>Field GPS trace</span>
       </div>
       <div id="labCamera" class="camera">Center: — · Zoom: —</div>
-      <p class="lab-note">This page is an isolated visual comparison, not the live Dispatch map. Live mode only reads the existing role-protected map endpoint; it never acknowledges, assigns, advances, or cancels rides. Your location is requested only if you press My location. OSRM estimates exclude traffic. OpenFreeMap and OpenStreetMap attribution is shown on the map.</p>
+      <p class="lab-note">This page is an isolated visual comparison, not the live Dispatch map. Live mode only reads the existing role-protected map endpoint; it never acknowledges, assigns, advances, or cancels rides. Your location is requested only if you press My location. Imported GPS traces are processed locally and cleared on leaving the page; map tile requests can reveal the visible map area to OpenFreeMap. OSRM estimates exclude traffic. OpenFreeMap and OpenStreetMap attribution is shown on the map.</p>
     </footer>
   </main>
 </body>

@@ -54,6 +54,7 @@ jobs:
       - name: Syntax-check isolated map lab JavaScript
         run: |
           node --check public/map-lab.js
+          node --check public/map-lab-trace.js
           node --check public/map-lab-midnight.js
           node --check public/map-theme.js
           node --check public/aero-theme.js

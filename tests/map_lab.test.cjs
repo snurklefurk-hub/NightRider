@@ -62,7 +62,7 @@ test("MapLibre v6 loads its actual ESM entrypoint and has a second CDN", () => {
   assert.ok(js.includes("https://cdn.jsdelivr.net/npm/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"));
   assert.ok(js.includes("await import(url)"));
   assert.ok(js.includes("GPUInitializationError"));
-  assert.ok(html.includes("/map-lab.js?v=4"));
+  assert.ok(html.includes("/map-lab.js?v=5"));
   assert.ok(html.includes("maplibre-gl@6.15.0/dist/maplibre-gl.css"));
 });
 
@@ -71,4 +71,22 @@ test("production Leaflet pages remain separate from the lab", () => {
   assert.match(read("public/index.html"), /leaflet@1\.9\.4/);
   assert.ok(!read("public/dispatch.html").includes("map-lab.js"));
   assert.ok(!read("public/index.html").includes("map-lab.js"));
+});
+
+
+test("locally parses a NightRider Field Test CSV without any server request", () => {
+  const trace = require("../public/map-lab-trace.js");
+  const file = "epoch_ms,latitude,longitude,accuracy_m,speed_mps\n" +
+    "1793113000000,32.0809,-81.0912,5.0,3.5\n" +
+    "1793113001500,32.0811,-81.0909,8.0,7.2\n";
+  const points = trace.parseCsv(file);
+  assert.equal(points.length, 2);
+  assert.deepEqual([points[1].lon, points[1].lat], [-81.0909, 32.0811]);
+  assert.throws(() => trace.parseCsv(file.replace("32.0811", "999")), /Invalid coordinates/);
+  assert.throws(() => trace.parseCsv(file.replace("1793113001500", "1793113000000")), /Invalid coordinates/);
+  assert.throws(() => trace.parseCsv("unexpected.csv"), /not a NightRider/);
+  assert.match(read("public/map-lab.html"), /id="labTraceFile"/);
+  assert.match(read("public/map-lab.js"), /lab-field-trace/);
+  assert.match(read("public/map-lab.html"), /map-lab-trace\.js/);
+  assert.doesNotMatch(read("public/map-lab-trace.js"), /fetch\(|XMLHttpRequest|localStorage/);
 });

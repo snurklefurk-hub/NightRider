@@ -49,3 +49,8 @@ a{color:var(--cyan)}
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
 .maplibregl-ctrl-attrib{background:#e8f0f1c7!important;color:#102634!important}
 @media(max-width:760px){.map-stage{height:62vh;min-height:350px}.control-group{min-width:130px}.lab-header{padding:10px}.lab-controls{padding:9px}.lab-note{line-height:1.55}}
+
+.lab-trace-tools{border-top:1px solid var(--edge);padding-top:7px;color:var(--muted);font-size:.77rem;align-items:center}
+.lab-trace-tools input{max-width:230px;color:var(--cream);font:inherit}
+#labTraceStatus{flex:1 1 220px}
+.line.field-trace{border-top:3px solid #ffab3a}

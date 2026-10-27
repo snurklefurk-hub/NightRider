@@ -58,6 +58,7 @@
   let selectedStyle = theme ? theme.getMode() : "dark", localPosition = null, styleReady = false;
   let lastLiveSnapshotAt = 0, activeRequest = null, routeToken = 0;
   let nextOsrmAt = 0, pendingRoute = Promise.resolve();
+  let importedTrace = []; // Local browser memory only; never sent to NightRider.
   const map = new maplibregl.Map({
     container: mapHost, style: selectedStyle === "dark" ? DARK : FIORD,
     center: PRESETS.streets.center, zoom: PRESETS.streets.zoom,
@@ -228,7 +229,8 @@
     }] };
   }
   function ensureRouteLayers() {
-    [["lab-trip", "#2fe9ff"], ["lab-approach", "#ffc36b"]].forEach(([id, color]) => {
+    [["lab-trip", "#2fe9ff"], ["lab-approach", "#ffc36b"],
+      ["lab-field-trace", "#ffab3a"]].forEach(([id, color]) => {
       if (!map.getSource(id)) {
         map.addSource(id, { type: "geojson", data: EMPTY });
       }
@@ -408,6 +410,7 @@
     }
     ensureRouteLayers();
     updateRoutes();
+    setRoute("lab-field-trace", importedTrace.map(p => [p.lon, p.lat]), false);
   });
   map.on("moveend", updateCamera);
   map.on("load", () => { updateCamera(); updateRideSelect(); renderMarkers(); });
@@ -467,6 +470,39 @@
       map.easeTo({ center: lonLat(localPosition), zoom: 13.5, pitch: 0, bearing: 0 });
     }, () => announce("Location access denied or unavailable. No location was transmitted."),
     { enableHighAccuracy: false, maximumAge: 30000, timeout: 12000 });
+  });
+
+
+  function clearImportedTrace(message) {
+    importedTrace = [];
+    $("labTraceFile").value = "";
+    $("labTraceClear").disabled = true;
+    $("labTraceStatus").textContent = message || "No trace loaded · file stays in this browser tab";
+    setRoute("lab-field-trace", [], false);
+  }
+  $("labTraceClear").addEventListener("click", () => clearImportedTrace());
+  $("labTraceFile").addEventListener("change", async function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+    try {
+      if (file.size > 250000) throw new Error("Trace file is too large (250 KB maximum).");
+      if (!window.NightRiderTrace || !window.NightRiderTrace.parseCsv) {
+        throw new Error("Local GPS trace parser unavailable.");
+      }
+      const fixes = window.NightRiderTrace.parseCsv(await file.text());
+      importedTrace = fixes;
+      $("labTraceClear").disabled = false;
+      $("labTraceStatus").textContent = "LOCAL FIELD TRACE · " + fixes.length +
+        " fix(es) · never uploaded to NightRider";
+      setRoute("lab-field-trace", fixes.map(p => [p.lon, p.lat]), false);
+      const bounds = new maplibregl.LngLatBounds();
+      fixes.forEach(p => bounds.extend([p.lon, p.lat]));
+      if (fixes.length === 1) {
+        map.easeTo({ center: [fixes[0].lon, fixes[0].lat], zoom: 15, bearing: 0, pitch: 0 });
+      } else map.fitBounds(bounds, { padding: 70, maxZoom: 16, duration: 350 });
+    } catch (err) {
+      clearImportedTrace("Could not load trace: " + (err.message || "invalid file"));
+    }
   });
 
   window.addEventListener("focus", () => { if (liveMode) fetchLive(); });

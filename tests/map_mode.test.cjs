@@ -77,7 +77,7 @@ test("standalone Web Map Lab shares Light and Dark browser preference", () => {
   assert.ok(!html.includes('id="labStyle"'));
   assert.ok(html.includes('src="/aero-theme.js?v=2"'));
   assert.ok(html.includes("/map-theme.js?v=2"));
-  assert.ok(html.includes("/map-lab.js?v=4"));
+  assert.ok(html.includes("/map-lab.js?v=5"));
   assert.ok(js.includes('theme.getMode()'));
   assert.ok(js.includes('window.addEventListener("nightrider:map-mode"'));
   assert.ok(js.includes('if (selectedStyle === "light")'));
