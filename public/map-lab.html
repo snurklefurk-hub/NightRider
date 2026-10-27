@@ -10,7 +10,8 @@
   <link rel="stylesheet" href="/map-lab.css?v=1">
   <!-- MapLibre v6 is an ES module; map-lab.js imports its .mjs bundle with a CDN fallback. -->
   <script defer src="/map-lab-midnight.js?v=1"></script>
-  <script defer src="/map-lab.js?v=2"></script>
+  <script defer src="/map-theme.js?v=1"></script>
+  <script defer src="/map-lab.js?v=3"></script>
 </head>
 <body>
   <header class="lab-header">
@@ -26,9 +27,8 @@
       <div class="control-group">
         <label for="labStyle">Map style</label>
         <select id="labStyle">
-          <option value="midnight">NightRider Midnight (Android match)</option>
-          <option value="fiord">Original Fiord</option>
-          <option value="dark">Original Dark</option>
+          <option value="light">Light · NightRider Midnight</option>
+          <option value="dark">Dark · Original Dark Vector</option>
         </select>
       </div>
       <div class="control-group">

@@ -36,6 +36,7 @@
     notice.textContent = "Unable to load the MapLibre vector engine from either CDN. Check browser blockers or network restrictions, then reload.";
     return;
   }
+  const theme = window.NightRiderMapTheme;
   const FIORD = "https://tiles.openfreemap.org/styles/fiord";
   const DARK = "https://tiles.openfreemap.org/styles/dark";
   const PRESETS = {
@@ -54,11 +55,11 @@
   const routeCache = new Map();
   const routeInFlight = new Map();
   let snapshot = demoSnapshot(), selectedRideId = "LAB-01", liveMode = false;
-  let selectedStyle = "midnight", localPosition = null, styleReady = false;
+  let selectedStyle = theme ? theme.getMode() : "light", localPosition = null, styleReady = false;
   let lastLiveSnapshotAt = 0, activeRequest = null, routeToken = 0;
   let nextOsrmAt = 0, pendingRoute = Promise.resolve();
   const map = new maplibregl.Map({
-    container: mapHost, style: FIORD,
+    container: mapHost, style: selectedStyle === "dark" ? DARK : FIORD,
     center: PRESETS.streets.center, zoom: PRESETS.streets.zoom,
     bearing: 0, pitch: 0, minPitch: 0, maxPitch: 0,
     dragRotate: false, pitchWithRotate: false, touchPitch: false,
@@ -389,12 +390,12 @@
   function chooseStyle() {
     selectedStyle = $("labStyle").value;
     styleReady = false;
-    announce("Loading " + (selectedStyle === "midnight" ? "NightRider Midnight" : selectedStyle) + " vector style…");
+    announce("Loading " + (selectedStyle === "light" ? "NightRider Midnight" : "Original Dark") + " vector style…");
     map.setStyle(selectedStyle === "dark" ? DARK : FIORD);
   }
   map.on("style.load", () => {
     styleReady = true;
-    if (selectedStyle === "midnight") {
+    if (selectedStyle === "light") {
       const missing = window.NightRiderMidnight.apply(map);
       if (missing.length) {
         announce("Midnight style loaded with " + missing.length +
@@ -403,7 +404,7 @@
         announce("NightRider Midnight vector style ready · matches the Android palette.");
       }
     } else {
-      announce("Original OpenFreeMap " + selectedStyle + " vector style ready.");
+      announce("OpenFreeMap Original Dark vector style ready.");
     }
     ensureRouteLayers();
     updateRoutes();
@@ -417,7 +418,17 @@
     }
   });
 
-  $("labStyle").addEventListener("change", chooseStyle);
+  $("labStyle").value = selectedStyle;
+  $("labStyle").addEventListener("change", function () {
+    if (theme) theme.setMode(this.value);
+    else chooseStyle();
+  });
+  window.addEventListener("nightrider:map-mode", function () {
+    var next = theme ? theme.getMode() : selectedStyle;
+    if (next === selectedStyle) return;
+    $("labStyle").value = next;
+    chooseStyle();
+  });
   $("labLocation").addEventListener("change", e => {
     const preset = PRESETS[e.target.value];
     if (preset) map.jumpTo({ center: preset.center, zoom: preset.zoom, bearing: 0, pitch: 0 });

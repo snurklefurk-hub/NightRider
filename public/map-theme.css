@@ -1,0 +1,9 @@
+/* Shared map appearance switch. Map panels themselves retain NightRider's UI skin. */
+.nr-map-modes{position:absolute;z-index:999;top:10px;right:12px;display:flex;gap:3px;padding:4px;border:1px solid #436779;background:#061923ed;border-radius:26px;box-shadow:0 3px 15px #0009;max-width:calc(100% - 90px)}
+.nr-map-modes button{margin:0;padding:7px 10px;min-height:32px;min-width:0;font:700 11px/1.2 system-ui,sans-serif;letter-spacing:0;text-transform:none;white-space:nowrap;cursor:pointer;border-radius:20px;border:1px solid transparent;background:transparent;color:#bcd0d8}
+.nr-map-modes button[aria-pressed=true]{background:#2ee6a0;color:#071923}
+.nr-map-modes button:focus-visible{outline:2px solid #2fe9ff;outline-offset:2px}
+.nr-map-modes button:hover:not([aria-pressed=true]){background:#234257}
+#map .maplibregl-control-container,#dispatchMap .maplibregl-control-container{pointer-events:none}
+#dispatchMap .maplibregl-map,#map .maplibregl-map{font-family:system-ui,sans-serif}
+@media(max-width:530px){.nr-map-modes{top:8px;right:7px;gap:0;padding:3px;max-width:calc(100% - 68px)}.nr-map-modes button{font-size:9px;padding:6px 7px}}

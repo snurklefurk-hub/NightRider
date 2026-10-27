@@ -1,0 +1,80 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const path = require("node:path");
+const root = path.resolve(__dirname, "..");
+const read = file => fs.readFileSync(path.join(root, file), "utf8");
+
+function themeHarness(prefersDark) {
+  const saved = new Map(), events = [], listeners = {};
+  const window = {
+    localStorage: {
+      getItem: key => saved.has(key) ? saved.get(key) : null,
+      setItem: (key, value) => saved.set(key, value)
+    },
+    matchMedia: () => ({ matches: prefersDark }),
+    addEventListener: (name, callback) => { listeners[name] = callback; },
+    dispatchEvent: event => { events.push(event); }
+  };
+  class CustomEvent {
+    constructor(name, options) { this.type = name; this.detail = options.detail; }
+  }
+  vm.runInNewContext(read("public/map-theme.js"), { window, CustomEvent, console });
+  return { theme: window.NightRiderMapTheme, window, saved, events, listeners };
+}
+
+test("light means Midnight vector Fiord; dark means unmodified Original Dark vector", () => {
+  const { theme } = themeHarness(true);
+  assert.equal(theme.getMode(), "dark");
+  assert.equal(theme.url("light"), "https://tiles.openfreemap.org/styles/fiord");
+  assert.equal(theme.url("dark"), "https://tiles.openfreemap.org/styles/dark");
+  assert.equal(theme.setMode("light"), true);
+  assert.equal(theme.getMode(), "light");
+  assert.equal(theme.setMode("dark"), true);
+  assert.equal(theme.getMode(), "dark");
+  assert.equal(theme.setMode("mystery"), false);
+});
+test("shared browser preference survives reload, not bound to ride/account state", () => {
+  const h = themeHarness(false);
+  assert.equal(h.theme.getMode(), "light");
+  let notified;
+  h.theme.subscribe(mode => { notified = mode; });
+  h.theme.setMode("dark");
+  assert.equal(h.saved.get("nightrider.map-mode.v1"), "dark");
+  assert.equal(notified, "dark");
+  assert.equal(h.events.at(-1).detail.mode, "dark");
+  h.theme.setMode("light");
+  assert.equal(notified, "light");
+});
+test("Rider and Dispatch keep original Leaflet controls and acquire vector base with raster fallback", () => {
+  const rider = read("public/index.html");
+  const dispatch = read("public/dispatch.html");
+  const code = read("public/dispatch-map.js");
+  for (const html of [rider, dispatch]) {
+    assert.match(html, /leaflet@1\.9\.4/);
+    assert.ok(html.includes("maplibre-gl@5.17.0/dist/maplibre-gl.js"));
+    assert.ok(html.includes("@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"));
+    assert.ok(html.includes("/map-theme.js?v=1"));
+    assert.ok(html.includes("/map-theme.css?v=1"));
+  }
+  assert.ok(rider.includes("NightRiderMapTheme.attach(map"));
+  assert.ok(rider.includes("addLegacyBaseMap(cartoKey)"));
+  assert.ok(rider.includes("L.marker(latlng, { icon: pickIcon, draggable: true })"));
+  assert.ok(code.includes("NightRiderMapTheme.attach(map"));
+  assert.ok(code.includes("mapTileLayer(true"));
+  assert.ok(code.includes("L.layerGroup()"));
+  assert.ok(code.includes("L.polyline("));
+  assert.ok(!read("public/map-theme.js").includes("api.maptiler.com"));
+});
+test("standalone Web Map Lab shares Light and Dark browser preference", () => {
+  const html = read("public/map-lab.html");
+  const js = read("public/map-lab.js");
+  assert.ok(html.includes('value="light">Light · NightRider Midnight'));
+  assert.ok(html.includes('value="dark">Dark · Original Dark Vector'));
+  assert.ok(html.includes("/map-theme.js?v=1"));
+  assert.ok(html.includes("/map-lab.js?v=3"));
+  assert.ok(js.includes('theme.getMode()'));
+  assert.ok(js.includes('theme.setMode(this.value)'));
+  assert.ok(js.includes('if (selectedStyle === "light")'));
+});
