@@ -80,6 +80,24 @@ credits covering the map. Confirm the public vector tile host's attribution
 and capacity requirements before commercial deployment. No MapTiler credentials,
 services, or costs are added.
 
+## Review an actual Field Test trace (local to your browser)
+
+After a safe, passenger-operated or parked Android **Settings → Field test**
+session, use **Share CSV** on the phone. Open the Web Map Lab and select that
+CSV using **Review Android Field Test CSV (local file)**. The browser parses
+the five-column file locally and draws the recorded trail in orange. The map
+zooms to your trace; **Clear trail** removes it. Live/demo ride data are not
+altered. No upload to NightRider, dispatch API call, or persistent browser
+storage is performed for this import; switching pages clears it. The selected
+map area is still visible to the external vector tile provider through normal
+map-tile requests.
+
+The importer rejects unfamiliar headers, out-of-range coordinates, repeated/
+non-monotonic timestamps and traces exceeding 1,500 fixes / 250 KB. It is a
+diagnostic overlay, not turn-by-turn guidance or proof of a driven route.
+Field Test export and web import were introduced together and need hands-on
+validation on an actual phone and desktop browser.
+
 ## Test checklist before any live migration
 
 1. On desktop and Android, compare both Dallas presets and zooms in Light Midnight.
