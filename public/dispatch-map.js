@@ -12,13 +12,27 @@
   var driverLayer = L.layerGroup().addTo(map), rideLayer = L.layerGroup().addTo(map);
   var riderLayer = L.layerGroup().addTo(map), dispatchLayer = L.layerGroup().addTo(map);
   var routeLayer = L.layerGroup().addTo(map);
-  L.control.layers(null, {
-    "Drivers": driverLayer, "Pickup / drop-off": rideLayer,
-    "Riders sharing location": riderLayer, "Dispatch location": dispatchLayer,
-    "Expected routes": routeLayer
-  }, { collapsed: true }).addTo(map);
+  // The individual layer checkboxes live next to Show offline drivers.
+  // Avoid Leaflet's Layers button overlapping the Light / Dark control.
+  var overlays = {
+    mapShowDrivers: driverLayer,
+    mapShowRidePins: rideLayer,
+    mapShowRiders: riderLayer,
+    mapShowDispatch: dispatchLayer,
+    mapShowRoutes: routeLayer
+  };
+  Object.keys(overlays).forEach(function (id) {
+    var input = $(id), layer = overlays[id];
+    if (!input) { return; }
+    input.checked = map.hasLayer(layer);
+    input.addEventListener("change", function () {
+      if (input.checked) { map.addLayer(layer); }
+      else { map.removeLayer(layer); }
+      render();
+    });
+  });
+  map.attributionControl.setPrefix(false);
   L.control.scale({ imperial: true, metric: false }).addTo(map);
-  map.attributionControl.addAttribution('<a href="https://project-osrm.org/">OSRM</a> · <a href="https://routing.openstreetmap.de/about.html">FOSSGIS routing</a> · <a href="https://www.openstreetmap.org/fixthemap">Fix the map</a>');
   var markers = {}, routes = {}, routeCache = {}, routeQueue = [], routeRequests = 0, nextRouteAt = 0;
   var snapshot = { drivers: [], rides: [], now: Date.now() / 1000 };
   var snapshotReceived = Date.now(), selectedId = "", fitted = false;
@@ -347,6 +361,7 @@
     var driver = snapshot.drivers.find(function (d) { return d.name === name; });
     if (!driver || !point(driver.coords) || !driver.location_at) { status.textContent = name + " has not shared a location yet."; return; }
     if (!driver.active) { $("mapShowOffline").checked = true; }
+    $("mapShowDrivers").checked = true;
     map.addLayer(driverLayer); render();
     map.setView(driver.coords, 15, { animate: false });
     if (markers["driver:" + name]) { markers["driver:" + name].marker.openPopup(); }
