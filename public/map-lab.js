@@ -2,19 +2,40 @@
  * Standalone, read-only preview. No mutation endpoints, production page hooks,
  * background geolocation, API key, or ride lifecycle code.
  */
-(function () {
+(async function () {
   "use strict";
   const $ = id => document.getElementById(id);
   const mapHost = $("labMap"), notice = $("labNotice"), summary = $("labSummary");
-  if (!mapHost || !window.maplibregl || !window.NightRiderMidnight) {
-    if (notice) notice.textContent = "MapLibre is unavailable. Check connectivity and reload.";
-    return;
-  }
-  if (!maplibregl.supported()) {
-    notice.textContent = "This browser does not support the required WebGL vector renderer.";
+  if (!mapHost || !notice) return;
+  if (!window.NightRiderMidnight) {
+    notice.textContent = "NightRider Midnight palette script failed to load. Refresh the page.";
     return;
   }
 
+  // MapLibre GL JS v6 is ESM-only: dist/maplibre-gl.js no longer exists.
+  // Import the pinned .mjs bundle; try a second CDN if the first is blocked.
+  const mapLibreModules = [
+    "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs",
+    "https://cdn.jsdelivr.net/npm/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"
+  ];
+  let maplibregl = null;
+  for (const url of mapLibreModules) {
+    try {
+      const module = await import(url);
+      if (typeof module.Map !== "function") {
+        throw new Error("MapLibre ESM Map export is unavailable");
+      }
+      maplibregl = module;
+      break;
+    } catch (error) {
+      // Try the fallback CDN without interrupting the rest of Dispatch.
+      console.warn("NightRider Map Lab: MapLibre CDN unavailable", url, error);
+    }
+  }
+  if (!maplibregl) {
+    notice.textContent = "Unable to load the MapLibre vector engine from either CDN. Check browser blockers or network restrictions, then reload.";
+    return;
+  }
   const FIORD = "https://tiles.openfreemap.org/styles/fiord";
   const DARK = "https://tiles.openfreemap.org/styles/dark";
   const PRESETS = {
@@ -451,4 +472,12 @@
   window.addEventListener("beforeunload", () => { if (activeRequest) activeRequest.abort(); });
   updateRideSelect();
   updateCamera();
-})();
+})().catch(function (error) {
+  const notice = document.getElementById("labNotice");
+  if (notice) {
+    notice.textContent = (error && error.name === "GPUInitializationError")
+      ? "MapLibre loaded, but WebGL2 could not initialize. Enable browser hardware acceleration and try again."
+      : "Map Lab startup failed: " + (error && error.message ? error.message : "unknown error") + ".";
+  }
+  console.error("NightRider Map Lab startup error", error);
+});
