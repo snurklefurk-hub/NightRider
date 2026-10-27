@@ -43,5 +43,14 @@ jobs:
           node --check public/dispatch-map.js
           node --check tests/map_mode.test.cjs
           node --check tests/map_lab.test.cjs
-      - name: Palette parity and read-only regression checks
+      - name: Confirm published Leaflet Vector adapter and MapLibre bundles are reachable
+        run: |
+          set -e
+          for url in \
+            "https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.js" \
+            "https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.css" \
+            "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"; do
+            curl --fail --location --retry 2 --connect-timeout 15 --max-time 60 --silent --show-error -o /dev/null "$url"
+          done
+      - name: Palette parity, mode preference and read-only regression checks
         run: node --test tests/map_lab.test.cjs tests/map_mode.test.cjs
