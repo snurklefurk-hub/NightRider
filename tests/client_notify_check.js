@@ -1,6 +1,6 @@
 /* Functional check for the dispatch page's unread cue.
  *
- * Runs the REAL dispatch.html inline script inside a stubbed DOM and asserts
+ * Runs the REAL current dispatch.html inline script inside a stubbed DOM and asserts
  * that an incoming GROUP text from a driver does NOT raise the unread cue,
  * while an incoming PRIVATE text from a driver does. Run: node tests/client_notify_check.js
  */
@@ -15,7 +15,7 @@ const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 function el() {
   const e = {
     textContent: "", value: "", hidden: false, className: "", disabled: false,
-    innerHTML: "", scrollTop: 0, scrollHeight: 0, style: {}, children: [],
+    innerHTML: "", scrollTop: 0, scrollHeight: 0, style: { setProperty() {} }, children: [],
     classList: {
       _s: new Set(),
       add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); },
@@ -56,7 +56,7 @@ function fetch(url) {
   if (url.indexOf("/api/dispatch/events") === 0) { return new Promise(function () {}); }
   let data = {};
   if (url.indexOf("/api/config") === 0) { data = { statusLabels: {}, stageAction: {} }; }
-  else if (url.indexOf("/api/dispatch/messages") === 0) { messagesCalls++; data = { messages: queuedMessages }; }
+  else if (url.indexOf("/api/chat/messages") === 0) { messagesCalls++; data = { messages: queuedMessages }; }
   else if (url.indexOf("/api/dispatch/drivers") === 0) { data = { drivers: [] }; }
   else if (url.indexOf("/api/dispatch/rides") === 0) { data = { rides: [] }; }
   return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(data), blob: () => Promise.resolve({}) });
@@ -76,7 +76,7 @@ vm.createContext(sandbox);
 vm.runInContext(script, sandbox);
 
 const tick = () => new Promise((r) => setImmediate(() => setImmediate(r)));
-const pollChat = () => intervals[1]();           /* wiring order: refreshDrivers, pollChat */
+const pollChat = () => intervals[1]();           /* actual dispatch script wiring order: refreshDrivers, pollChat */
 const unread = () => document.getElementById("chatCard").classList.contains("hasunread");
 const cue = () => document.getElementById("chatCue").textContent;
 
