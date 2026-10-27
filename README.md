@@ -26,4 +26,6 @@ The frontend is plain HTML, CSS, and JavaScript in `public/`; the Python HTTP se
 
 ## Checks
 
-The map appearance tests run with `node --test tests/map_lab.test.cjs tests/map_mode.test.cjs`. For the local Python dispatch-map and pricing checks, set `NIGHTRIDER_REQUIRE_DATABASE=false` and run `python -m unittest discover -s tests`. The old anonymous-ride API suite was retired when account sign-in became mandatory; protected ride flows still need a dedicated integration suite. A source check does not replace a live ride test on a phone.
+The map appearance tests run with `node --test tests/map_lab.test.cjs tests/map_mode.test.cjs` (the map CI also checks its pinned browser assets). For Python dispatch-map, rider-location and fare checks, set `NIGHTRIDER_REQUIRE_DATABASE=false` and run `python -m unittest discover -s tests -p 'test_*.py' -v`. For the Dispatch private-message notification test, run `node tests/client_notify_check.js`.
+
+GitHub Actions runs these backend/Dispatch tests on relevant changes through `.github/workflows/backend-check.yml`, isolated from production and without Render database credentials. The pre-account anonymous-ride API suite was retired when sign-in became mandatory; full authenticated booking-to-completion integration tests are still needed. Successful source checks are not equivalent to testing real rides on devices.
