@@ -50,7 +50,7 @@
     group.setAttribute("role", "group");
     group.setAttribute("aria-label", "Map appearance");
     var buttons = {};
-    [["light", "Light · Midnight"], ["dark", "Dark · Original"]].forEach(function (entry) {
+    [["light", "Light"], ["dark", "Dark"]].forEach(function (entry) {
       var button = document.createElement("button");
       button.type = "button";
       button.textContent = entry[1];
@@ -100,6 +100,7 @@
         stop();
         map._nrVectorFailed = true;
         try { map.removeLayer(layer); } catch (_) {}
+        if (vectorAttribution) map.attributionControl.removeAttribution(vectorAttribution);
         if (typeof options.onFallback === "function") options.onFallback();
       }
       function loaded() {
@@ -119,7 +120,13 @@
         }
       });
       removeControl = control(map);
-      map.attributionControl.addAttribution('<a href="https://openfreemap.org/">OpenFreeMap</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>');
+      // Preserve required data/host attribution without Leaflet's optional brand
+      // prefix or unnecessary router-credit links. Raster fallback has its own.
+      var vectorAttribution = '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> · ' +
+        '<a href="https://openmaptiles.org/">OpenMapTiles</a> · ' +
+        '<a href="https://openfreemap.org/">OpenFreeMap</a>';
+      map.attributionControl.addAttribution(vectorAttribution);
+      map.on("unload", function () { map.attributionControl.removeAttribution(vectorAttribution); });
       return layer;
     } catch (error) {
       map._nrVectorFailed = true;

@@ -167,6 +167,7 @@
   // over-zoom (Leaflet would otherwise stretch the last tile forever).
   var TILE_MAX = 19;
   var map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: TILE_MAX }).setView([39.8283, -98.5795], 4);
+  map.attributionControl.setPrefix(false); // Keep required map-data credit, not Leaflet branding.
 
   // Night map: use dark CARTO tiles when configured, with a standard OSM
   // fallback if the map service is unavailable.
@@ -192,12 +193,12 @@
     if (cartoKey) {
       L.tileLayer("https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=" + encodeURIComponent(cartoKey), {
         maxZoom: TILE_MAX, maxNativeZoom: TILE_MAX,
-        attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+        attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> · <a href="https://carto.com/attributions">CARTO</a>'
       }).addTo(map);
     } else {
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: TILE_MAX, maxNativeZoom: TILE_MAX,
-        attribution: "&copy; OpenStreetMap contributors"
+        attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>'
       }).addTo(map);
     }
   }

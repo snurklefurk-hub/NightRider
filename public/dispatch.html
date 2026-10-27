@@ -46,6 +46,11 @@
       <label for="mapRideSelect" class="tiny muted">Ride</label>
       <select id="mapRideSelect"><option value="">All active rides</option></select>
       <label class="map-offline-toggle"><input type="checkbox" id="mapShowOffline"> Show offline drivers</label>
+      <label class="map-layer-toggle"><input type="checkbox" id="mapShowDrivers" checked> Drivers</label>
+      <label class="map-layer-toggle"><input type="checkbox" id="mapShowRidePins" checked> Pickup / drop-off</label>
+      <label class="map-layer-toggle"><input type="checkbox" id="mapShowRiders" checked> Riders</label>
+      <label class="map-layer-toggle"><input type="checkbox" id="mapShowDispatch" checked> Dispatch</label>
+      <label class="map-layer-toggle"><input type="checkbox" id="mapShowRoutes" checked> Routes</label>
     </div>
     <div id="dispatchMap" class="dispatch-map-canvas" role="region" aria-label="Live dispatch map showing drivers, ride endpoints, routes and shared rider locations"></div>
     <div class="dispatch-map-legend" aria-label="Map legend">

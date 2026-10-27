@@ -70,11 +70,53 @@ test("Rider and Dispatch keep original Leaflet controls and acquire vector base 
 test("standalone Web Map Lab shares Light and Dark browser preference", () => {
   const html = read("public/map-lab.html");
   const js = read("public/map-lab.js");
-  assert.ok(html.includes('value="light">Light · NightRider Midnight'));
-  assert.ok(html.includes('value="dark">Dark · Original Dark Vector'));
+  assert.ok(html.includes('value="light">Light</option>'));
+  assert.ok(html.includes('value="dark">Dark</option>'));
   assert.ok(html.includes("/map-theme.js?v=1"));
   assert.ok(html.includes("/map-lab.js?v=3"));
   assert.ok(js.includes('theme.getMode()'));
   assert.ok(js.includes('theme.setMode(this.value)'));
   assert.ok(js.includes('if (selectedStyle === "light")'));
+});
+
+test("Only Light and Dark appear as the map-mode switch labels", () => {
+  const theme = read("public/map-theme.js");
+  assert.ok(theme.includes('[["light", "Light"], ["dark", "Dark"]]'));
+  assert.ok(!theme.includes("Light · Midnight"));
+  assert.ok(!theme.includes("Dark · Original"));
+});
+
+test("Dispatch individual layer checkboxes replace Leaflet's overlapping Layers menu", () => {
+  const html = read("public/dispatch.html");
+  const js = read("public/dispatch-map.js");
+  const css = read("public/dispatch-map.css");
+  for (const id of ["mapShowDrivers", "mapShowRidePins", "mapShowRiders", "mapShowDispatch", "mapShowRoutes"]) {
+    assert.ok(html.includes('id="' + id + '" checked'), id + " is enabled initially");
+    assert.ok(js.includes(id + ":"), id + " maps to a dedicated Leaflet layer");
+  }
+  const first = html.indexOf('id="mapShowOffline"');
+  const last = html.indexOf('id="mapShowRoutes"');
+  const canvas = html.indexOf('id="dispatchMap"');
+  assert.ok(first >= 0 && last > first && canvas > last, "filters remain adjacent, above map");
+  assert.ok(js.includes('input.addEventListener("change", function ()'));
+  assert.ok(js.includes("map.removeLayer(layer)"));
+  assert.ok(js.includes("map.addLayer(layer)"));
+  assert.ok(js.includes('map.hasLayer(layer)'));
+  assert.ok(!js.includes("L.control.layers("));
+  assert.ok(!css.includes(".leaflet-control-layers-toggle"));
+});
+
+test("Rider and Dispatch hide optional Leaflet branding but retain map data attribution", () => {
+  const rider = read("public/index.html");
+  const dispatch = read("public/dispatch-map.js");
+  const theme = read("public/map-theme.js");
+  assert.ok(rider.includes("map.attributionControl.setPrefix(false)"));
+  assert.ok(dispatch.includes("map.attributionControl.setPrefix(false)"));
+  assert.ok(!dispatch.includes("FOSSGIS routing"));
+  assert.ok(!dispatch.includes("Fix the map"));
+  assert.ok(theme.includes("OpenMapTiles"));
+  assert.ok(theme.includes("OpenFreeMap"));
+  assert.ok(theme.includes("openstreetmap.org/copyright"));
+  assert.ok(theme.includes("removeAttribution(vectorAttribution)"));
+  assert.ok(rider.includes("carto.com/attributions"));
 });
