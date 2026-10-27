@@ -1,18 +1,20 @@
 # NightRider Midnight · Isolated Web Vector Map Lab
 
-**Status:** non-production preview. **No** replacement of rider or dispatch
-Leaflet/CARTO maps, driver navigation, backend API, or ride lifecycle.
+**Status:** separate appearance preview. The rider and dispatch pages now use
+the same Light/Dark vector basemaps through a Leaflet adapter. The lab still
+has no ride actions or driver navigation.
 
 ## Open
 
 Go to `/map-lab.html` on the NightRider web host. This is an independent
-MapLibre GL JS 6.15.0 page and is not linked or embedded into a live ride flow.
+MapLibre GL JS 6.15.0 page and is not embedded into a live ride flow.
 MapLibre v6 must be loaded as an ES module from `dist/maplibre-gl.mjs`.
 The lab imports the pinned version from UNPKG with a jsDelivr fallback; the
 removed v5-style `dist/maplibre-gl.js` bundle cannot be used. If both CDNs
 are inaccessible, the lab displays an explicit loading error. WebGL2 is
 required by MapLibre v6.
-`/dispatch.html` and `/` remain on their existing Leaflet raster maps.
+`/dispatch.html` and `/` retain their Leaflet controls and overlays, but now
+load vector basemaps when supported. Their raster tiles are a fallback.
 
 The lab is reachable by URL as a static page, but its **Live dispatch** mode
 uses the existing `GET /api/dispatch/map` endpoint. That endpoint is restricted
@@ -23,11 +25,10 @@ assignment, stage transition, status change, or dispatch message action.
 
 ## Visual comparison
 
-- **NightRider Midnight (default):** load OpenFreeMap's Fiord vector style,
-  then set its native fill, line, text, halo, and background paint properties to
-  the initial NightRider Midnight values in the **Android Map Lab**.
-- **Original Fiord / Original Dark:** unmodified public vector styles for A/B
-  comparison. Switching the style preserves the browser's current camera.
+- **Light · NightRider Midnight:** load OpenFreeMap's Fiord vector style,
+  then apply the NightRider paint values used by the **Android Map Lab**.
+- **Dark · Original Dark:** use the unmodified public dark vector style.
+  Switching the style preserves the browser's current camera.
 - **Dallas city streets:** latitude 32.7767, longitude -96.7970, zoom 14.2,
   exactly the default Android test camera.
 - **Dallas interchange:** latitude 32.9244, longitude -96.7612, zoom 15.2,
@@ -78,9 +79,9 @@ commercial deployment. No MapTiler credentials, services, or costs are added.
 
 ## Test checklist before any live migration
 
-1. On desktop and Android, compare both Dallas presets and zooms in Midnight.
+1. On desktop and Android, compare both Dallas presets and zooms in Light Midnight.
    Confirm highway/local road colors, labels, and intersection legibility.
-2. Switch Fiord, Dark, Midnight at the same camera position. Confirm controls,
+2. Switch Light and Dark at the same camera position. Confirm controls,
    map credits, and zero pitch.
 3. Test demo markers, offline toggle, selected ride, routes, and fallback.
 4. Sign in as Dispatch and enable live mode; verify markers and endpoint routes
@@ -88,8 +89,8 @@ commercial deployment. No MapTiler credentials, services, or costs are added.
 5. Confirm mobile responsiveness, resize, accessibility, low-bandwidth failures,
    and browser WebGL performance.
 6. Test the current Dispatch board and Rider page to confirm they are unchanged.
-7. Only after approval: separately plan controlled Dispatch migration with
-   an explicit Leaflet fallback, then Rider migration if warranted.
+7. Check the integrated Rider and Dispatch vector maps, including the raster
+   fallback when WebGL or the vector provider is unavailable.
 
 To run static tests: `node --check public/map-lab.js` and
 `node --test tests/map_lab.test.cjs`. CI runs both on the map lab PR.
