@@ -88,8 +88,8 @@
     var url = fallback ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" :
       "https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png" + (key ? "?key=" + encodeURIComponent(key) : "");
     baseLayer = L.tileLayer(url, {
-      maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' +
-        (fallback ? "" : ' &copy; <a href="https://carto.com/attributions">CARTO</a>')
+      maxZoom: 19, attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a>' +
+        (fallback ? "" : ' · <a href="https://carto.com/attributions">CARTO</a>')
     }).addTo(map);
     baseLayer.on("tileerror", function () {
       tileErrors += 1;
