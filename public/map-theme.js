@@ -25,9 +25,9 @@
   }
   function url(mode) { return mode === "light" ? FIORD : DARK; }
   function fire() {
-    listeners.slice().forEach(function (cb) { cb(getMode()); });
+    listeners.slice().forEach(function (cb) { cb(mode()); });
     try {
-      root.dispatchEvent(new CustomEvent("nightrider:map-mode", { detail: { mode: getMode() } }));
+      root.dispatchEvent(new CustomEvent("nightrider:map-mode", { detail: { mode: mode() } }));
     } catch (_) { /* no CustomEvent in test or old browser */ }
   }
   function setMode(mode) {
@@ -72,6 +72,7 @@
     update(mode());
     var off = subscribe(update);
     map.on("unload", function () { off(); group.remove(); });
+    return function () { off(); group.remove(); };
   }
   function attach(map, options) {
     options = options || {};
@@ -87,10 +88,11 @@
       layer.addTo(map);
       var gl = layer.getMaplibreMap();
       if (!gl || typeof gl.setStyle !== "function") throw new Error("MapLibre was not initialized");
-      var ready = false, failed = false, timer = null, off = null;
+      var ready = false, failed = false, timer = null, off = null, removeControl = null;
       function stop() {
         if (timer) { clearTimeout(timer); timer = null; }
         if (off) { off(); off = null; }
+        if (removeControl) { removeControl(); removeControl = null; }
       }
       function fallback() {
         if (failed || ready) return;
@@ -116,7 +118,8 @@
           try { gl.setStyle(url(next)); } catch (_) { /* preserve current map */ }
         }
       });
-      control(map);
+      removeControl = control(map);
+      map.attributionControl.addAttribution('<a href="https://openfreemap.org/">OpenFreeMap</a> · <a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors</a>');
       return layer;
     } catch (error) {
       map._nrVectorFailed = true;
