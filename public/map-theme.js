@@ -74,6 +74,19 @@
     map.on("unload", function () { off(); group.remove(); });
     return function () { off(); group.remove(); };
   }
+  // Attribution stays visible immediately below the map, never covering
+  // markers, the route or the light/dark switch. Only static trusted HTML.
+  function setCredit(id, provider) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var osm = '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>';
+    var secondary = provider === "vector"
+      ? ' · <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a>'
+      : provider === "carto"
+        ? ' · <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">© CARTO</a>'
+        : "";
+    el.innerHTML = osm + secondary;
+  }
   function attach(map, options) {
     options = options || {};
     if (!root.L || typeof L.maplibreGL !== "function" ||
@@ -83,7 +96,7 @@
       if (typeof root.maplibregl.supported === "function" && !root.maplibregl.supported()) {
         return null;
       }
-      var layer = L.maplibreGL({ style: url(mode()) });
+      var layer = L.maplibreGL({ style: url(mode()), attributionControl: false });
       layer._nrVector = true;
       layer.addTo(map);
       var gl = layer.getMaplibreMap();
@@ -100,7 +113,6 @@
         stop();
         map._nrVectorFailed = true;
         try { map.removeLayer(layer); } catch (_) {}
-        if (vectorAttribution) map.attributionControl.removeAttribution(vectorAttribution);
         if (typeof options.onFallback === "function") options.onFallback();
       }
       function loaded() {
@@ -120,13 +132,9 @@
         }
       });
       removeControl = control(map);
-      // Preserve required data/host attribution without Leaflet's optional brand
-      // prefix or unnecessary router-credit links. Raster fallback has its own.
-      var vectorAttribution = '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> · ' +
-        '<a href="https://openmaptiles.org/">OpenMapTiles</a> · ' +
-        '<a href="https://openfreemap.org/">OpenFreeMap</a>';
-      map.attributionControl.addAttribution(vectorAttribution);
-      map.on("unload", function () { map.attributionControl.removeAttribution(vectorAttribution); });
+      // The bridge's MapLibre renderer has no built-in attribution overlay.
+      // Required provider credits are in a visible external footer.
+      if (options.creditId) setCredit(options.creditId, "vector");
       return layer;
     } catch (error) {
       map._nrVectorFailed = true;
@@ -142,6 +150,7 @@
   });
   root.NightRiderMapTheme = {
     STORAGE_KEY: STORAGE_KEY, FIORD: FIORD, DARK: DARK,
-    getMode: mode, setMode: setMode, url: url, subscribe: subscribe, attach: attach
+    getMode: mode, setMode: setMode, url: url, subscribe: subscribe,
+    setCredit: setCredit, attach: attach
   };
 })(window);
