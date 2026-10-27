@@ -13,17 +13,17 @@
     root.document.documentElement.style.colorScheme = next === "aero" ? "light" : "dark";
     root.document.querySelectorAll(".nr-ui-theme-toggle").forEach(function (button) {
       var aero = next === "aero";
-      button.textContent = aero ? "Classic" : "Aero";
-      button.setAttribute("aria-label", aero ? "Switch to Classic NightRider appearance" :
-        "Switch to Frutiger Aero appearance");
+      button.textContent = aero ? "DARK" : "LIGHT";
+      button.setAttribute("aria-label", aero ? "Switch to dark mode" : "Switch to light mode");
       button.setAttribute("aria-pressed", String(aero));
-      button.title = aero ? "Classic theme" : "Frutiger Aero theme";
+      button.title = aero ? "DARK" : "LIGHT";
     });
   }
   function set(next) {
     if (next !== "classic" && next !== "aero") return false;
     try { root.localStorage.setItem(key, next); } catch (_) {}
     paint(next);
+    if (root.NightRiderMapTheme) root.NightRiderMapTheme.setMode(next === "aero" ? "light" : "dark");
     return true;
   }
   function mount() {
@@ -40,7 +40,7 @@
     paint(current());
   }
   root.addEventListener("storage", function (event) {
-    if (event.key === key) paint(current());
+    if (event.key === key) { paint(current()); if (root.NightRiderMapTheme) root.NightRiderMapTheme.setMode(current() === "aero" ? "light" : "dark"); }
   });
   root.NightRiderUiTheme = { key: key, current: current, set: set };
   if (root.document.readyState === "loading") {

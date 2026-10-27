@@ -59,7 +59,7 @@
   let lastLiveSnapshotAt = 0, activeRequest = null, routeToken = 0;
   let nextOsrmAt = 0, pendingRoute = Promise.resolve();
   const map = new maplibregl.Map({
-    container: mapHost, style: selectedStyle === "dark" ? DARK : FIORD,
+    container: mapHost, style: FIORD,
     center: PRESETS.streets.center, zoom: PRESETS.streets.zoom,
     bearing: 0, pitch: 0, minPitch: 0, maxPitch: 0,
     dragRotate: false, pitchWithRotate: false, touchPitch: false,
@@ -388,14 +388,13 @@
     }
   }
   function chooseStyle() {
-    selectedStyle = $("labStyle").value;
     styleReady = false;
-    announce("Loading " + (selectedStyle === "light" ? "NightRider Midnight" : "Original Dark") + " vector style…");
-    map.setStyle(selectedStyle === "dark" ? DARK : FIORD);
+    announce("Loading map…");
+    map.setStyle(FIORD);
   }
   map.on("style.load", () => {
     styleReady = true;
-    if (selectedStyle === "light") {
+    if (selectedStyle === "dark") {
       const missing = window.NightRiderMidnight.apply(map);
       if (missing.length) {
         announce("Midnight style loaded with " + missing.length +
@@ -404,7 +403,7 @@
         announce("NightRider Midnight vector style ready · matches the Android palette.");
       }
     } else {
-      announce("OpenFreeMap Original Dark vector style ready.");
+      announce("Light map ready.");
     }
     ensureRouteLayers();
     updateRoutes();
@@ -418,15 +417,10 @@
     }
   });
 
-  $("labStyle").value = selectedStyle;
-  $("labStyle").addEventListener("change", function () {
-    if (theme) theme.setMode(this.value);
-    else chooseStyle();
-  });
   window.addEventListener("nightrider:map-mode", function () {
     var next = theme ? theme.getMode() : selectedStyle;
     if (next === selectedStyle) return;
-    $("labStyle").value = next;
+    selectedStyle = next;
     chooseStyle();
   });
   $("labLocation").addEventListener("change", e => {

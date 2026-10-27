@@ -20,10 +20,10 @@
     catch (_) { return true; }
   }
   function getMode() {
-    var saved = safeGet();
-    return saved === "light" || saved === "dark" ? saved : (systemDark() ? "dark" : "light");
+    try { return root.localStorage.getItem("nightrider.ui-theme.v1") === "aero" ? "light" : "dark"; }
+    catch (_) { return "dark"; }
   }
-  function url(mode) { return mode === "light" ? FIORD : DARK; }
+  function url(mode) { return FIORD; }
   function fire() {
     listeners.slice().forEach(function (cb) { cb(mode()); });
     try {
@@ -118,7 +118,7 @@
       function loaded() {
         ready = true;
         if (timer) { clearTimeout(timer); timer = null; }
-        if (mode() === "light") root.NightRiderMidnight.apply(gl);
+        if (mode() === "dark") root.NightRiderMidnight.apply(gl);
       }
       gl.on("style.load", loaded);
       gl.on("error", function () {
@@ -131,7 +131,7 @@
           try { gl.setStyle(url(next)); } catch (_) { /* preserve current map */ }
         }
       });
-      removeControl = control(map);
+      // Appearance is controlled by the shared site-wide Light/Dark switch.
       // The bridge's MapLibre renderer has no built-in attribution overlay.
       // Required provider credits are in a visible external footer.
       if (options.creditId) setCredit(options.creditId, "vector");
