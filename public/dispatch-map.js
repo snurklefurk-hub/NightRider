@@ -7,7 +7,8 @@
     status.textContent = "The map could not load. Refresh the page to try again.";
     return;
   }
-  var map = L.map(canvas, { minZoom: 3, maxZoom: 19, scrollWheelZoom: false })
+  var map = L.map(canvas, { minZoom: 3, maxZoom: 19, scrollWheelZoom: false,
+    attributionControl: false })
     .setView([32.0809, -81.0912], 12);
   var driverLayer = L.layerGroup().addTo(map), rideLayer = L.layerGroup().addTo(map);
   var riderLayer = L.layerGroup().addTo(map), dispatchLayer = L.layerGroup().addTo(map);
@@ -31,7 +32,6 @@
       render();
     });
   });
-  map.attributionControl.setPrefix(false);
   L.control.scale({ imperial: true, metric: false }).addTo(map);
   var markers = {}, routes = {}, routeCache = {}, routeQueue = [], routeRequests = 0, nextRouteAt = 0;
   var snapshot = { drivers: [], rides: [], now: Date.now() / 1000 };
@@ -76,6 +76,7 @@
     if (baseLayer && baseLayer._nrVector) return;
     if (!baseLayer && window.NightRiderMapTheme && !map._nrVectorFailed) {
       var vector = window.NightRiderMapTheme.attach(map, {
+        creditId: "dispatchMapCredit",
         onFallback: function () {
           baseLayer = null;
           mapTileLayer(true, "");
@@ -84,6 +85,9 @@
       if (vector) { baseLayer = vector; return; }
     }
     if (baseLayer) { map.removeLayer(baseLayer); }
+    if (window.NightRiderMapTheme) {
+      window.NightRiderMapTheme.setCredit("dispatchMapCredit", fallback ? "osm" : "carto");
+    }
     usingFallback = fallback;
     var url = fallback ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" :
       "https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png" + (key ? "?key=" + encodeURIComponent(key) : "");

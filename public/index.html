@@ -21,6 +21,10 @@
 </header>
 
 <div id="map" role="application" aria-label="Ride map"></div>
+<div id="riderMapCredit" class="nr-map-credit nr-map-credit-rider" aria-label="Map data attribution">
+  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
+  · <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a>
+</div>
 
 <section class="sheet" aria-live="polite">
   <div class="grab" aria-hidden="true"></div>
@@ -166,8 +170,9 @@
   // we stop at the highest level the tiles actually render and turn off
   // over-zoom (Leaflet would otherwise stretch the last tile forever).
   var TILE_MAX = 19;
-  var map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: TILE_MAX }).setView([39.8283, -98.5795], 4);
-  map.attributionControl.setPrefix(false); // Keep required map-data credit, not Leaflet branding.
+  var map = L.map("map", { zoomControl: true, minZoom: 3, maxZoom: TILE_MAX,
+    attributionControl: false }).setView([39.8283, -98.5795], 4);
+  // Attribution is placed in a visible footer adjacent to the map.
 
   // Night map: use dark CARTO tiles when configured, with a standard OSM
   // fallback if the map service is unavailable.
@@ -184,12 +189,16 @@
     // Render vectors inside Leaflet, with raster tiles only if MapLibre cannot start.
     var vector = window.NightRiderMapTheme &&
       window.NightRiderMapTheme.attach(map, {
+        creditId: "riderMapCredit",
         onFallback: function () { addLegacyBaseMap(cartoKey); }
       });
     if (vector) return;
     addLegacyBaseMap(cartoKey);
   }
   function addLegacyBaseMap(cartoKey) {
+    if (window.NightRiderMapTheme) {
+      window.NightRiderMapTheme.setCredit("riderMapCredit", cartoKey ? "carto" : "osm");
+    }
     if (cartoKey) {
       L.tileLayer("https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=" + encodeURIComponent(cartoKey), {
         maxZoom: TILE_MAX, maxNativeZoom: TILE_MAX,

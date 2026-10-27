@@ -23,8 +23,11 @@ a{color:var(--cyan)}
 .toggle input{accent-color:var(--teal)}
 .map-stage{position:relative;height:min(69vh,800px);min-height:440px;background:var(--land);border:1px solid #47647a;border-radius:12px;overflow:hidden}
 #labMap{height:100%;width:100%}
-.map-ribbon{position:absolute;z-index:2;top:14px;left:50%;transform:translateX(-50%);padding:7px 12px;background:#071723e3;border:1px solid #456579;border-radius:99px;color:#daebf2;font-weight:700;font-size:.61rem;letter-spacing:.09em;pointer-events:none;white-space:nowrap;max-width:96%;overflow:hidden;text-overflow:ellipsis}
-#labNotice{position:absolute;z-index:2;bottom:30px;left:10px;max-width:min(580px,calc(100% - 20px));background:#061622e8;border:1px solid #3c657b;color:#e2f7f9;border-radius:8px;padding:.35rem .55rem;font-size:.73rem;pointer-events:none}
+.map-lab-meta{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:5px 4px 0}
+#labNotice{flex:1 1 230px;position:static;min-width:0;color:#a7c2ca;font-size:.7rem}
+.nr-lab-map-credit{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:5px;color:#a7c2ca;font-size:10px;line-height:1.3}
+.nr-lab-map-credit a{color:inherit;text-decoration:none}
+.nr-lab-map-credit a:hover,.nr-lab-map-credit a:focus-visible{color:#f3fdfb;text-decoration:underline}
 #labNotice:empty{display:none}
 .lab-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:11px 4px 0}
 #labSummary{flex:1 1 250px;color:var(--cream);font-size:.8rem}
@@ -45,4 +48,4 @@ a{color:var(--cyan)}
 .maplibregl-ctrl-group{background:#143040!important}.maplibregl-ctrl-group button{border:0!important;border-radius:0!important}
 .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:invert(1)}
 .maplibregl-ctrl-attrib{background:#e8f0f1c7!important;color:#102634!important}
-@media(max-width:760px){.map-stage{height:62vh;min-height:350px}.control-group{min-width:130px}.map-ribbon{font-size:.53rem;top:8px}.lab-header{padding:10px}.lab-controls{padding:9px}.lab-note{line-height:1.55}}
+@media(max-width:760px){.map-stage{height:62vh;min-height:350px}.control-group{min-width:130px}.lab-header{padding:10px}.lab-controls{padding:9px}.lab-note{line-height:1.55}}

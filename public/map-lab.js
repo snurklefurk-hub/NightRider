@@ -64,7 +64,7 @@
     bearing: 0, pitch: 0, minPitch: 0, maxPitch: 0,
     dragRotate: false, pitchWithRotate: false, touchPitch: false,
     renderWorldCopies: false,
-    maxZoom: 19, minZoom: 3, attributionControl: true
+    maxZoom: 19, minZoom: 3, attributionControl: false
   });
   // Pinch zoom is allowed; rotation and pitch never are.
   if (map.touchZoomRotate && map.touchZoomRotate.disableRotation) {
