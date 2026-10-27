@@ -8,6 +8,10 @@ on:
       - 'public/map-theme*'
       - 'public/dispatch.html'
       - 'public/dispatch-map.js'
+      - 'public/dispatch-map.css'
+      - 'public/nightrider.css'
+      - 'public/rider-location.js'
+      - 'public/nightrider-motion.js'
       - 'public/index.html'
       - 'tests/map_mode.test.cjs'
       - 'tests/map_lab.test.cjs'
@@ -19,6 +23,10 @@ on:
       - 'public/map-theme*'
       - 'public/dispatch.html'
       - 'public/dispatch-map.js'
+      - 'public/dispatch-map.css'
+      - 'public/nightrider.css'
+      - 'public/rider-location.js'
+      - 'public/nightrider-motion.js'
       - 'public/index.html'
       - 'tests/map_mode.test.cjs'
       - 'tests/map_lab.test.cjs'
@@ -41,6 +49,8 @@ jobs:
           node --check public/map-lab-midnight.js
           node --check public/map-theme.js
           node --check public/dispatch-map.js
+          node --check public/rider-location.js
+          node --check public/nightrider-motion.js
           node --check tests/map_mode.test.cjs
           node --check tests/map_lab.test.cjs
       - name: Confirm published Leaflet Vector adapter and MapLibre bundles are reachable
