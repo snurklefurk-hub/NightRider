@@ -76,7 +76,10 @@ vm.createContext(sandbox);
 vm.runInContext(script, sandbox);
 
 const tick = () => new Promise((r) => setImmediate(() => setImmediate(r)));
-const pollChat = () => intervals[1]();           /* actual dispatch script wiring order: refreshDrivers, pollChat */
+// Find the intended scheduled callback by name, not its fragile registration index.
+const scheduledPollChat = intervals.find((fn) => fn.name === "pollChat");
+if (!scheduledPollChat) throw new Error("Dispatch no longer schedules pollChat");
+const pollChat = () => scheduledPollChat();
 const unread = () => document.getElementById("chatCard").classList.contains("hasunread");
 const cue = () => document.getElementById("chatCue").textContent;
 
