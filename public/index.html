@@ -43,7 +43,6 @@
     </div>
     <ul class="results" id="results" role="listbox" aria-label="Address matches"></ul>
     <div class="row">
-      <button type="button" id="searchBtn">Search</button>
       <button type="button" class="alt" id="useLocation">Use my location</button>
       <button type="button" class="alt" id="clearPins">Clear</button>
     </div>
@@ -51,7 +50,7 @@
       <button type="button" class="alt" id="pinPickup">Set pickup on map</button>
       <button type="button" class="alt" id="pinDropoff">Set destination on map</button>
     </div>
-    <p class="muted" id="searchMsg">Start typing an address or place to see nearby suggestions. You can also click the map to set a destination.</p>
+    <p class="muted" id="searchMsg">Type an address and press Enter, or tap the map to set a location.</p>
   </div>
 
   <!-- STEP 2: choose ride -->
@@ -358,7 +357,7 @@
       reverseSequence++;
       state.activeField = which; state[which] = null; cancelSearch(); clearResults();
       if (searchKey && input.value.trim().length >= 3) { scheduleSearch(input.value); }
-      else if (!searchKey && input.value.trim().length >= 3) { $("searchMsg").textContent = "Press Search to find this address."; }
+      else if (!searchKey && input.value.trim().length >= 3) { $("searchMsg").textContent = "Press Enter to find this address."; }
       else { $("searchMsg").textContent = "Type at least 3 characters to find an address or place."; }
     });
     input.addEventListener("keydown", function (e) {
@@ -807,7 +806,7 @@
     state.pickup = state.dropoff = null; state.miles = 0; state.minutes = 0; state.rideId = null;
     state.selected = null; $("pickup").value = ""; $("dropoff").value = ""; reverseSequence++; cancelSearch(); clearResults();
     $("stepTrip").hidden = true; $("stepOptions").hidden = true; $("stepMatching").hidden = true; $("stepSearch").hidden = false;
-    $("searchMsg").textContent = "Start typing an address or place to see nearby suggestions.";
+    $("searchMsg").textContent = "Type an address and press Enter, or tap the map.";
   }
 
   function restoreRiderRide() {
@@ -895,7 +894,6 @@
 
   wireField("pickup", "pickup");
   wireField("dropoff", "dropoff");
-  $("searchBtn").addEventListener("click", function () { scheduleSearch($(state.activeField).value); });
   $("useLocation").addEventListener("click", useMyLocation);
   $("pinPickup").addEventListener("click", function () { startMapPin("pickup"); });
   $("pinDropoff").addEventListener("click", function () { startMapPin("dropoff"); });

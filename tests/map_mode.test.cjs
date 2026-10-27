@@ -136,3 +136,18 @@ test("Rider, Dispatch and Map Lab put required attribution adjacent to, never on
   assert.ok(!dispatchJs.includes("Fix the map"));
   assert.ok(rider.includes("carto.com/attributions"));
 });
+
+test("Rider address entry works without a redundant Search button", () => {
+  const html = read("public/index.html");
+  assert.ok(!html.includes('id="searchBtn"'));
+  assert.ok(!html.includes('$("searchBtn")'));
+  assert.ok(html.includes('id="pickup"'));
+  assert.ok(html.includes('id="dropoff"'));
+  assert.ok(html.includes('id="results"'));
+  assert.ok(html.includes('e.key === "Enter"'));
+  assert.ok(html.includes("scheduleSearch(input.value)"));
+  assert.ok(html.includes("Press Enter to find this address."));
+  assert.ok(html.includes('id="useLocation"'));
+  assert.ok(html.includes('id="pinPickup"'));
+  assert.ok(html.includes('id="pinDropoff"'));
+});
