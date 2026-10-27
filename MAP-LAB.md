@@ -7,6 +7,11 @@ Leaflet/CARTO maps, driver navigation, backend API, or ride lifecycle.
 
 Go to `/map-lab.html` on the NightRider web host. This is an independent
 MapLibre GL JS 6.15.0 page and is not linked or embedded into a live ride flow.
+MapLibre v6 must be loaded as an ES module from `dist/maplibre-gl.mjs`.
+The lab imports the pinned version from UNPKG with a jsDelivr fallback; the
+removed v5-style `dist/maplibre-gl.js` bundle cannot be used. If both CDNs
+are inaccessible, the lab displays an explicit loading error. WebGL2 is
+required by MapLibre v6.
 `/dispatch.html` and `/` remain on their existing Leaflet raster maps.
 
 The lab is reachable by URL as a static page, but its **Live dispatch** mode
