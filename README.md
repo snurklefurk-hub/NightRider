@@ -2,6 +2,22 @@
 
 NightRider is a pilot ride dispatch service. Riders request trips on the website, dispatch assigns them, and drivers use either the driver webpage or the separate Android app. All three roles sign in with NightRider accounts.
 
+## Appearance themes
+
+NightRider now offers two **UI appearances**, independently of the map style:
+**Classic** (the existing Midnight Transit / Verdant interface, default) and
+**Aero** (Frutiger Aero-inspired glossy sky-blue glass and aqua/green controls).
+Use the **Aero** button in the header to enable it; use **Classic** to switch
+back. The selection is saved in the browser under
+`localStorage["nightrider.ui-theme.v1"]` and shared by Rider, Dispatch,
+Driver, Account and Web Map Lab on the same origin. It is a local preference,
+not an account setting. The map's own Light/Dark basemap preference remains
+completely separate. No map tile provider or ride/dispatch API was changed.
+
+Android Driver has a separate optional Frutiger Aero appearance in Settings
+and stores its preference locally; it does not sync with web browsers.
+
+
 ## Current pages
 
 - `/` — rider booking, fare estimate, ride status, location sharing, chat, and driver rating.

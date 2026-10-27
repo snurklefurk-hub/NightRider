@@ -6,6 +6,10 @@ on:
     paths:
       - 'public/map-lab*'
       - 'public/map-theme*'
+      - 'public/aero-theme*'
+      - 'public/account.html'
+      - 'public/driver.html'
+      - 'tests/aero_theme.test.cjs'
       - 'public/dispatch.html'
       - 'public/dispatch-map.js'
       - 'public/dispatch-map.css'
@@ -21,6 +25,10 @@ on:
     paths:
       - 'public/map-lab*'
       - 'public/map-theme*'
+      - 'public/aero-theme*'
+      - 'public/account.html'
+      - 'public/driver.html'
+      - 'tests/aero_theme.test.cjs'
       - 'public/dispatch.html'
       - 'public/dispatch-map.js'
       - 'public/dispatch-map.css'
@@ -48,6 +56,8 @@ jobs:
           node --check public/map-lab.js
           node --check public/map-lab-midnight.js
           node --check public/map-theme.js
+          node --check public/aero-theme.js
+          node --check tests/aero_theme.test.cjs
           node --check public/dispatch-map.js
           node --check public/rider-location.js
           node --check public/nightrider-motion.js
@@ -63,4 +73,4 @@ jobs:
             curl --fail --location --retry 2 --connect-timeout 15 --max-time 60 --silent --show-error -o /dev/null "$url"
           done
       - name: Palette parity, mode preference and read-only regression checks
-        run: node --test tests/map_lab.test.cjs tests/map_mode.test.cjs
+        run: node --test tests/map_lab.test.cjs tests/map_mode.test.cjs tests/aero_theme.test.cjs
