@@ -26,4 +26,4 @@ The frontend is plain HTML, CSS, and JavaScript in `public/`; the Python HTTP se
 
 ## Checks
 
-The map appearance tests run with `node --test tests/map_lab.test.cjs tests/map_mode.test.cjs`. Python API and dispatch-map tests live in `tests/`; they require the database or test setup appropriate to the protected routes. A successful source check does not replace a live ride test on a phone.
+The map appearance tests run with `node --test tests/map_lab.test.cjs tests/map_mode.test.cjs`. For the local Python dispatch-map and pricing checks, set `NIGHTRIDER_REQUIRE_DATABASE=false` and run `python -m unittest discover -s tests`. The old anonymous-ride API suite was retired when account sign-in became mandatory; protected ride flows still need a dedicated integration suite. A source check does not replace a live ride test on a phone.

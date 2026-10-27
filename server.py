@@ -656,7 +656,7 @@ def export_log(store, start=None, end=None):
 
 
 # ---- Fares -------------------------------------------------------------
-# Defaults retained for local clients that import these constants.
+# Dispatch rates are read from the current store for each fare calculation.
 def current_pricing():
     """Return a safe copy of persisted dispatch fare settings."""
     saved = STORE.get("pricing", {}) if "STORE" in globals() else {}
