@@ -2,21 +2,21 @@
 
 NightRider is a pilot ride dispatch service. Riders request trips on the website, dispatch assigns them, and drivers use either the driver webpage or the separate Android app. All three roles sign in with NightRider accounts.
 
-## Appearance themes
+## Light and Dark appearance
 
-NightRider now offers two **UI appearances**, independently of the map style:
-**Classic** (the existing Midnight Transit / Verdant interface, default) and
-**Aero** (Frutiger Aero-inspired glossy sky-blue glass and aqua/green controls).
-Use the **Aero** button in the header to enable it; use **Classic** to switch
-back. The selection is saved in the browser under
-`localStorage["nightrider.ui-theme.v1"]` and shared by Rider, Dispatch,
-Driver, Account and Web Map Lab on the same origin. It is a local preference,
-not an account setting. The map's own Light/Dark basemap preference remains
-completely separate. No map tile provider or ride/dispatch API was changed.
+A single site-wide **LIGHT / DARK** control appears in Rider, Dispatch, the
+Driver Board, Account and Web Map Lab. **LIGHT** uses the Frutiger Aero-inspired
+sky-blue glass UI, a rounded Nunito Sans font (with system fallbacks) and the
+NightRider Midnight vector basemap. **DARK** uses the original NightRider
+Verdant UI and OpenFreeMap Original Dark vector basemap. DARK is the default.
+Switching appearance updates the map without a separate map-style button.
+The choice is saved in the browser under
+`localStorage["nightrider.ui-theme.v1"]`; existing Aero users retain LIGHT.
+On unsupported WebGL devices, the existing raster fallback remains available.
 
-Android Driver has a separate optional Frutiger Aero appearance in Settings
-and stores its preference locally; it does not sync with web browsers.
-
+Android Driver exposes LIGHT and DARK under Settings → Appearance. Its
+standalone Map Lab test app uses the same two combined settings. Android
+preferences are device-local and do not synchronize with browsers.
 
 ## Current pages
 
@@ -26,7 +26,7 @@ and stores its preference locally; it does not sync with web browsers.
 - `/account.html` — sign-in and rider registration.
 - `/map-lab.html` — separate vector-map preview for appearance testing; it does not change rides.
 
-The rider and dispatch maps offer **Light** (NightRider Midnight) and **Dark** (Original Dark) vector basemaps. Their Leaflet controls and ride markers remain in place, with a raster fallback if vector rendering fails. See [MAP-APPEARANCE.md](MAP-APPEARANCE.md) and [MAP-LAB.md](MAP-LAB.md) for the map setup and preview.
+The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting. Their Leaflet controls and ride markers remain in place, with a raster fallback if vector rendering fails. See [MAP-APPEARANCE.md](MAP-APPEARANCE.md) and [MAP-LAB.md](MAP-LAB.md) for the map setup and preview.
 
 ## Deployment and data
 

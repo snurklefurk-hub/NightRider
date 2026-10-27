@@ -8,71 +8,40 @@
  */
 (function (root) {
   "use strict";
-  var STORAGE_KEY = "nightrider.map-mode.v1";
+  // Retain the old map-mode key name for API compatibility only. It is never
+  // independently read or written: the site appearance preference owns maps.
+  var STORAGE_KEY = "nightrider.ui-theme.v1";
   var FIORD = "https://tiles.openfreemap.org/styles/fiord";
   var DARK = "https://tiles.openfreemap.org/styles/dark";
   var listeners = [];
-  function safeGet() {
-    try { return root.localStorage.getItem(STORAGE_KEY); } catch (_) { return null; }
-  }
-  function systemDark() {
-    try { return !!(root.matchMedia && root.matchMedia("(prefers-color-scheme: dark)").matches); }
-    catch (_) { return true; }
-  }
-  function getMode() {
-    var saved = safeGet();
-    return saved === "light" || saved === "dark" ? saved : (systemDark() ? "dark" : "light");
-  }
-  function url(mode) { return mode === "light" ? FIORD : DARK; }
-  function fire() {
-    listeners.slice().forEach(function (cb) { cb(mode()); });
+  function mode() {
+    if (root.NightRiderUiTheme) return root.NightRiderUiTheme.current();
     try {
-      root.dispatchEvent(new CustomEvent("nightrider:map-mode", { detail: { mode: mode() } }));
-    } catch (_) { /* no CustomEvent in test or old browser */ }
+      var stored = root.localStorage.getItem(STORAGE_KEY);
+      return stored === "aero" || stored === "light" ? "light" : "dark";
+    } catch (_) {
+      return root.document.documentElement.dataset.nrUi === "aero" ? "light" : "dark";
+    }
   }
-  function setMode(mode) {
-    if (mode !== "light" && mode !== "dark") return false;
-    try { root.localStorage.setItem(STORAGE_KEY, mode); } catch (_) { /* memory-only fallback */ }
-    memoryMode = mode;
+  function url(next) { return next === "light" ? FIORD : DARK; }
+  function fire() {
+    var next = mode();
+    listeners.slice().forEach(function (cb) { cb(next); });
+    try { root.dispatchEvent(new CustomEvent("nightrider:map-mode", { detail: { mode: next } })); }
+    catch (_) {}
+  }
+  function setMode(next) {
+    // Kept for existing callers but always delegates to the one UI setting.
+    if (next !== "light" && next !== "dark") return false;
+    if (root.NightRiderUiTheme) return root.NightRiderUiTheme.set(next);
+    try { root.localStorage.setItem(STORAGE_KEY, next === "light" ? "aero" : "classic"); }
+    catch (_) { root.document.documentElement.dataset.nrUi = next === "light" ? "aero" : "classic"; }
     fire();
     return true;
   }
-  var memoryMode = null;
-  function mode() { return memoryMode || getMode(); }
   function subscribe(cb) {
     listeners.push(cb);
     return function () { listeners = listeners.filter(function (x) { return x !== cb; }); };
-  }
-  function control(map) {
-    var parent = map.getContainer();
-    var group = document.createElement("div");
-    group.className = "nr-map-modes";
-    group.setAttribute("role", "group");
-    group.setAttribute("aria-label", "Map appearance");
-    var buttons = {};
-    [["light", "Light"], ["dark", "Dark"]].forEach(function (entry) {
-      var button = document.createElement("button");
-      button.type = "button";
-      button.textContent = entry[1];
-      button.setAttribute("aria-label", entry[1] + " vector map");
-      button.addEventListener("click", function () { setMode(entry[0]); });
-      group.appendChild(button);
-      buttons[entry[0]] = button;
-    });
-    if (root.L && L.DomEvent) {
-      L.DomEvent.disableClickPropagation(group);
-      L.DomEvent.disableScrollPropagation(group);
-    }
-    parent.appendChild(group);
-    function update(next) {
-      Object.keys(buttons).forEach(function (key) {
-        buttons[key].setAttribute("aria-pressed", String(key === next));
-      });
-    }
-    update(mode());
-    var off = subscribe(update);
-    map.on("unload", function () { off(); group.remove(); });
-    return function () { off(); group.remove(); };
   }
   // Attribution stays visible immediately below the map, never covering
   // markers, the route or the light/dark switch. Only static trusted HTML.
@@ -101,11 +70,10 @@
       layer.addTo(map);
       var gl = layer.getMaplibreMap();
       if (!gl || typeof gl.setStyle !== "function") throw new Error("MapLibre was not initialized");
-      var ready = false, failed = false, timer = null, off = null, removeControl = null;
+      var ready = false, failed = false, timer = null, off = null;
       function stop() {
         if (timer) { clearTimeout(timer); timer = null; }
         if (off) { off(); off = null; }
-        if (removeControl) { removeControl(); removeControl = null; }
       }
       function fallback() {
         if (failed || ready) return;
@@ -131,7 +99,6 @@
           try { gl.setStyle(url(next)); } catch (_) { /* preserve current map */ }
         }
       });
-      removeControl = control(map);
       // The bridge's MapLibre renderer has no built-in attribution overlay.
       // Required provider credits are in a visible external footer.
       if (options.creditId) setCredit(options.creditId, "vector");
@@ -145,8 +112,9 @@
       return null;
     }
   }
+  root.addEventListener("nightrider:ui-theme", fire);
   root.addEventListener("storage", function (event) {
-    if (event.key === STORAGE_KEY) { memoryMode = null; fire(); }
+    if (event.key === STORAGE_KEY) fire();
   });
   root.NightRiderMapTheme = {
     STORAGE_KEY: STORAGE_KEY, FIORD: FIORD, DARK: DARK,

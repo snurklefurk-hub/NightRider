@@ -55,7 +55,7 @@
   const routeCache = new Map();
   const routeInFlight = new Map();
   let snapshot = demoSnapshot(), selectedRideId = "LAB-01", liveMode = false;
-  let selectedStyle = theme ? theme.getMode() : "light", localPosition = null, styleReady = false;
+  let selectedStyle = theme ? theme.getMode() : "dark", localPosition = null, styleReady = false;
   let lastLiveSnapshotAt = 0, activeRequest = null, routeToken = 0;
   let nextOsrmAt = 0, pendingRoute = Promise.resolve();
   const map = new maplibregl.Map({
@@ -388,7 +388,7 @@
     }
   }
   function chooseStyle() {
-    selectedStyle = $("labStyle").value;
+    selectedStyle = theme ? theme.getMode() : "dark";
     styleReady = false;
     announce("Loading " + (selectedStyle === "light" ? "NightRider Midnight" : "Original Dark") + " vector style…");
     map.setStyle(selectedStyle === "dark" ? DARK : FIORD);
@@ -418,15 +418,9 @@
     }
   });
 
-  $("labStyle").value = selectedStyle;
-  $("labStyle").addEventListener("change", function () {
-    if (theme) theme.setMode(this.value);
-    else chooseStyle();
-  });
   window.addEventListener("nightrider:map-mode", function () {
     var next = theme ? theme.getMode() : selectedStyle;
     if (next === selectedStyle) return;
-    $("labStyle").value = next;
     chooseStyle();
   });
   $("labLocation").addEventListener("change", e => {

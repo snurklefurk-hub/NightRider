@@ -1,13 +1,12 @@
-# NightRider shared vector map appearance
+# NightRider shared LIGHT/DARK appearance
 
-The map basemap uses two modes throughout **currently implemented maps**:
-
-| Mode | Style | Tile rendering |
-| --- | --- | --- |
-| **Light · NightRider Midnight** | OpenFreeMap Fiord with the custom Midnight Android palette | MapLibre vector |
-| **Dark · Original Dark** | Unmodified `https://tiles.openfreemap.org/styles/dark` | MapLibre vector |
-
-This is **map light/dark mode**, not a recoloring of every NightRider UI panel.
+One appearance switch controls both the **site UI** and the **vector map**:
+**LIGHT** is Frutiger Aero UI + NightRider Midnight (custom Fiord vector
+palette); **DARK** is classic NightRider UI + OpenFreeMap Original Dark vectors.
+The existing map-only toggle was removed. The UI preference is stored in
+`localStorage["nightrider.ui-theme.v1"]`; older Aero settings remain valid,
+while the obsolete `nightrider.map-mode.v1` preference is ignored.
+The website's two-button control displays only **LIGHT** and **DARK**.
 
 ## Where
 
