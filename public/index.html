@@ -47,6 +47,10 @@
       <button type="button" class="alt" id="useLocation">Use my location</button>
       <button type="button" class="alt" id="clearPins">Clear</button>
     </div>
+    <div class="row">
+      <button type="button" class="alt" id="pinPickup">Set pickup on map</button>
+      <button type="button" class="alt" id="pinDropoff">Set destination on map</button>
+    </div>
     <p class="muted" id="searchMsg">Type an address, then tap Search (or press Enter) to see nearby matches. You can also click the map to drop the drop-off pin.</p>
   </div>
 
@@ -425,6 +429,7 @@
   }
 
   function reverseGeocode(lat, lng, which) {
+    setMarker(which === "pickup" ? "pick" : "drop", [lat, lng]);
     var url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" + lat + "&lon=" + lng;
     fetch(url, { headers: { "Accept": "application/json" } }).then(function (r) { return r.json(); }).then(function (d) {
       var label = d.display_name || (lat.toFixed(5) + ", " + lng.toFixed(5));
@@ -846,9 +851,15 @@
   function shorten(s) { s = String(s || ""); return s.length > 34 ? s.slice(0, 32) + "\u2026" : s; }
   function escapeHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
 
+  var mapPinTarget = null;
+  function startMapPin(which) {
+    mapPinTarget = which;
+    $("searchMsg").textContent = "Tap the map to set your " + (which === "pickup" ? "pickup" : "destination") + ".";
+  }
   map.on("click", function (e) {
-    state.activeField = "dropoff";
-    reverseGeocode(e.latlng.lat, e.latlng.lng, "dropoff");
+    var which = mapPinTarget || "dropoff";
+    mapPinTarget = null; state.activeField = which;
+    reverseGeocode(e.latlng.lat, e.latlng.lng, which);
   });
 
   // --- rider-area context for address search -------------------------------
@@ -874,6 +885,8 @@
   wireField("dropoff", "dropoff");
   $("searchBtn").addEventListener("click", function () { runSearch($(state.activeField).value); });
   $("useLocation").addEventListener("click", useMyLocation);
+  $("pinPickup").addEventListener("click", function () { startMapPin("pickup"); });
+  $("pinDropoff").addEventListener("click", function () { startMapPin("dropoff"); });
   $("clearPins").addEventListener("click", resetAll);
   $("requestBtn").addEventListener("click", requestRide);
   $("backBtn").addEventListener("click", backToSearch);
