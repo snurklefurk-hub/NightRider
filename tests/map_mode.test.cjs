@@ -106,17 +106,33 @@ test("Dispatch individual layer checkboxes replace Leaflet's overlapping Layers 
   assert.ok(!css.includes(".leaflet-control-layers-toggle"));
 });
 
-test("Rider and Dispatch hide optional Leaflet branding but retain map data attribution", () => {
+test("Rider, Dispatch and Map Lab put required attribution adjacent to, never on, the map", () => {
   const rider = read("public/index.html");
-  const dispatch = read("public/dispatch-map.js");
+  const dispatchHtml = read("public/dispatch.html");
+  const dispatchJs = read("public/dispatch-map.js");
   const theme = read("public/map-theme.js");
-  assert.ok(rider.includes("map.attributionControl.setPrefix(false)"));
-  assert.ok(dispatch.includes("map.attributionControl.setPrefix(false)"));
-  assert.ok(!dispatch.includes("FOSSGIS routing"));
-  assert.ok(!dispatch.includes("Fix the map"));
-  assert.ok(theme.includes("OpenMapTiles"));
-  assert.ok(theme.includes("OpenFreeMap"));
-  assert.ok(theme.includes("openstreetmap.org/copyright"));
-  assert.ok(theme.includes("removeAttribution(vectorAttribution)"));
+  const labHtml = read("public/map-lab.html");
+  const labJs = read("public/map-lab.js");
+  for (const html of [rider, dispatchHtml, labHtml]) {
+    assert.ok(html.includes("openstreetmap.org/copyright"));
+    assert.ok(html.includes("openmaptiles.org"));
+    assert.ok(html.includes("© OpenStreetMap contributors"));
+    assert.ok(html.includes("© OpenMapTiles"));
+  }
+  assert.ok(rider.includes("id=\"riderMapCredit\""));
+  assert.ok(dispatchHtml.includes("id=\"dispatchMapCredit\""));
+  assert.ok(labHtml.includes("class=\"nr-lab-map-credit\""));
+  assert.ok(rider.includes("attributionControl: false"));
+  assert.ok(dispatchJs.includes("attributionControl: false"));
+  assert.ok(labJs.includes("attributionControl: false"));
+  assert.ok(!labHtml.includes("map-ribbon"));
+  assert.ok(theme.includes('attributionControl: false'));
+  assert.ok(theme.includes('setCredit: setCredit'));
+  assert.ok(theme.includes('creditId'));
+  assert.ok(theme.includes('provider === "carto"'));
+  assert.ok(theme.includes('provider === "vector"'));
+  assert.ok(!theme.includes("map.attributionControl.addAttribution("));
+  assert.ok(!dispatchJs.includes("FOSSGIS routing"));
+  assert.ok(!dispatchJs.includes("Fix the map"));
   assert.ok(rider.includes("carto.com/attributions"));
 });
