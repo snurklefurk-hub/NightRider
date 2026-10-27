@@ -1,0 +1,56 @@
+name: Validate NightRider backend and dispatch messaging
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'server.py'
+      - 'auth.py'
+      - 'requirements.txt'
+      - 'tests/test_*.py'
+      - 'tests/client_notify_check.js'
+      - 'public/dispatch.html'
+      - '.github/workflows/backend-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'server.py'
+      - 'auth.py'
+      - 'requirements.txt'
+      - 'tests/test_*.py'
+      - 'tests/client_notify_check.js'
+      - 'public/dispatch.html'
+      - '.github/workflows/backend-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    env:
+      # Only isolated, loopback-hosted test fixtures. No Render DB or production credentials.
+      NIGHTRIDER_REQUIRE_DATABASE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Python syntax and import checks
+        run: |
+          python -m py_compile server.py auth.py
+          python -m compileall -q tests
+      - name: Authenticated dispatch map, rider-location and fare regression tests
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+  dispatch-chat-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check legacy dispatch private-chat unread cue
+        run: node tests/client_notify_check.js
