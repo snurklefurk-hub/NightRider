@@ -38,6 +38,9 @@ const nodes = new Map();
 const document = {
   getElementById(id) { if (!nodes.has(id)) nodes.set(id, el()); return nodes.get(id); },
   createElement() { return el(); },
+  // Dispatch settings now bind to data-export-hours controls as well.
+  // This test has no such controls; return a normal empty NodeList.
+  querySelectorAll() { return []; },
   body: el(), documentElement: el()
 };
 
