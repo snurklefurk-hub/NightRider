@@ -52,6 +52,20 @@ test("preview is independent and makes no mutating API calls", () => {
   assert.match(js, /PRESETS\.streets\.center/);
 });
 
+test("MapLibre v6 loads its actual ESM entrypoint and has a second CDN", () => {
+  const js = read("public/map-lab.js");
+  const html = read("public/map-lab.html");
+  // v6 removed the UMD maplibre-gl.js asset and does not export supported().
+  assert.doesNotMatch(html, /<script[^>]*maplibre-gl\\.js/);
+  assert.doesNotMatch(js, /maplibregl\\.supported\\(/);
+  assert.match(js, /https:\\/\\/unpkg\\.com\\/maplibre-gl@6\\.15\\.0\\/dist\\/maplibre-gl\\.mjs/);
+  assert.match(js, /https:\\/\\/cdn\\.jsdelivr\\.net\\/npm\\/maplibre-gl@6\\.15\\.0\\/dist\\/maplibre-gl\\.mjs/);
+  assert.match(js, /await import\\(url\\)/);
+  assert.match(js, /GPUInitializationError/);
+  assert.match(html, /map-lab\\.js\\?v=2/);
+  assert.match(html, /maplibre-gl@6\\.15\\.0\\/dist\\/maplibre-gl\\.css/);
+});
+
 test("production Leaflet pages remain separate from the lab", () => {
   assert.match(read("public/dispatch.html"), /leaflet@1\.9\.4/);
   assert.match(read("public/index.html"), /leaflet@1\.9\.4/);
