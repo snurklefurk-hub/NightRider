@@ -35,5 +35,32 @@
       return { epochMs, lat, lon, accuracyM, speedMps };
     });
   }
-  return { parseCsv };
+  function summarize(fixes) {
+    if (!Array.isArray(fixes) || fixes.length === 0) return null;
+    const radians = degrees => degrees * Math.PI / 180;
+    let distanceM = 0, largestGapS = 0, inaccurate = 0;
+    for (let i = 0; i < fixes.length; i++) {
+      const p = fixes[i];
+      if (p.accuracyM > 30) inaccurate++;
+      if (!i) continue;
+      const q = fixes[i - 1];
+      const a = radians(p.lat - q.lat), b = radians(p.lon - q.lon);
+      const h = Math.sin(a / 2) ** 2 +
+        Math.cos(radians(q.lat)) * Math.cos(radians(p.lat)) * Math.sin(b / 2) ** 2;
+      const segment = 12742000 * Math.asin(Math.min(1, Math.sqrt(h)));
+      // Reject obvious GPS jumps from distance totals, but retain raw trail.
+      const elapsed = (p.epochMs - q.epochMs) / 1000;
+      largestGapS = Math.max(largestGapS, elapsed);
+      if (elapsed > 0 && segment / elapsed <= 55 && q.accuracyM <= 30 && p.accuracyM <= 30) {
+        distanceM += segment;
+      }
+    }
+    return {
+      fixes: fixes.length,
+      durationS: (fixes[fixes.length - 1].epochMs - fixes[0].epochMs) / 1000,
+      distanceM, largestGapS, inaccurate,
+      maxReportedSpeedMps: Math.max(...fixes.map(p => p.speedMps))
+    };
+  }
+  return { parseCsv, summarize };
 });
