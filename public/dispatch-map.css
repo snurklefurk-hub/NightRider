@@ -29,7 +29,7 @@
 #dispatchMap .leaflet-popup-content-wrapper,#dispatchMap .leaflet-popup-tip{background:#173a29;color:#f2f0df}
 #dispatchMap .leaflet-popup-content{font-family:system-ui,sans-serif;font-size:12px;line-height:1.65}
 #dispatchMap .leaflet-tooltip{background:#173a29;color:#f2f0df;border-color:#416b52;font-family:system-ui,sans-serif;box-shadow:0 2px 7px #0008}
-#dispatchMap .leaflet-control-attribution{font-size:9px;line-height:1.4}
+#dispatchMap .leaflet-control-attribution{font-size:10px;line-height:1.4}
 #dispatchMap .leaflet-control-scale-line{font-family:system-ui,sans-serif;letter-spacing:0}
 .dispatch-map-card:fullscreen{height:100vh!important;width:100vw!important;padding:1rem;background:#071b12!important;border-radius:0;border:0}
 .dispatch-map-card:fullscreen .dispatch-map-canvas{flex:1;height:auto}
