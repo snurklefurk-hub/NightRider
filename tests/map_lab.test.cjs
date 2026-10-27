@@ -90,3 +90,20 @@ test("locally parses a NightRider Field Test CSV without any server request", ()
   assert.match(read("public/map-lab.html"), /map-lab-trace\.js/);
   assert.doesNotMatch(read("public/map-lab-trace.js"), /fetch\(|XMLHttpRequest|localStorage/);
 });
+
+test("field trace metrics flag weak GPS and filter implausible jumps", () => {
+  const trace = require("../public/map-lab-trace.js");
+  const fixes = [
+    {epochMs:1000,lat:32,lon:-81,accuracyM:5,speedMps:0},
+    {epochMs:11000,lat:32.0005,lon:-81,accuracyM:5,speedMps:6},
+    {epochMs:12000,lat:33,lon:-81,accuracyM:60,speedMps:0}
+  ];
+  const m = trace.summarize(fixes);
+  assert.equal(m.fixes,3);
+  assert.equal(m.durationS,11);
+  assert.equal(m.inaccurate,1);
+  assert.equal(m.largestGapS,10);
+  assert.ok(m.distanceM > 50 && m.distanceM < 60);
+  assert.equal(trace.summarize([]),null);
+  assert.match(read("public/map-lab.js"), /summarize\(fixes\)/);
+});
