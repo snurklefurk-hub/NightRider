@@ -1,8 +1,9 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;600;700;800&display=swap");
 /*
  * NightRider Aero — optional Frutiger Aero-inspired interface.
  * Light-filled blue glass, emerald highlights, softly rounded glass/gel
  * controls and luminous sky/water gradients. No external imagery, no CDN.
- * This is the INTERFACE skin. Map Light/Dark basemaps are independent.
+ * LIGHT includes the Midnight vector basemap; DARK restores Classic and Original Dark.
  */
 html[data-nr-ui="aero"] {
   color-scheme:light;
@@ -29,7 +30,7 @@ html[data-nr-ui="aero"] body.dispatch {
     radial-gradient(ellipse 90vw 50vh at 83% 95%,rgba(84,205,148,.5),transparent 79%),
     linear-gradient(170deg,#edfaff 0%,#b7e9ff 38%,#8ed1f2 65%,#a4ecc8 100%);
   background-attachment:fixed;
-  font-family:"Segoe UI",Candara,Calibri,system-ui,sans-serif;
+  font-family:"Nunito Sans","Trebuchet MS","Segoe UI",system-ui,sans-serif;
 }
 html[data-nr-ui="aero"] .parallax-scene{display:none!important}
 html[data-nr-ui="aero"] header,
@@ -84,7 +85,7 @@ html[data-nr-ui="aero"] :is(button,.cta,.payopt,.nr-ui-theme-toggle,.control-act
   text-shadow:0 1px 1px rgba(0,48,94,.4);
   transform:none;
 }
-html[data-nr-ui="aero"] :is(button.alt,.cta.pink,.nr-map-modes button[aria-pressed=true]){
+html[data-nr-ui="aero"] :is(button.alt,.cta.pink){
   color:#fff;
   background:linear-gradient(180deg,#d5ffe6 0%,#67e3a4 14%,#20ac72 55%,#108352 100%);
   border:1px solid #298c60;border-top-color:#d8ffeb;
@@ -104,9 +105,6 @@ html[data-nr-ui="aero"] :is(.leaflet-popup-content-wrapper,.leaflet-popup-tip,
 }
 html[data-nr-ui="aero"] :is(.leaflet-tooltip,#dispatchMap .leaflet-tooltip){background:#f2fbff;color:#184157;border-color:#9bd1e6}
 html[data-nr-ui="aero"] :is(.nr-map-pin,.driver-pin){box-shadow:0 3px 12px rgba(10,92,142,.34)}
-html[data-nr-ui="aero"] .nr-map-modes{background:rgba(237,251,255,.94);border-color:#9fd6ed}
-html[data-nr-ui="aero"] .nr-map-modes button{background:transparent;color:#07517d;border-color:transparent;text-shadow:none;box-shadow:none}
-html[data-nr-ui="aero"] .nr-map-modes button[aria-pressed=true]{background:linear-gradient(#75d8fc,#007bb8);color:#fff}
 html[data-nr-ui="aero"] .nr-map-credit{background:rgba(221,248,255,.92);color:#1b5b7b}
 html[data-nr-ui="aero"] :is(.map-offline-toggle,.map-layer-toggle){color:#31566e}
 html[data-nr-ui="aero"] :is(.map-offline-toggle input,.map-layer-toggle input,.toggle input){accent-color:#108352}
@@ -117,20 +115,17 @@ html[data-nr-ui="aero"] .lab-tag{color:#096191}
 html[data-nr-ui="aero"] :is(.lab-controls label,.lab-footer,.lab-note,#labNotice,.camera){color:#325e76}
 html[data-nr-ui="aero"] .lab-controls select{background:#effbff;color:#153e56;border-color:#7ab8d4}
 html[data-nr-ui="aero"] #labMap{background:#c7ecf7}
-html[data-nr-ui="aero"] .nr-ui-theme-toggle {
-  margin:0;flex:0 0 auto;padding:7px 13px;min-height:34px;
-  font:700 12px/1 "Segoe UI",system-ui,sans-serif;
-  letter-spacing:.01em;text-transform:none;
-}
-html[data-nr-ui="aero"] .lab-header .nr-ui-theme-toggle{margin-left:6px}
-.nr-ui-theme-toggle {
-  margin:0;flex:0 0 auto;min-height:34px;padding:6px 12px;
-  font:700 12px/1 system-ui,sans-serif;
-  letter-spacing:.01em;text-transform:none;white-space:nowrap;
-  border-radius:999px;cursor:pointer;
-}
-body>.nr-ui-theme-toggle{position:fixed;top:12px;right:12px;z-index:1000}
-.account .nr-ui-theme-toggle{position:relative}
+/* Shared appearance choice: two simple, accessible LIGHT/DARK segments. */
+.nr-ui-mode-group{display:inline-flex;align-items:center;gap:3px;padding:3px;border:1px solid rgba(139,199,222,.55);border-radius:999px;background:rgba(10,49,69,.12);white-space:nowrap}
+.nr-ui-theme-toggle{margin:0!important;min-width:56px;min-height:34px;padding:7px 11px!important;border:1px solid transparent;border-radius:999px;cursor:pointer;font:800 11px/1.15 system-ui,sans-serif;letter-spacing:.035em;text-transform:uppercase;box-shadow:none}
+.nr-ui-theme-toggle[aria-pressed="true"]{background:#19d47b;color:#072116;border-color:#19d47b}
+.nr-ui-theme-toggle[aria-pressed="false"]{background:transparent;color:var(--ice);border-color:transparent}
+html[data-nr-ui="aero"] :is(h1,h2,h3,header,nav,button,label,input,select,textarea,.card,.sheet,.lab-header,.lab-controls){font-family:"Nunito Sans","Trebuchet MS","Segoe UI",system-ui,sans-serif}
+html[data-nr-ui="aero"] .nr-ui-mode-group{background:#dcf4fc;border-color:#83bad5}
+html[data-nr-ui="aero"] .nr-ui-theme-toggle{box-shadow:none!important;text-shadow:none!important;font-family:"Nunito Sans","Trebuchet MS",system-ui,sans-serif}
+html[data-nr-ui="aero"] .nr-ui-theme-toggle[aria-pressed="true"]{background:linear-gradient(180deg,#8ee7ff,#178ac2);border-color:#2a8eb8;color:#fff}
+html[data-nr-ui="aero"] .nr-ui-theme-toggle[aria-pressed="false"]{background:transparent;border-color:transparent;color:#17546f}
+html[data-nr-ui="aero"] .lab-header .nr-ui-mode-group{margin-left:6px}
 @media(max-width:650px){
   html[data-nr-ui="aero"] .sheet{border-radius:17px 17px 0 0}
   html[data-nr-ui="aero"] .card{border-radius:15px}
