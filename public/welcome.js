@@ -4,7 +4,8 @@
   var next = params.get("next");
   if (location.pathname.endsWith("/account.html") && (params.get("setup") === "1" || next === "/driver.html" || next === "/dispatch.html")) return;
   var key = "nightrider.welcome.seen.v1";
-  try { if (localStorage.getItem(key)) return; } catch (error) { /* Show once per page when storage is unavailable. */ }
+  var seen = false;
+  try { seen = !!localStorage.getItem(key); } catch (error) { /* Show once per page when storage is unavailable. */ }
 
   var style = document.createElement("style");
   style.textContent = `
@@ -19,6 +20,7 @@
     .nr-welcome-list strong { color:#eaf8e9; display:block; margin-bottom:2px; }
     .nr-welcome-pilot { color:#f5c77b; font-size:.82rem; line-height:1.4; margin:0 0 18px; }
     .nr-welcome .nr-welcome-button { width:100%; margin:0; }
+    .nr-welcome-open { font-size:.72rem; padding:.4rem .65rem; min-height:0; }
   `;
   document.head.appendChild(style);
   var dialog = document.createElement("dialog");
@@ -42,5 +44,12 @@
   function remember() { try { localStorage.setItem(key, "1"); } catch (error) {} }
   dialog.addEventListener("close", remember);
   dialog.querySelector("#nrWelcomeContinue").addEventListener("click", function () { dialog.close(); });
-  if (typeof dialog.showModal === "function") dialog.showModal();
+  var nav = document.querySelector("body.rider header nav");
+  if (nav && typeof dialog.showModal === "function") {
+    var open = document.createElement("button");
+    open.type = "button"; open.className = "alt nr-welcome-open"; open.textContent = "Welcome";
+    open.addEventListener("click", function () { if (!dialog.open) dialog.showModal(); });
+    nav.insertBefore(open, document.getElementById("signOut"));
+  }
+  if (!seen && typeof dialog.showModal === "function") dialog.showModal();
 })();
