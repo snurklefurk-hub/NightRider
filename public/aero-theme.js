@@ -61,6 +61,9 @@
     if (event.key === key) { memory = null; paint(current()); }
   });
   root.NightRiderUiTheme = { key: key, current: current, set: set };
+  // This small script loads in <head> before the page paints; apply saved
+  // colors without adding an inline script that disrupts Dispatch's test harness.
+  paint(current());
   if (root.document.readyState === "loading") {
     root.document.addEventListener("DOMContentLoaded", mount, { once: true });
   } else mount();
