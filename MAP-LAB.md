@@ -73,9 +73,12 @@ When refining Midnight, **update both** until the future shared-style publishing
 pipeline is established. Missing upstream layer IDs are surfaced in the lab,
 since OpenFreeMap may change public style internals.
 
-MapLibre GL JS is BSD-3-Clause licensed. Keep built-in OpenFreeMap/OpenStreetMap
-attribution visible; confirm upstream hosted map usage requirements for future
-commercial deployment. No MapTiler credentials, services, or costs are added.
+MapLibre GL JS is BSD-3-Clause licensed. Keep the linked OpenStreetMap
+contributors and OpenMapTiles data credits visible in the small footer **below**
+each map; the built-in on-map attribution box was disabled to avoid duplicate
+credits covering the map. Confirm the public vector tile host's attribution
+and capacity requirements before commercial deployment. No MapTiler credentials,
+services, or costs are added.
 
 ## Test checklist before any live migration
 
