@@ -41,6 +41,8 @@ const document = {
   // Dispatch settings now bind to data-export-hours controls as well.
   // This test has no such controls; return a normal empty NodeList.
   querySelectorAll() { return []; },
+  addEventListener() {}, removeEventListener() {}, execCommand() { return true; },
+  createTextNode(text) { return { textContent: String(text) }; },
   body: el(), documentElement: el()
 };
 
@@ -74,7 +76,7 @@ vm.createContext(sandbox);
 vm.runInContext(script, sandbox);
 
 const tick = () => new Promise((r) => setImmediate(() => setImmediate(r)));
-const pollChat = () => intervals[2]();           /* wiring order: cue, drivers, pollChat */
+const pollChat = () => intervals[1]();           /* wiring order: refreshDrivers, pollChat */
 const unread = () => document.getElementById("chatCard").classList.contains("hasunread");
 const cue = () => document.getElementById("chatCue").textContent;
 
