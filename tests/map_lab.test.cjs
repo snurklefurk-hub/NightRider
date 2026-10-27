@@ -62,7 +62,7 @@ test("MapLibre v6 loads its actual ESM entrypoint and has a second CDN", () => {
   assert.ok(js.includes("https://cdn.jsdelivr.net/npm/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"));
   assert.ok(js.includes("await import(url)"));
   assert.ok(js.includes("GPUInitializationError"));
-  assert.ok(html.includes("/map-lab.js?v=2"));
+  assert.ok(html.includes("/map-lab.js?v=3"));
   assert.ok(html.includes("maplibre-gl@6.15.0/dist/maplibre-gl.css"));
 });
 
