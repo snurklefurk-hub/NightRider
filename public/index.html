@@ -386,7 +386,7 @@
     cancelSearch(); var sequence = searchSequence, field = state.activeField, b = biasPoint();
     lastSearchAt = Date.now();
     searchController = new AbortController(); $("searchMsg").textContent = "Finding places near you…";
-    var params = searchKey ? {text:q, limit:7, bias:"proximity:" + b.lng + "," + b.lat, lang:"en", apiKey:searchKey} :
+    var params = searchKey ? {text:q, limit:7, bias:"circle:-80.96,32.17,55000|proximity:" + b.lng + "," + b.lat, lang:"en", apiKey:searchKey} :
       {q:q, format:"json", limit:7, countrycodes:state.country, viewbox:[b.lng-0.35,b.lat+0.35,b.lng+0.35,b.lat-0.35].join(",")};
     var endpoint = searchKey ? "https://api.geoapify.com/v1/geocode/autocomplete?" : "https://nominatim.openstreetmap.org/search?";
     fetch(endpoint + toQuery(params), {signal:searchController.signal})
