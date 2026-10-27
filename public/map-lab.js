@@ -22,8 +22,8 @@
   for (const url of mapLibreModules) {
     try {
       const module = await import(url);
-      if (typeof module.Map !== "function" || typeof module.supported !== "function") {
-        throw new Error("MapLibre module exports are incomplete");
+      if (typeof module.Map !== "function") {
+        throw new Error("MapLibre ESM Map export is unavailable");
       }
       maplibregl = module;
       break;
@@ -36,11 +36,6 @@
     notice.textContent = "Unable to load the MapLibre vector engine from either CDN. Check browser blockers or network restrictions, then reload.";
     return;
   }
-  if (!maplibregl.supported()) {
-    notice.textContent = "MapLibre loaded, but this browser cannot render WebGL maps. Check hardware acceleration.";
-    return;
-  }
-
   const FIORD = "https://tiles.openfreemap.org/styles/fiord";
   const DARK = "https://tiles.openfreemap.org/styles/dark";
   const PRESETS = {
@@ -479,7 +474,10 @@
   updateCamera();
 })().catch(function (error) {
   const notice = document.getElementById("labNotice");
-  if (notice) notice.textContent = "Map Lab startup failed: " +
-    (error && error.message ? error.message : "unknown error") + ".";
+  if (notice) {
+    notice.textContent = (error && error.name === "GPUInitializationError")
+      ? "MapLibre loaded, but WebGL2 could not initialize. Enable browser hardware acceleration and try again."
+      : "Map Lab startup failed: " + (error && error.message ? error.message : "unknown error") + ".";
+  }
   console.error("NightRider Map Lab startup error", error);
 });
