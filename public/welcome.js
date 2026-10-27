@@ -30,11 +30,11 @@
   dialog.innerHTML = `<div class="nr-welcome-inner">
     <p class="nr-welcome-kicker">A different kind of ride</p>
     <h2 id="nrWelcomeTitle">Welcome to NightRider</h2>
-    <p class="nr-welcome-intro" id="nrWelcomeIntro">A ride experience built around people, with dispatch in the loop from request to pickup.</p>
+    <p class="nr-welcome-intro" id="nrWelcomeIntro">An alternative to the big guys. Request your ride from the website with no download required.</p>
     <ul class="nr-welcome-list">
-      <li><strong>Real dispatch, real support</strong>Your request goes to dispatch, who can help coordinate your ride.</li>
-      <li><strong>Stay in the conversation</strong>Message your driver or dispatch during your ride. Dispatch can see rider–driver messages to help when needed.</li>
-      <li><strong>Know your ride</strong>See an estimated fare before requesting and follow your ride’s progress.</li>
+      <li><strong>Real dispatch, real support</strong>Your request goes to dispatch, who can help coordinate your ride and communicate by text.</li>
+      <li><strong>Safety during the ride</strong>Less distraction, less confusion. Text your driver and dispatch through the website. Dispatch can see rider–driver messages to help when needed.</li>
+      <li><strong>Your data</strong>NightRider stores account and ride information, including messages and ratings. Payment options are still being tested.</li>
       <li><strong>Make pickup easier</strong>Search nearby places, drop a pin, or use your location. You can control location sharing.</li>
     </ul>
     <p class="nr-welcome-pilot">NightRider is currently being tested; ride availability and payment options are not yet final.</p>
