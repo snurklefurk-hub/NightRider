@@ -55,15 +55,15 @@ test("preview is independent and makes no mutating API calls", () => {
 test("MapLibre v6 loads its actual ESM entrypoint and has a second CDN", () => {
   const js = read("public/map-lab.js");
   const html = read("public/map-lab.html");
-  // v6 removed the UMD maplibre-gl.js asset and does not export supported().
-  assert.doesNotMatch(html, /<script[^>]*maplibre-gl\\.js/);
-  assert.doesNotMatch(js, /maplibregl\\.supported\\(/);
-  assert.match(js, /https:\\/\\/unpkg\\.com\\/maplibre-gl@6\\.15\\.0\\/dist\\/maplibre-gl\\.mjs/);
-  assert.match(js, /https:\\/\\/cdn\\.jsdelivr\\.net\\/npm\\/maplibre-gl@6\\.15\\.0\\/dist\\/maplibre-gl\\.mjs/);
-  assert.match(js, /await import\\(url\\)/);
-  assert.match(js, /GPUInitializationError/);
-  assert.match(html, /map-lab\\.js\\?v=2/);
-  assert.match(html, /maplibre-gl@6\\.15\\.0\\/dist\\/maplibre-gl\\.css/);
+  // v6 removed the old UMD bundle and no longer exports supported().
+  assert.ok(!html.includes('src="https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.js"'));
+  assert.ok(!js.includes("maplibregl.supported("));
+  assert.ok(js.includes("https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"));
+  assert.ok(js.includes("https://cdn.jsdelivr.net/npm/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"));
+  assert.ok(js.includes("await import(url)"));
+  assert.ok(js.includes("GPUInitializationError"));
+  assert.ok(html.includes("/map-lab.js?v=2"));
+  assert.ok(html.includes("maplibre-gl@6.15.0/dist/maplibre-gl.css"));
 });
 
 test("production Leaflet pages remain separate from the lab", () => {
