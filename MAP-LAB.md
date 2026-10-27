@@ -9,7 +9,7 @@ has no ride actions or driver navigation.
 Go to `/map-lab.html` on the NightRider web host. This is an independent
 MapLibre GL JS 6.15.0 page and is not embedded into a live ride flow.
 MapLibre v6 must be loaded as an ES module from `dist/maplibre-gl.mjs`.
-The lab imports the pinned version from UNPKG with a jsDelivr fallback; the
+The map style follows the shared LIGHT/DARK site appearance, with no separate style selector. The lab imports the pinned version from UNPKG with a jsDelivr fallback; the
 removed v5-style `dist/maplibre-gl.js` bundle cannot be used. If both CDNs
 are inaccessible, the lab displays an explicit loading error. WebGL2 is
 required by MapLibre v6.
