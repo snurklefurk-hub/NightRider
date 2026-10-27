@@ -57,6 +57,18 @@
     return selectedId ? snapshot.rides.filter(function (ride) { return ride.id === selectedId; }) : snapshot.rides;
   }
   function mapTileLayer(fallback, key) {
+    // Vector basemap runs within the existing Leaflet map. Dispatch overlay
+    // groups, routes, location and focus controls remain fully unchanged.
+    if (baseLayer && baseLayer._nrVector) return;
+    if (!baseLayer && window.NightRiderMapTheme && !map._nrVectorFailed) {
+      var vector = window.NightRiderMapTheme.attach(map, {
+        onFallback: function () {
+          baseLayer = null;
+          mapTileLayer(true, "");
+        }
+      });
+      if (vector) { baseLayer = vector; return; }
+    }
     if (baseLayer) { map.removeLayer(baseLayer); }
     usingFallback = fallback;
     var url = fallback ? "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" :
