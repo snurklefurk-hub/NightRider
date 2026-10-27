@@ -10,10 +10,13 @@
   <link rel="stylesheet" href="/map-lab.css?v=1">
   <!-- MapLibre v6 is an ES module; map-lab.js imports its .mjs bundle with a CDN fallback. -->
   <script defer src="/map-lab-midnight.js?v=1"></script>
-  <script defer src="/map-theme.js?v=1"></script>
-  <script defer src="/map-lab.js?v=3"></script>
-  <link rel="stylesheet" href="/aero-theme.css?v=1">
-  <script defer src="/aero-theme.js?v=1"></script>
+  <script defer src="/map-theme.js?v=2"></script>
+  <script defer src="/map-lab.js?v=4"></script>
+  <link rel="stylesheet" href="/aero-theme.css?v=2">
+  <script>try { document.documentElement.dataset.nrUi =
+    localStorage.getItem("nightrider.ui-theme.v1") === "aero" ? "aero" : "classic";
+  } catch (_) {}</script>
+  <script defer src="/aero-theme.js?v=2"></script>
 </head>
 <body>
   <header class="lab-header">
