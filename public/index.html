@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NightRider — Request a ride</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.css">
+<link rel="stylesheet" href="/map-theme.css?v=1">
 <link rel="stylesheet" href="nightrider.css?v=verdant-1">
   <link rel="icon" href="/nightrider-mark.svg?v=talmadge-2" type="image/svg+xml">
 </head>
@@ -149,6 +151,10 @@
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
+<script src="/map-lab-midnight.js?v=1"></script>
+<script src="/map-theme.js?v=1"></script>
 <script src="/rider-location.js?v=2"></script>
 <script>
 (function () {
@@ -173,6 +179,16 @@
   //
   // Use CARTO's dark basemap to match the night palette.
   function addBaseMap(cartoKey) {
+    // Preserve Leaflet's fully working booking markers, draggable pins and routes.
+    // Render vectors inside Leaflet, with raster tiles only if MapLibre cannot start.
+    var vector = window.NightRiderMapTheme &&
+      window.NightRiderMapTheme.attach(map, {
+        onFallback: function () { addLegacyBaseMap(cartoKey); }
+      });
+    if (vector) return;
+    addLegacyBaseMap(cartoKey);
+  }
+  function addLegacyBaseMap(cartoKey) {
     if (cartoKey) {
       L.tileLayer("https://basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=" + encodeURIComponent(cartoKey), {
         maxZoom: TILE_MAX, maxNativeZoom: TILE_MAX,
