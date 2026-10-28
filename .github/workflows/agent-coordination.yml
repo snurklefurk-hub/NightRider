@@ -1,27 +1,30 @@
-# Security: only trusted default-branch workflow code; never checkout PR heads.
+# All privileged updates execute trusted MAIN-branch workflow code only.
+# PR checks use a read-only token; no PR code is checked out or executed by the bot.
 name: NightRider agent coordination
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened, edited, ready_for_review, closed]
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
   schedule:
-    - cron: '17 13 * * *'
+    - cron: '17 */4 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: agent-coordination-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
-  coordinate:
-    name: Discover active work and overlapping files
+  inspect:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     steps:
-      - name: Compare pull requests and publish coordination summaries
+      - name: Read-only overlap and work inventory check
         uses: actions/github-script@v8
         with:
           script: |
@@ -102,6 +105,7 @@ jobs:
                 "This bot compares filenames, **not behavior**; a clean report does not guarantee compatibility."
               ].join("\n");
               summaries.push(report);
+              if (context.eventName !== "pull_request") {
               try {
                 const comments = await github.paginate(github.rest.issues.listComments,
                   {owner, repo, issue_number:pr.number, per_page:100});
@@ -113,6 +117,117 @@ jobs:
                   await github.rest.issues.createComment({owner, repo, issue_number:pr.number, body:report});
                 }
               } catch (e) { core.warning("PR #" + pr.number + ": cannot update comment: " + e.message); }
+              }
+            }
+            if (!summaries.length) summaries.push(roster.join("\n"));
+            if (warnings.length) summaries.push("### Incomplete inspection\n" +
+              warnings.map(w => "- " + w).join("\n"));
+            await core.summary.addRaw(summaries.join("\n\n---\n\n")).write();
+            if (overlapsExist && incoming) {
+              core.setFailed("Another open PR changes the same source files. Sequence changes before merge.");
+            }
+
+  refresh:
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refresh PR coordination comments from trusted main
+        uses: actions/github-script@v8
+        with:
+          script: |
+            // Trusted default-branch workflow. Never checkout or execute pull-request code.
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const peers = ["NightRider", "nightrider-driver-android"];
+            const tag = "<!-- nightrider-agent-coordination-v1 -->";
+            const registry = {}, cache = new Map(), warnings = [];
+            const title = p => String(p.title || "").replace(/[\r\n|\[\]]/g, " ").slice(0, 110);
+            const ignore = f => ["README.md", "AGENTS.md", ".github/PULL_REQUEST_TEMPLATE.md"].includes(f);
+            async function files(name, number) {
+              const key = name + "#" + number;
+              if (!cache.has(key)) {
+                const result = await github.paginate(github.rest.pulls.listFiles,
+                  {owner, repo:name, pull_number:number, per_page:100});
+                cache.set(key, result.map(x => x.filename));
+              }
+              return cache.get(key);
+            }
+            for (const name of peers) {
+              try { registry[name] = await github.paginate(github.rest.pulls.list,
+                {owner, repo:name, state:"open", per_page:100}); }
+              catch (e) {
+                registry[name] = null;
+                warnings.push("Cannot inspect " + name + ": " + e.message);
+                core.warning(warnings[warnings.length-1]);
+              }
+            }
+            if (!registry[repo]) { core.setFailed("Cannot inspect this repository's PRs."); return; }
+            const incoming = context.payload.pull_request && context.payload.action !== "closed" ?
+              context.payload.pull_request.number : null;
+            const targets = incoming ?
+              registry[repo].filter(p => p.number === incoming) : registry[repo];
+            const roster = ["### Other active NightRider pull requests"];
+            for (const name of peers) {
+              const prs = registry[name];
+              if (prs === null) { roster.push("- **" + name + "**: unavailable (check manually)"); continue; }
+              if (!prs.length) { roster.push("- **" + name + "**: none"); continue; }
+              roster.push("- **" + name + "**:");
+              for (const p of prs.slice(0, 35)) {
+                roster.push("  - [#" + p.number + " " + title(p) +
+                  "](https://github.com/" + owner + "/" + name + "/pull/" + p.number + ")" +
+                  (p.draft ? " · DRAFT" : " · ready"));
+              }
+            }
+            let overlapsExist = false;
+            const summaries = [];
+            for (const pr of targets) {
+              const matches = [];
+              try {
+                const mine = new Set((await files(repo, pr.number)).filter(f => !ignore(f)));
+                for (const other of registry[repo]) {
+                  if (other.number === pr.number) continue;
+                  const overlap = (await files(repo, other.number)).filter(f => mine.has(f));
+                  if (overlap.length) matches.push({number:other.number, overlap});
+                }
+              } catch (e) {
+                warnings.push("Cannot compare PR #" + pr.number + " files: " + e.message);
+              }
+              if (matches.length) overlapsExist = true;
+              const report = [
+                tag, "## NightRider agent coordination — automated",
+                "Current PR: [#" + pr.number + " " + title(pr) +
+                  "](https://github.com/" + owner + "/" + repo + "/pull/" + pr.number + ")",
+                "",
+                matches.length ? "**Overlapping code paths — coordinate before merging!**" :
+                  "**No overlapping non-documentation filenames found in this repository.**",
+                ...matches.map(m => "- PR [#" + m.number + "](https://github.com/" + owner +
+                  "/" + repo + "/pull/" + m.number + ") also changes " +
+                  m.overlap.slice(0, 15).map(f => "\`" + f + "\`").join(", ")),
+                "", ...roster, "",
+                "### Integration checklist",
+                "- Check both repos' live PRs and diffs, particularly any API or shared workflow changes.",
+                "- Test against the latest main; sequence cross-repo changes for compatibility.",
+                "- Only the designated integration owner merges and deploys. **No automatic merges.**",
+                "- Open a DRAFT PR early to make agent work visible to everyone.",
+                "",
+                "This bot compares filenames, **not behavior**; a clean report does not guarantee compatibility."
+              ].join("\n");
+              summaries.push(report);
+              if (context.eventName !== "pull_request") {
+              try {
+                const comments = await github.paginate(github.rest.issues.listComments,
+                  {owner, repo, issue_number:pr.number, per_page:100});
+                const old = comments.find(c => c.user && c.user.type === "Bot" &&
+                  c.body && c.body.includes(tag));
+                if (old && old.body !== report) {
+                  await github.rest.issues.updateComment({owner, repo, comment_id:old.id, body:report});
+                } else if (!old) {
+                  await github.rest.issues.createComment({owner, repo, issue_number:pr.number, body:report});
+                }
+              } catch (e) { core.warning("PR #" + pr.number + ": cannot update comment: " + e.message); }
+              }
             }
             if (!summaries.length) summaries.push(roster.join("\n"));
             if (warnings.length) summaries.push("### Incomplete inspection\n" +
