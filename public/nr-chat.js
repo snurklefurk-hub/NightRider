@@ -214,6 +214,7 @@
       var body = requestBody();
       if (!body.text || sending || send.disabled) return;
       var signature = JSON.stringify(body);
+      var sentTab = active, sentTarget = currentTarget();
       if (signature !== pendingSignature) {
         pendingSignature = signature;
         pendingId = "nr-" + Date.now() + "-" + Math.random().toString(36).slice(2);
@@ -228,14 +229,16 @@
           return data;
         });
       }).then(function (data) {
-        field.value = "";
+        if (field.value.trim() === body.text) field.value = "";
         pendingSignature = ""; pendingId = "";
         status.textContent = "Sent";
         if (data.message) {
           var m = Object.assign({}, data.message, { mine: true,
             message_kind: data.message.ride_id ? "ride" : "team" });
           accept([m]);
-          render(false, true); // Send is an explicit user action.
+          if (active === sentTab && currentTarget() === sentTarget) {
+            render(false, true); // The driver explicitly sent into this tab.
+          }
         }
         refresh();
       }).catch(function (error) {
