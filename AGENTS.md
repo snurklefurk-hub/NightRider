@@ -18,7 +18,7 @@ Every new commit message MUST include a substantive trailer as its own line (at 
 NR-Value: safety - Keeps pickup navigation stable when GPS fixes are stale.
 ```
 
-Use one primary category: `safety` (question 1), `driver-business` (question 2), or `customer-trust` (question 3). You may explain other benefits in the PR. A claim that is false, vague, or unrelated to the diff fails review even if its syntax passes CI. Each commit must be cohesive, and the answer must be decided **before** writing it, not retrofitted as boilerplate.
+Use one primary category: `safety` (question 1), `driver-business` (question 2), or `customer-trust` (question 3). You may explain other benefits in the PR. A claim that is false, vague, or unrelated to the diff fails review even if its syntax passes CI. Each commit must be cohesive, and the answer must be decided **before** writing it, not retrofitted as boilerplate. **For squash merges, the integration owner MUST preserve a valid NR-Value trailer in the final squash commit message as well**; a green feature-branch check alone is not proof the final main commit carries its justification.
 
 Use `./scripts/setup-commit-gate.sh` once per local clone for the interactive Git commit hook/template. GitHub API writes bypass local hooks, so agents using GitHub tools MUST ask the questions themselves before calling `create_file`, `update_file`, or making any other commit. The `NightRider commit value gate` PR workflow checks the message on *every* commit in a PR. It is an after-the-fact CI safety net; actual prevention of merging a red check also requires a repository ruleset/branch protection with this check required. Do not falsely claim hard server-side enforcement until that rule is configured.
 
