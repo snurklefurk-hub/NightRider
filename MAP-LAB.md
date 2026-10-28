@@ -82,10 +82,10 @@ services, or costs are added.
 
 ## Review an actual Field Test trace (local to your browser)
 
-After a safe, passenger-operated or parked Android **Settings → Field test**
-session, use **Share CSV** on the phone. Open the Web Map Lab and select that
+After a safe, passenger-operated or parked Android **Settings → Field test (live GPS)**
+session, use **Save CSV** on the phone. Open the Web Map Lab and select that
 CSV using **Review Android Field Test CSV (local file)**. The browser parses
-the five-column file locally and draws the recorded trail in orange. The map
+the five-, seven-, or eleven-column file locally and draws the usable GPS trail in orange. The map
 zooms to your trace; **Clear trail** removes it. Live/demo ride data are not
 altered. No upload to NightRider, dispatch API call, or persistent browser
 storage is performed for this import; switching pages clears it. The selected

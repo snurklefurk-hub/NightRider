@@ -52,5 +52,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check legacy dispatch private-chat unread cue
+      - name: Check dispatch private-chat unread cue
         run: node tests/client_notify_check.js

@@ -14,16 +14,17 @@ The website's two-button control displays only **LIGHT** and **DARK**.
 - **Dispatch live map** (`/dispatch.html`, `public/dispatch-map.js`): retains Leaflet driver/rider markers, live positions, route lines, status and controls, with a vector basemap.
 - **Desktop vector map lab** (`/map-lab.html`): native MapLibre GL JS 6 rendering; selects either mode.
 - **Android Map Lab** (`com.nightrider.navpreview` in the separate Android repo): native MapLibre Android rendering; selects either mode.
-- **Driver browser board** (`/driver.html`) and **production Android Driver** (`com.nightrider.driver`) currently have **no embedded map**. Their dispatch/ride behavior is not changed. When embedded navigation is implemented, reuse these modes.
+- **Driver browser board** (`/driver.html`) has no embedded map.
+- **Production Android Driver** (`com.nightrider.driver`) includes a live driver map, simulator and isolated GPS Field Test. All follow the Settings appearance button and use `NavigationRoadStyle` for road contrast, a flat heading-up camera and SmartZoom. This driver-specific palette differs from the standalone appearance preview; turn-by-turn guidance is not implemented.
 
 ## Persistence
 
-The Rider, Dispatch, and web Map Lab share `localStorage["nightrider.map-mode.v1"]`
+The Rider, Dispatch, and web Map Lab share `localStorage["nightrider.ui-theme.v1"]`
 on the same browser origin and update each other across tabs via the storage
-event. The Android Map Lab stores the selected mode in a local
-`SharedPreferences` file (`map_mode`). **These are device-local preferences, not
-cross-device/account synchronization.** Initial value follows the device's
-`prefers-color-scheme` / Android system night mode.
+event. DARK is the default. The production Android app stores its choice as
+`frutiger_aero_ui`; the separate Android Map Lab uses `aero_ui`. Both default
+to DARK and ignore the old independent `map_mode` preference. These choices
+are local to each browser or app and do not synchronize through accounts.
 
 No MapTiler API keys or subscriptions are needed.
 
@@ -39,7 +40,8 @@ the original CARTO/OSM raster tile path remains as a functional fallback.
 That fallback is **not vector**, and a browser lacking GPU support cannot meet
 the vector rendering requirement without alternative hardware/browser support.
 
-`public/map-theme.js` is the single web mode controller; it applies the
+`public/aero-theme.js` owns the shared UI preference and appearance controls.
+`public/map-theme.js` follows that preference for Leaflet basemaps; it applies the
 same initial Midnight paint values already used on Android through
 `public/map-lab-midnight.js`. Its output must be visually verified at the
 same GPS coordinates and zoom on desktop and Android. Styling differences due
@@ -61,8 +63,8 @@ scale before treating the hosted public tiles as a long-term SLA.
   Android and web Map Labs; verify no tilt or loss of attribution.
 - Test no-WebGL, failed CDN, failed tile style, and a slow connection. Ensure
   Leaflet raster fallback still supports booking and dispatch.
-- Test Android Map Lab with both modes, system-night default and persistence.
-- Run `node --test tests/map_lab.test.cjs tests/map_mode.test.cjs`, plus
+- Test Android Map Lab and Driver with both modes, DARK default and persistence.
+- Run `node --test tests/*.test.cjs`, plus
   independent Android preview and production app regression builds.
 
 **Real-device/live production acceptance testing is still required** before

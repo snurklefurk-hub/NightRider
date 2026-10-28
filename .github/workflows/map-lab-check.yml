@@ -4,40 +4,18 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'public/map-lab*'
-      - 'public/map-theme*'
-      - 'public/aero-theme*'
-      - 'public/account.html'
-      - 'public/driver.html'
-      - 'tests/aero_theme.test.cjs'
-      - 'public/dispatch.html'
-      - 'public/dispatch-map.js'
-      - 'public/dispatch-map.css'
-      - 'public/nightrider.css'
-      - 'public/rider-location.js'
-      - 'public/nightrider-motion.js'
-      - 'public/index.html'
-      - 'tests/map_mode.test.cjs'
-      - 'tests/map_lab.test.cjs'
+      - 'public/*.js'
+      - 'public/*.css'
+      - 'public/*.html'
+      - 'tests/*.test.cjs'
       - '.github/workflows/map-lab-check.yml'
   push:
     branches: [main]
     paths:
-      - 'public/map-lab*'
-      - 'public/map-theme*'
-      - 'public/aero-theme*'
-      - 'public/account.html'
-      - 'public/driver.html'
-      - 'tests/aero_theme.test.cjs'
-      - 'public/dispatch.html'
-      - 'public/dispatch-map.js'
-      - 'public/dispatch-map.css'
-      - 'public/nightrider.css'
-      - 'public/rider-location.js'
-      - 'public/nightrider-motion.js'
-      - 'public/index.html'
-      - 'tests/map_mode.test.cjs'
-      - 'tests/map_lab.test.cjs'
+      - 'public/*.js'
+      - 'public/*.css'
+      - 'public/*.html'
+      - 'tests/*.test.cjs'
       - '.github/workflows/map-lab-check.yml'
 
 permissions:
@@ -51,27 +29,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Syntax-check isolated map lab JavaScript
+      - name: Syntax-check frontend JavaScript and tests
         run: |
-          node --check public/map-lab.js
-          node --check public/map-lab-trace.js
-          node --check public/map-lab-midnight.js
-          node --check public/map-theme.js
-          node --check public/aero-theme.js
-          node --check tests/aero_theme.test.cjs
-          node --check public/dispatch-map.js
-          node --check public/rider-location.js
-          node --check public/nightrider-motion.js
-          node --check tests/map_mode.test.cjs
-          node --check tests/map_lab.test.cjs
+          set -e
+          for file in public/*.js tests/*.test.cjs; do
+            node --check "$file"
+          done
       - name: Confirm published Leaflet Vector adapter and MapLibre bundles are reachable
         run: |
           set -e
           for url in \
+            "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs" \
+            "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css" \
             "https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.js" \
             "https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.css" \
             "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"; do
             curl --fail --location --retry 2 --connect-timeout 15 --max-time 60 --silent --show-error -o /dev/null "$url"
           done
       - name: Palette parity, mode preference and read-only regression checks
-        run: node --test tests/map_lab.test.cjs tests/map_mode.test.cjs tests/aero_theme.test.cjs
+        run: node --test tests/*.test.cjs
