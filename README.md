@@ -40,7 +40,7 @@ The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting
 
 ## Messaging
 
-Rider messages always go to Dispatch and the assigned driver. Driver and Dispatch use fixed recipient tabs for Team, private and ride conversations. Shared ride history follows the ride when reassigned. The safety and privacy contract is in [CHAT-POLICY.md](CHAT-POLICY.md).
+Ride messages from riders reach Dispatch and any assigned driver. A separate **account conversation** connects the rider and Dispatch even between trips (it is never visible to drivers). Dispatch can open these from recent ride tiles, the Rider tab, or the rider account directory; Text driver buttons on ride and driver tiles select the driver's private chat. These are browser/app messages, **not SMS**: an absent rider sees them next time they visit the site. The safety and privacy contract is in [CHAT-POLICY.md](CHAT-POLICY.md).
 
 ## Deployment and data
 

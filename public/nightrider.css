@@ -485,3 +485,14 @@ html[data-nr-ui="aero"] .nr-chat-target-label{color:#22536b}
   .nr-chat-log{height:280px;min-height:280px;max-height:280px}
   #chatCard .nr-chat-log{height:280px;min-height:280px;max-height:280px;flex:0 0 280px}
 }
+
+/* Dispatch message shortcuts are deliberate taps; no floating or animated controls. */
+.nr-ride-text-actions{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;padding:.35rem .65rem .65rem}
+.nr-ride-text-actions button,.driverrow button{min-height:40px;margin:0;transform:none;transition:none}
+.nr-ride-text-actions button:hover,.driverrow button:hover{transform:none}
+#accountChatCard .nr-chat-tab{min-height:46px}
+#accountChatCard .nr-chat-target{min-height:45px}
+@media(max-width:540px){
+  .driverrow{flex-wrap:wrap}
+  .nr-ride-text-actions{gap:.35rem}
+}

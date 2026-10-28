@@ -6,11 +6,13 @@
     var host = document.getElementById(options.host);
     if (!host) throw new Error("Chat host not found: " + options.host);
     var tabs = role === "dispatch" ? ["rider", "driver", "team"] :
-               role === "driver" ? ["team", "dispatch", "rider"] : ["rider"];
-    var labels = { rider: role === "rider" ? "Driver + Dispatch" : "Rider", driver: "Driver", dispatch: "Dispatch", team: "Team" };
-    var active = tabs[0], rides = [], drivers = [], selectedRide = "", selectedDriver = "";
+               role === "driver" ? ["team", "dispatch", "rider"] :
+               options.accountOnly ? ["account"] : ["rider"];
+    var labels = { rider: role === "rider" ? "Driver + Dispatch" : "Rider",
+      account: "Dispatch", driver: "Driver", dispatch: "Dispatch", team: "Team" };
+    var active = tabs[0], rides = [], drivers = [], riderAccounts = [], selectedRide = "", selectedDriver = "";
     var messages = new Map(), loaded = false, seenAt = 0, fetching = false, sending = false, needHistory = false;
-    var unread = { rider: 0, driver: 0, dispatch: 0, team: 0 };
+    var unread = { rider: 0, driver: 0, dispatch: 0, team: 0, account: 0 };
     var rendered = new Set(), pendingId = "", pendingSignature = "";
     host.innerHTML =
       '<div class="nr-chat" aria-label="NightRider messages">' +
@@ -39,18 +41,28 @@
 
     function itemKey(m) { return (m.message_kind || (m.ride_id ? "ride" : "team")) + ":" + m.id; }
     function kind(m) {
+      if (m.message_kind === "account" || m.rider_account_id) {
+        return role === "dispatch" ? "rider" : "account";
+      }
       if (m.ride_id || m.message_kind === "ride") return "rider";
       return m.channel === "private" ? (role === "dispatch" ? "driver" : "dispatch") : "team";
     }
     function currentTarget() { return active === "rider" ? selectedRide : active === "driver" ? selectedDriver : ""; }
     function belongs(m) {
       if (kind(m) !== active) return false;
+      if (active === "account") return m.message_kind === "account";
+      if (active === "rider" && role === "dispatch") {
+        return selectedRide.slice(0, 8) === "account:" ?
+          m.rider_account_id === selectedRide.slice(8) :
+          m.ride_id === selectedRide.slice(5);
+      }
       if (active === "rider") return !!selectedRide && m.ride_id === selectedRide;
       if (active === "driver") return !!selectedDriver && m.driver === selectedDriver;
       return true;
     }
     function senderLabel(m) {
-      var priv = m.audience === "rider" ? " · Rider only" :
+      var priv = m.message_kind === "account" ? " · Account" :
+        m.audience === "rider" ? " · Rider only" :
         m.channel === "private" ? " · Private" : "";
       return (m.mine ? "You" : (m.from || "Dispatch")) + priv;
     }
@@ -59,7 +71,7 @@
       wrap.className = "chatwrap " + (m.mine ? "me" : "them");
       wrap.dataset.key = itemKey(m);
       var line = document.createElement("div");
-      var priv = m.channel === "private" || m.audience === "rider";
+      var priv = m.channel === "private" || m.audience === "rider" || m.message_kind === "account";
       line.className = "chatline " + (m.mine ? "me" : "them") + (priv ? " private" : "");
       var color = /^#[0-9a-f]{6}$/i.test(m.chat_color || "") ? m.chat_color : "";
       if (color) line.style.setProperty("--sender-color", color);
@@ -106,7 +118,13 @@
     function optionsForTarget() {
       var prior = currentTarget();
       var entries = active === "rider" ?
-        rides.map(function (r) { return { value: String(r.id), label: (r.rider_name || "Ride") + " · " + r.id }; }) :
+        (role === "dispatch" ? riderAccounts.filter(function (r) { return r.enabled !== false; }).map(function (r) {
+          return { value: "account:" + r.id, label: (r.display_name || "Rider") + " · Account" };
+        }).concat(rides.map(function (r) {
+          return { value: "ride:" + r.id, label: (r.rider_name || "Rider") + " · Ride " + r.id };
+        })) : rides.map(function (r) {
+          return { value: String(r.id), label: (r.rider_name || "Ride") + " · " + r.id };
+        })) :
         active === "driver" ? drivers.map(function (d) {
           return { value: d.display_name || d.name || d, label: d.display_name || d.name || d };
         }) : [];
@@ -115,6 +133,7 @@
       if (!entries.length) {
         var empty = document.createElement("option");
         empty.value = ""; empty.textContent = active === "team" ? "All drivers" :
+          active === "account" ? "Private account messages" :
           active === "dispatch" ? "Private to Dispatch" :
           active === "driver" ? "No drivers available" : "No assigned ride";
         target.appendChild(empty);
@@ -133,12 +152,15 @@
       if (active === "driver") selectedDriver = desired;
       target.value = desired;
       caption.textContent = "To";
-      if (active === "rider" && role === "rider") {
+      if (active === "account") {
+        caption.textContent = "Private to Dispatch · Between rides too";
+      } else if (active === "rider" && role === "rider") {
         caption.textContent = "To Dispatch + assigned driver";
       } else if (active === "rider" && role === "driver") {
         caption.textContent = "To rider + Dispatch";
       } else if (active === "rider") {
-        caption.textContent = "To rider only";
+        caption.textContent = selectedRide.slice(0, 8) === "account:" ?
+          "Private account conversation" : "To rider only";
       } else if (active === "dispatch" || active === "driver") {
         caption.textContent = "Private conversation";
       } else {
@@ -200,9 +222,15 @@
     }
     function requestBody() {
       var body = { text: field.value.trim() };
-      if (active === "rider") {
-        body.ride_id = selectedRide;
-        body.audience = role === "dispatch" ? "rider" : "shared";
+      if (active === "account") {
+        body.account_chat = true;
+      } else if (active === "rider") {
+        if (role === "dispatch" && selectedRide.slice(0, 8) === "account:") {
+          body.rider_account_id = selectedRide.slice(8);
+        } else {
+          body.ride_id = role === "dispatch" ? selectedRide.slice(5) : selectedRide;
+          body.audience = role === "dispatch" ? "rider" : "shared";
+        }
       } else if (active === "driver") {
         body.to_driver = selectedDriver;
       } else if (active === "dispatch") {
@@ -234,7 +262,8 @@
         status.textContent = "Sent";
         if (data.message) {
           var m = Object.assign({}, data.message, { mine: true,
-            message_kind: data.message.ride_id ? "ride" : "team" });
+            message_kind: data.message.rider_account_id ? "account" :
+              data.message.ride_id ? "ride" : "team" });
           accept([m]);
           if (active === sentTab && currentTarget() === sentTarget) {
             render(false, true); // The driver explicitly sent into this tab.
@@ -272,9 +301,40 @@
       optionsForTarget();
       if (before !== selectedDriver) render(true, false);
     }
+    function setRiderAccounts(next) {
+      var updated = (next || []).filter(function (a) { return a && a.id; });
+      var signature = function (arr) { return arr.map(function (a) {
+        return a.id + ":" + a.display_name + ":" + a.enabled;
+      }).join("|"); };
+      if (signature(riderAccounts) === signature(updated)) return;
+      riderAccounts = updated;
+      var before = selectedRide;
+      if (active === "rider") optionsForTarget();
+      if (active === "rider" && selectedRide !== before) render(true, false);
+    }
+    // Called only by an explicit Text Rider / Text Driver click.
+    function showRecipient(tab, id) {
+      if (tabs.indexOf(tab) < 0 || !id) return false;
+      var desired = String(id);
+      if (tab === "driver" && !drivers.some(function (d) {
+        return (d.display_name || d.name || d) === desired;
+      })) return false;
+      if (tab === "rider" && role === "dispatch" &&
+          !riderAccounts.some(function (r) { return "account:" + r.id === desired; }) &&
+          !rides.some(function (r) { return "ride:" + r.id === desired; })) return false;
+      if (tab === "rider") selectedRide = desired;
+      if (tab === "driver") selectedDriver = desired;
+      switchTo(tab);
+      if (target.value !== desired) {
+        target.value = desired;
+        render(true, true);
+      }
+      if (options.onNavigate) options.onNavigate();
+      return true;
+    }
     optionsForTarget(); counts(); refresh();
     return { refresh: refresh, setRides: setRides, setDrivers: setDrivers,
-      show: switchTo };
+      setRiderAccounts: setRiderAccounts, showRecipient: showRecipient, show: switchTo };
   }
   root.NightRiderChat = { mount: mount };
 })(window);

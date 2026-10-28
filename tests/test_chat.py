@@ -3,7 +3,8 @@ import unittest
 from unittest.mock import patch
 import server
 
-from server import add_message, add_ride_message, thread_messages, visible_ride_messages
+from server import (add_message, add_ride_message, add_account_message,
+                    visible_account_messages, thread_messages, visible_ride_messages)
 
 
 RIDER = {"id": "r1", "role": "rider", "display_name": "Riley"}
@@ -14,7 +15,7 @@ NEW_DRIVER = {"id": "new", "role": "driver", "display_name": "Sam"}
 
 class ChatContractTest(unittest.TestCase):
     def setUp(self):
-        self.state = {"ride_messages": [], "messages": []}
+        self.state = {"ride_messages": [], "messages": [], "account_messages": {}, "rides": {}}
 
     def send_ride(self, who, text, audience="shared", client_id=None):
         msg, error = add_ride_message(
@@ -76,6 +77,68 @@ class ChatContractTest(unittest.TestCase):
             }):
                 messages = server.unified_chat_messages(DISPATCH)
         self.assertEqual(messages[0]["chat_color"], "#112233")
+
+    def test_account_messages_survive_between_rides_and_hide_from_drivers(self):
+        msg, error = add_account_message(self.state, "r1", DISPATCH,
+                                          {"text": "You left your wallet.", "client_id": "notice1"})
+        self.assertIsNone(error)
+        self.assertEqual(msg["rider_account_id"], "r1")
+        response, error = add_account_message(self.state, "r1", RIDER,
+                                               {"text": "Can I pick it up?"})
+        self.assertIsNone(error)
+        self.assertEqual(len(visible_account_messages(self.state, RIDER)), 2)
+        self.assertEqual(len(visible_account_messages(self.state, OLD_DRIVER)), 0)
+        other = {"id": "other", "role": "rider", "display_name": "Other"}
+        self.assertEqual(len(visible_account_messages(self.state, other)), 0)
+        self.assertEqual(len(visible_account_messages(self.state, DISPATCH)), 2)
+        # No ride records exist. Account history is independent of bookings.
+        self.assertEqual(self.state["rides"], {})
+
+    def test_account_retry_and_role_authorization(self):
+        first, error = add_account_message(self.state, "r1", RIDER,
+                                            {"text": "Thank you", "client_id": "repeat"})
+        self.assertIsNone(error)
+        second, error = add_account_message(self.state, "r1", RIDER,
+                                             {"text": "Thank you", "client_id": "repeat"})
+        self.assertIsNone(error)
+        self.assertEqual(first["id"], second["id"])
+        self.assertEqual(len(self.state["account_messages"]["r1"]), 1)
+        denied, error = add_account_message(self.state, "r1", OLD_DRIVER,
+                                             {"text": "Not permitted"})
+        self.assertIsNone(denied)
+        self.assertIn("Only riders", error)
+        denied, error = add_account_message(self.state, "other", RIDER,
+                                             {"text": "Wrong account"})
+        self.assertIsNone(denied)
+        self.assertIn("not found", error)
+
+    def test_account_http_routing_checks_target_account(self):
+        handler = object.__new__(server.Handler)
+        handler.send_json = lambda code, data: (code, data)
+        accounts = [{"id": "r1", "display_name": "Riley", "enabled": True},
+                    {"id": "disabled", "display_name": "Former", "enabled": False}]
+        with patch.object(server, "STORE", self.state), \
+             patch.object(server.auth, "list_users", return_value=accounts), \
+             patch.object(server, "save"), patch.object(server, "record_event"):
+            code, payload = handler.post_chat_message(DISPATCH, {
+                "text": "Is your payment resolved?", "rider_account_id": "r1"
+            })
+            self.assertEqual(code, 201)
+            self.assertEqual(payload["message"]["rider_account_id"], "r1")
+            code, _ = handler.post_chat_message(DISPATCH, {
+                "text": "No access", "rider_account_id": "disabled"
+            })
+            self.assertEqual(code, 404)
+            code, _ = handler.post_chat_message(OLD_DRIVER, {
+                "text": "No access", "rider_account_id": "r1"
+            })
+            self.assertEqual(code, 403)
+            code, payload = handler.post_chat_message(RIDER, {
+                "text": "I have a question", "account_chat": True,
+                "rider_account_id": "disabled"
+            })
+            self.assertEqual(code, 201)
+            self.assertEqual(payload["message"]["rider_account_id"], "r1")
 
     def test_retry_deduplicates_team_and_ride_messages(self):
         first = self.send_ride(RIDER, "On my way", client_id="r-100")

@@ -148,8 +148,13 @@
     <p id="riderLocationMessage" class="tiny muted" role="status" aria-live="polite">Live location is off.</p>
   </div>
   <div id="rideChatCard" class="card" hidden>
-    <h2>Messages</h2>
+    <h2>Ride messages</h2>
     <div id="nrRiderChat"></div>
+  </div>
+  <div id="accountChatCard" class="card">
+    <h2>Messages with Dispatch</h2>
+    <p class="tiny muted">Your private NightRider account conversation stays here between rides. Drivers cannot read it.</p>
+    <div id="nrAccountChat"></div>
   </div>
 </section>
 
@@ -650,6 +655,9 @@
   // Rider never chooses a private Dispatch-only recipient. The assigned driver
   // sees the full shared ride history, including prior drivers' messages.
   var nrRiderChat = window.NightRiderChat.mount({ host: "nrRiderChat", role: "rider" });
+  var nrAccountChat = window.NightRiderChat.mount({
+    host: "nrAccountChat", role: "rider", accountOnly: true
+  });
   function loadRideMessages() { nrRiderChat.refresh(); }
 
   function showDriverRating(ride) {
@@ -839,6 +847,8 @@
   $("cancelTrip").addEventListener("click", cancelRide);
   $("newRide").addEventListener("click", resetAll);
   restoreRiderRide();
+  // Account conversations exist even with no active ride.
+  setInterval(function () { nrAccountChat.refresh(); }, 6000);
 
   setTimeout(function () { map.invalidateSize(); }, 200);
 })();

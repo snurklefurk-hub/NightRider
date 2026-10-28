@@ -6,13 +6,19 @@ This document is the shared contract for the website, Dispatch, browser Driver a
 
 | Sender | Recipient tab | Who can read the message |
 | --- | --- | --- |
-| Rider | Driver + Dispatch (the only option) | Rider, Dispatch and the currently assigned driver; future assigned drivers inherit shared ride history |
+| Rider | Ride messages — Driver + Dispatch | Rider, Dispatch and the currently assigned driver; future assigned drivers inherit shared ride history |
+| Rider | Account messages — Dispatch | The rider account and Dispatch only, including between rides |
 | Driver | Rider | Rider, Dispatch, current driver; future assigned drivers inherit shared ride history |
 | Driver | Dispatch | That driver and Dispatch only, not the rider or other drivers |
 | Driver | Team | Dispatch and all drivers, not riders |
-| Dispatch | Rider | Rider and Dispatch only, not the assigned driver |
+| Dispatch | Rider account | Rider and Dispatch only; persistent across rides and never visible to drivers |
+| Dispatch | Ride thread | Rider and Dispatch only, not the assigned driver |
 | Dispatch | Driver | Dispatch and the selected driver only |
 | Dispatch | Team | Dispatch and all drivers, not riders |
+
+### Persistent account messages
+
+Account messages are indexed by the signed-in rider's account ID, not by a ride ID. A rider can view and reply from the rider website when no ride is active. Dispatch can initiate from the rider account directory or a recent ride tile, and can pick account contacts in its existing Rider tab. These messages are **in-app** communications; there is no SMS, email, push notification or off-browser delivery in this feature. Neither past nor future assigned drivers can read this account conversation.
 
 ### Ride reassignment
 

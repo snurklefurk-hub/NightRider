@@ -96,6 +96,7 @@ def ensure_store(store):
     store.setdefault("drivers", {})
     store.setdefault("messages", [])
     store.setdefault("ride_messages", [])
+    store.setdefault("account_messages", {})
     store.setdefault("driver_colors", {})
     store["pricing"] = normalize_pricing(store.get("pricing"))
     for ride in (store.get("rides") or {}).values():
@@ -158,6 +159,45 @@ def driver_chat_color_map():
     return out
 
 
+def add_account_message(store, rider_account_id, user, data):
+    """Permanent account-to-Dispatch conversation, hidden from drivers."""
+    text = clean_text((data or {}).get("text"), 1000)
+    if not text:
+        return None, "Message text is required."
+    if user["role"] not in ("dispatch", "rider"):
+        return None, "Only riders and Dispatch can use account messages."
+    if user["role"] == "rider" and user["id"] != rider_account_id:
+        return None, "Account conversation not found."
+    thread = store.setdefault("account_messages", {}).setdefault(rider_account_id, [])
+    client_id = clean_text((data or {}).get("client_id"), 80)
+    if client_id:
+        for prior in reversed(thread):
+            if prior.get("client_id") == client_id and prior.get("sender_id") == user["id"]:
+                return prior, None
+    message = {
+        "id": uuid.uuid4().hex[:12], "rider_account_id": rider_account_id,
+        "from": user["display_name"], "role": user["role"],
+        "text": text, "at": time.time(),
+    }
+    if client_id:
+        message["client_id"] = client_id
+        message["sender_id"] = user["id"]
+    thread.append(message)
+    return message, None
+
+
+def visible_account_messages(store, user, since=0.0):
+    """Dispatch sees all account conversations; a rider sees only their own."""
+    if user["role"] == "driver":
+        return []
+    threads = store.get("account_messages", {})
+    if not isinstance(threads, dict):
+        return []
+    selected = threads.values() if user["role"] == "dispatch" else [threads.get(user["id"], [])]
+    return [dict(message, message_kind="account") for thread in selected
+            for message in thread if float(message.get("at") or 0) > since]
+
+
 def unified_chat_messages(user, since=0.0):
     role = user["role"]
     account_id = user["id"]
@@ -173,13 +213,14 @@ def unified_chat_messages(user, since=0.0):
         else:
             messages = []
             rides = [r for r in STORE["rides"].values() if r.get("rider_account_id") == account_id]
+        messages.extend(visible_account_messages(STORE, user, since))
         for ride in rides:
             for message in visible_ride_messages(STORE, ride["id"], role, since):
                 item = dict(message, message_kind="ride")
                 item.setdefault("audience", "shared")
                 messages.append(item)
     for message in messages:
-        if message.get("message_kind") == "ride":
+        if message.get("message_kind") in ("ride", "account"):
             message["mine"] = (
                 (role == "dispatch" and message.get("role") == "dispatch") or
                 (role == "driver" and message.get("role") == "driver") or
@@ -991,6 +1032,26 @@ class Handler(SimpleHTTPRequestHandler):
         ride_id = clean_text((data or {}).get("ride_id"), 80)
         audience = clean_text((data or {}).get("audience"), 20) or "shared"
         to_driver = clean_text((data or {}).get("to_driver"), 60)
+        account_chat = (data or {}).get("account_chat") is True
+        target_rider = clean_text((data or {}).get("rider_account_id"), 80)
+        if account_chat or target_rider:
+            if role == "driver":
+                return self.send_json(403, {"error": "Drivers cannot access account conversations."})
+            if ride_id or to_driver or (data or {}).get("private"):
+                return self.send_json(400, {"error": "Choose one conversation type."})
+            if role == "rider":
+                target_rider = user["id"]
+            else:
+                rider_accounts = auth.list_users("rider")
+                if not any(account["id"] == target_rider and account["enabled"] for account in rider_accounts):
+                    return self.send_json(404, {"error": "Rider account not found."})
+            with LOCK:
+                message, error = add_account_message(STORE, target_rider, user, data)
+                if error:
+                    return self.send_json(400, {"error": error})
+                save(STORE)
+            record_event("account_message", message_id=message["id"])
+            return self.send_json(201, {"ok": True, "message": message})
         if ride_id:
             with LOCK:
                 ride = STORE["rides"].get(ride_id)
