@@ -14,8 +14,11 @@
     const rows = value.replace(/^\uFEFF/, "").trim().split(/\r?\n/);
     const oldHeader = "epoch_ms,latitude,longitude,accuracy_m,speed_mps";
     const enrichedHeader = oldHeader + ",provider,map_decision";
+    const motionHeader = enrichedHeader +
+      ",fusion_heading_deg,gyro_yaw_dps,linear_accel_mps2,phone_azimuth_deg";
     const header = rows.shift();
-    const hasDecisions = header === enrichedHeader;
+    const hasMotion = header === motionHeader;
+    const hasDecisions = header === enrichedHeader || hasMotion;
     if (header !== oldHeader && !hasDecisions) {
       throw new Error("This is not a NightRider Field Test CSV.");
     }
@@ -25,23 +28,32 @@
     let previous = 0;
     return rows.map((row, i) => {
       const fields = row.split(",");
-      if (fields.length !== (hasDecisions ? 7 : 5) ||
-          fields.some(field => field.trim() === "")) {
+      if (fields.length !== (hasMotion ? 11 : hasDecisions ? 7 : 5) ||
+          fields.slice(0, hasDecisions ? 7 : 5).some(field => field.trim() === "")) {
         throw new Error("Invalid GPS data at row " + (i + 2) + ".");
       }
       const [epochMs, lat, lon, accuracyM, speedMps] = fields.slice(0, 5).map(Number);
       const provider = hasDecisions ? fields[5] : null;
       const mapDecision = hasDecisions ? fields[6] : null;
+      const inertial = hasMotion ? fields.slice(7).map(s =>
+        s.trim() === "" ? null : Number(s)) : [null, null, null, null];
+      const [fusionHeadingDeg, gyroYawDps, linearAccelMps2, phoneAzimuthDeg] = inertial;
       if (![epochMs, lat, lon, accuracyM, speedMps].every(Number.isFinite) ||
           epochMs <= previous || !Number.isSafeInteger(epochMs) ||
           Math.abs(lat) > 90 || Math.abs(lon) > 180 ||
           accuracyM < 0 || accuracyM > 100000 || speedMps < 0 || speedMps > 500 ||
           (hasDecisions && (!["gps", "network", "fused", "passive", "unknown"].includes(provider) ||
-          !["accepted", "rejected", "unrated"].includes(mapDecision)))) {
+          !["accepted", "rejected", "unrated"].includes(mapDecision))) ||
+          inertial.some(x => x !== null && !Number.isFinite(x)) ||
+          (fusionHeadingDeg !== null && (fusionHeadingDeg < 0 || fusionHeadingDeg >= 360)) ||
+          (gyroYawDps !== null && Math.abs(gyroYawDps) > 120) ||
+          (linearAccelMps2 !== null && (linearAccelMps2 < 0 || linearAccelMps2 > 60)) ||
+          (phoneAzimuthDeg !== null && (phoneAzimuthDeg < 0 || phoneAzimuthDeg >= 360))) {
         throw new Error("Invalid coordinates or timestamp at row " + (i + 2) + ".");
       }
       previous = epochMs;
-      return { epochMs, lat, lon, accuracyM, speedMps, provider, mapDecision };
+      return { epochMs, lat, lon, accuracyM, speedMps, provider, mapDecision,
+        hasMotion, fusionHeadingDeg, gyroYawDps, linearAccelMps2, phoneAzimuthDeg };
     });
   }
   const radians = degrees => degrees * Math.PI / 180;
@@ -110,7 +122,15 @@
       deviceAccepted: report.source === "device" ? report.usable.length : null,
       deviceRejected: report.source === "device" ? report.ignored.length : null,
       accuracyLimitM: report.accuracyLimitM,
-      maxReportedSpeedMps: Math.max(...fixes.map(p => p.speedMps))
+      maxReportedSpeedMps: Math.max(...fixes.map(p => p.speedMps)),
+      hasMotion: fixes.some(p => p.hasMotion === true),
+      fusedHeadingSamples: fixes.filter(p => p.fusionHeadingDeg != null).length,
+      maxAbsYawDps: fixes.some(p => p.gyroYawDps != null) ?
+        Math.max(...fixes.filter(p => p.gyroYawDps != null)
+          .map(p => Math.abs(p.gyroYawDps))) : null,
+      maxAccelMps2: fixes.some(p => p.linearAccelMps2 != null) ?
+        Math.max(...fixes.filter(p => p.linearAccelMps2 != null)
+          .map(p => p.linearAccelMps2)) : null
     };
   }
   return { parseCsv, analyze, summarize };
