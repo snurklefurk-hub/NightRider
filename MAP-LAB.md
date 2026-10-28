@@ -136,3 +136,20 @@ No uploaded CSV, derived stats or reconstructed trace is sent to NightRider,
 Dispatch, or a storage service. The chosen visible map region still results
 in normal OpenFreeMap tile requests. Clearing the trail or leaving the page
 discards all data.
+
+
+### Enhanced Android Field Test CSVs (map acceptance tracking)
+
+NightRider Driver's newer seven-column CSV exports append `provider`
+and `map_decision` to the existing timestamp/coordinates/accuracy/speed
+fields. The Web Map Lab accepts both the original five-column CSV and the
+enhanced format. When every exported sample has a recorded map decision, the
+orange trail follows **the actual GPS fixes accepted by the Android map**,
+while the red trail preserves the original raw readings. The summary reports
+map-accepted and map-rejected counts. Older files still show locally estimated
+usable/filtered results and are labeled accordingly.
+
+The enhanced CSV does **not** include the animation frames used by the new
+navigation motion smoother. It therefore cannot prove whether the arrow
+looked smooth, or reveal perceived lag; a safe passenger-observed device test
+is still required. No trace is uploaded to dispatch or stored by the site.
