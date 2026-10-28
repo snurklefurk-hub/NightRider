@@ -41,30 +41,29 @@ NR-Override: MAKE IT SO - Add the specifically requested experimental driver set
 ## First five minutes — required
 
 1. Read this file, `README.md`, and the applicable feature policy (for example, `CHAT-POLICY.md`). Check the companion [Android repository](https://github.com/snurklefurk-hub/nightrider-driver-android), too.
-2. Fetch current `main`, **all open pull requests AND all open issues in both repos**, and recent commits. **Issues record approved work for WORK NR; draft PRs show work already underway.** Never assume the branch from a prior conversation is current. Live work queues: [Web/API issues](https://github.com/snurklefurk-hub/NightRider/issues) · [Web/API PRs](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android issues](https://github.com/snurklefurk-hub/nightrider-driver-android/issues) · [Android PRs](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).
+2. Fetch current `main`, **all open pull requests AND all open issues in both repos**, and recent commits. **Issues record planned work for any implementing agent; draft PRs show work already underway.** Never assume the branch from a prior conversation is current. Live work queues: [Web/API issues](https://github.com/snurklefurk-hub/NightRider/issues) · [Web/API PRs](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android issues](https://github.com/snurklefurk-hub/nightrider-driver-android/issues) · [Android PRs](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).
 3. Work from current `main` on a uniquely named task branch. **Open a DRAFT PR early**, with a task summary and expected files, so other agents can discover your work. Update the draft as scope changes. A branch alone is not an announcement.
 4. If another PR touches the same files or public API, read its diff and coordinate using PR comments / dependencies. Do not overwrite, cherry-pick, duplicate, or silently supersede another agent's work.
-5. When implementation is ready, update the PR with tests, deployment effects and risks. Mark ready only after automated checks and review. Don't merge unless explicitly assigned integration responsibility.
+5. When implementation is ready, update the PR with tests, deployment effects and risks. Mark ready only after automated checks and review. The implementing agent may merge after required checks and coordination.
 
 ## Integration and release rules
 
-- **No direct commits or force pushes to `main`. No unattended auto-merges.** The product owner assigned **CHAT NR** the authority to prepare, approve and merge **low-risk maintenance PRs** after checks. **WORK NR** owns major functionality, cross-system integration and releases. See the explicit division below.
+- **No direct commits or force pushes to `main`. No unattended auto-merges.** Either CHAT NR or WORK NR can implement and merge authorized work after checks; choose mode by capability rather than seniority.
 - **Web `main` can deploy to Render; Android `main` can publish a signed APK.** Treat merging as a production action, not routine housekeeping. Check service health, workflows and rollback options.
 - Cross-repository API changes require a linked PR in the other repository when necessary. Explicitly document rollout order and backward compatibility.
 - GitHub Actions provides automated tests and an **agent coordination report** on PRs. Its overlap report finds identical filenames and lists active work across both repos; it is **not** semantic conflict detection, live messaging, or an approval to merge.
 - If an automated tool says a merge is blocked, stop and report what it said. Never work around a safety block using an alternate write path.
 - If two agents both want `server.py`, `public/nr-chat.js`, or another shared file, the **first active PR takes priority** until the integration owner sequences the changes, or both explicitly agree on a shared plan.
 
-## Merge ownership: CHAT NR handles small work; WORK NR handles big work
+## Authority, execution modes and safe integration
 
-The product owner explicitly authorized CHAT NR to merge **minor, low-risk changes like these policy updates** without waiting for a separate WORK NR handoff. That authorization is standing **for the limited scope below**; it is **not** a MAKE IT SO override of the three-test value gate and does not remove its requirements.
+**The product owner has clarified that CHAT NR and WORK NR are execution contexts, not authority levels.** Either context may inspect repositories, create branches, implement changes, push commits, open PRs, and merge authorized work. **WORK NR is for higher-compute tasks and multi-step execution, not an obligatory approval or handoff layer.** Never delay owner-requested implementation solely because the work sounds “big” or because this conversation is named CHAT NR.
 
-- **CHAT NR may merge:** documentation and copy corrections; `AGENTS.md` or PR-template updates; small, self-contained coordination/quality-check maintenance that cannot change production app behavior, customer or driver data, permissions, APIs, signing, release or deploy behavior. Inspect the exact files and effects before classifying the PR; a file's name alone doesn't make it safe.
-- **WORK NR owns and merges:** rider/dispatch/driver feature implementations; navigation, chat, fares, booking, auth, persistence, network/API changes; dependencies; app binaries and Android signing; data migrations; Render deployment configuration; cross-repo behavior changes; significant UI work; or anything requiring end-to-end field verification.
-- **When uncertain:** default to WORK NR. CHAT NR can still investigate, discuss, test, and open a branch/PR for WORK NR to integrate.
-- **Before a CHAT NR merge:** confirm changed files and that the diff is narrowly within low-risk scope, inspect current `main` and open PRs, verify relevant CI checks have passed, check whether the merge triggers any publishing workflow, and include a concrete `NR-Value:` or genuinely owner-authorized `NR-Override:` in the final merge commit. Never bypass a blocked tool or failed check.
-- **Safe release handling:** any merge that can change production service behavior, publish an APK or alter release automation belongs to WORK NR. Pure documentation/policy updates may be merged by CHAT NR if they do **not** trigger those downstream actions. A green check does not make a risky change small.
-- **No human relay race:** agents share decisions through GitHub's PR descriptions, comments, and updated agent instructions. CHAT NR must not silently merge WORK NR's feature PRs.
+- **One owner, one set of standards:** Follow the owner's explicit direction, the NightRider three-test value gate (or specific owner-issued MAKE IT SO override), tests, access controls, and GitHub coordination rules in either mode.
+- **Coordinate, don't block:** Announce nontrivial work with a draft PR, check open PRs/issues in both repositories, read competing changes, and merge only after relevant tests pass. If a conflicting PR exists, sequence changes through GitHub instead of making the owner relay instructions between conversations.
+- **Deploy deliberately:** A merge to web `main` can redeploy Render; an Android `main` merge may cause release workflows depending on changed paths. Inspect the diff, workflows and rollback before committing to a deployment. Do not represent a merge as proof that a live service was verified.
+- **Choose mode by capability:** Use WORK NR when substantial computation, local files, browser/software interactions or heavier execution resources are actually needed; it is not a permission boundary. Use connected tools here when they can complete the job safely.
+- **No blanket bypass:** Neither mode can override tool/platform safety checks, authorization, privacy, driver safety or required verification. A blocked merge must be reported, not worked around by choosing another write path.
 
 ## NightRider invariants
 
