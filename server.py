@@ -1144,13 +1144,16 @@ class Handler(SimpleHTTPRequestHandler):
             ride = STORE["rides"].get(rid)
             if not ride:
                 return self.send_json(404, {"error": "not found"})
-            ride["dispatch_ack"] = {"by": by, "at": now,
-                                    "latency_s": round(max(0.0, now - ride["created"]), 2)}
-            save(STORE)
+            already_acknowledged = bool(ride.get("dispatch_ack"))
+            if not already_acknowledged:
+                ride["dispatch_ack"] = {"by": by, "at": now,
+                                        "latency_s": round(max(0.0, now - ride["created"]), 2)}
+                save(STORE)
             snapshot = public_ride(ride, STORE)
             ack = dict(ride["dispatch_ack"])
-        # Tells the waiting rider screen that dispatch has the request in hand.
-        record_event("ride_acknowledged", ride=rid, ack=ack, snapshot=snapshot)
+        # Multiple dispatch screens may acknowledge simultaneously; first ack wins.
+        if not already_acknowledged:
+            record_event("ride_acknowledged", ride=rid, ack=ack, snapshot=snapshot)
         return self.send_json(200, {"ok": True, "ack": ack, "ride": snapshot})
 
     def dispatch_assign(self, ride_id, data):
@@ -1218,6 +1221,16 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(200, {"pricing": current_pricing()})
         if path == "/api/dispatch/users":
             return self.send_json(200, {"users": auth.list_users("driver")})
+        if path == "/api/dispatch/staff":
+            actor = self.user()
+            if not actor or not actor.get("dispatch_admin"):
+                return self.send_json(403, {"error": "Dispatch administrator required."})
+            users = auth.list_users("dispatch")
+            if users:
+                owner_id = min(users, key=lambda item: (item["created_at"], item["id"]))["id"]
+                for staff in users:
+                    staff["dispatch_admin"] = staff["id"] == owner_id
+            return self.send_json(200, {"users": users})
         if path == "/api/dispatch/rider-accounts":
             return self.send_json(200, {"users": auth.list_users("rider")})
         if path == "/api/dispatch/events":
@@ -1571,6 +1584,26 @@ class Handler(SimpleHTTPRequestHandler):
                     save(STORE)
                 record_event("pricing_updated", rates=rates)
                 return self.send_json(200, {"ok": True, "pricing": rates})
+            if parts[2] == "staff":
+                if not user or not user.get("dispatch_admin"):
+                    return self.send_json(403, {"error": "Dispatch administrator required."})
+                if len(parts) == 3:
+                    created, error = auth.create_user(data.get("username"), data.get("display_name"),
+                                                      data.get("password"), "dispatch")
+                    if error:
+                        return self.send_json(400, {"error": error})
+                    return self.send_json(201, {"user": created})
+                if len(parts) == 5 and parts[4] in ("enabled", "password", "sessions"):
+                    action = parts[4]
+                    if action == "enabled" and not isinstance(data.get("enabled"), bool):
+                        return self.send_json(400, {"error": "enabled must be true or false"})
+                    if action == "password" and not 8 <= len(str(data.get("password") or "")) <= 256:
+                        return self.send_json(400, {"error": "Password must contain 8 to 256 characters."})
+                    value = data.get("enabled") if action == "enabled" else data.get("password")
+                    if not auth.manage_dispatch_staff(parts[3], action, value):
+                        return self.send_json(404, {"error": "Dispatch staff account not found or protected."})
+                    return self.send_json(200, {"ok": True})
+                return self.send_json(404, {"error": "not found"})
             if len(parts) == 3 and parts[2] == "users":
                 created, error = auth.create_user(data.get("username"), data.get("display_name"),
                                                   data.get("password"), "driver")
