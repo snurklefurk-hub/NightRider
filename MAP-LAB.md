@@ -153,3 +153,21 @@ The enhanced CSV does **not** include the animation frames used by the new
 navigation motion smoother. It therefore cannot prove whether the arrow
 looked smooth, or reveal perceived lag; a safe passenger-observed device test
 is still required. No trace is uploaded to dispatch or stored by the site.
+
+
+### Optional inertial sensor columns from Field Test
+
+The Field Test's opt-in motion-fusion preview adds **four optional columns**
+after the original seven: `fusion_heading_deg`, `gyro_yaw_dps`,
+`linear_accel_mps2`, and `phone_azimuth_deg`. The parser supports old
+five-column, seven-column, and new eleven-column CSV files. Empty sensor cells
+mean the feature was disabled or the sensor estimate was unavailable. All
+accuracy/decision processing is unchanged; new sample counts and maximum
+recorded turn rate/acceleration are shown in the local status.
+
+Gyroscope-assisted heading is calibrated to reliable moving GPS and is only
+used in the opt-in Android Field Test follow camera. The phone's rotation-
+vector azimuth is *device* orientation, not uncalibrated vehicle bearing.
+Because the phone may move in its mount and inertial estimates drift, the
+extra columns are diagnostics, not validated vehicle attitude. Web Map Lab
+never uploads these CSV contents or accesses the browser device sensors.

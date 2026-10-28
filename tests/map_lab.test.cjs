@@ -62,7 +62,7 @@ test("MapLibre v6 loads its actual ESM entrypoint and has a second CDN", () => {
   assert.ok(js.includes("https://cdn.jsdelivr.net/npm/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"));
   assert.ok(js.includes("await import(url)"));
   assert.ok(js.includes("GPUInitializationError"));
-  assert.ok(html.includes("/map-lab.js?v=7"));
+  assert.ok(html.includes("/map-lab.js?v=8"));
   assert.ok(html.includes("maplibre-gl@6.15.0/dist/maplibre-gl.css"));
 });
 
@@ -131,7 +131,7 @@ test("field trace review bridges bad GPS fixes without erasing raw evidence", ()
   assert.match(map, /summarize\(fixes\)/);
   const html = read("public/map-lab.html");
   assert.match(html, /Raw GPS jumps/);
-  assert.match(html, /map-lab-trace\.js\?v=3/);
+  assert.match(html, /map-lab-trace\.js\?v=4/);
 });
 
 test("enhanced Android CSV reports actual map decisions while legacy stays readable", () => {
@@ -157,5 +157,32 @@ test("enhanced Android CSV reports actual map decisions while legacy stays reada
   assert.throws(() => trace.parseCsv(next.replace("gps,accepted", "=HACK,accepted")),
     /Invalid coordinates or timestamp/);
   assert.match(read("public/map-lab.js"), /map-accepted/);
-  assert.match(read("public/map-lab.html"), /map-lab-trace\.js\?v=3/);
+  assert.match(read("public/map-lab.html"), /map-lab-trace\.js\?v=4/);
+});
+
+test("motion-augmented CSV stays local and preserves actual GPS decisions", () => {
+  const trace = require("../public/map-lab-trace.js");
+  const csv = "epoch_ms,latitude,longitude,accuracy_m,speed_mps,provider,map_decision," +
+    "fusion_heading_deg,gyro_yaw_dps,linear_accel_mps2,phone_azimuth_deg\n" +
+    "1793157861000,32.0595,-81.209,5,19,gps,accepted,80.5,-25.3,1.2,185\n" +
+    "1793157866000,32.06,-81.209,400,0,network,rejected,,,,\n" +
+    "1793157871000,32.0605,-81.209,5,19,gps,accepted,40,-15,0.6,180\n";
+  const fixes = trace.parseCsv(csv);
+  assert.equal(fixes.length, 3);
+  assert.equal(fixes[0].fusionHeadingDeg, 80.5);
+  assert.equal(fixes[1].fusionHeadingDeg, null);
+  assert.equal(fixes[1].mapDecision, "rejected");
+  assert.equal(trace.analyze(fixes).source, "device");
+  const summary = trace.summarize(fixes);
+  assert.equal(summary.fusedHeadingSamples, 2);
+  assert.equal(summary.deviceRejected, 1);
+  assert.equal(summary.hasMotion, true);
+  assert.equal(summary.maxAbsYawDps, 25.3);
+  assert.equal(summary.maxAccelMps2, 1.2);
+  assert.throws(() => trace.parseCsv(csv.replace("80.5,-25.3", "bogus,-25.3")),
+    /Invalid coordinates or timestamp/);
+  assert.throws(() => trace.parseCsv(csv.replace("-25.3", "200")),
+    /Invalid coordinates or timestamp/);
+  assert.match(read("public/map-lab.js"), /fused heading/);
+  assert.match(read("public/map-lab.html"), /map-lab-trace\.js\?v=4/);
 });
