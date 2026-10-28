@@ -108,6 +108,21 @@ class StaffAccessTests(unittest.TestCase):
         self.assertTrue(any("DELETE FROM nr_sessions WHERE user_id" in sql
                             for sql, _ in connection.sql))
 
+    def test_legacy_driver_account_admin_cannot_affect_other_roles(self):
+        # A target Dispatch or Rider id produces no role='driver' DB match.
+        conn = FakeConnection(existing=False)
+        with patch.object(auth, "_connect", return_value=conn):
+            self.assertFalse(auth.set_user_enabled("dispatch-owner-id", False))
+        self.assertTrue(any("role='driver'" in sql for sql, _ in conn.sql))
+        self.assertFalse(any("DELETE FROM nr_sessions" in sql for sql, _ in conn.sql))
+
+        conn = FakeConnection(existing=False)
+        with patch.object(auth, "_connect", return_value=conn), \\
+             patch.object(auth, "_password_hash", return_value="hashed"):
+            self.assertFalse(auth.reset_password("rider-id", "some-password-123"))
+        self.assertTrue(any("role='driver'" in sql for sql, _ in conn.sql))
+        self.assertFalse(any("DELETE FROM nr_sessions" in sql for sql, _ in conn.sql))
+
     def test_each_login_creates_a_new_session_without_replacing_others(self):
         connection = FakeConnection()
         with patch.object(auth, "_connect", return_value=connection):
