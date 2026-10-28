@@ -62,7 +62,7 @@ test("MapLibre v6 loads its actual ESM entrypoint and has a second CDN", () => {
   assert.ok(js.includes("https://cdn.jsdelivr.net/npm/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"));
   assert.ok(js.includes("await import(url)"));
   assert.ok(js.includes("GPUInitializationError"));
-  assert.ok(html.includes("/map-lab.js?v=5"));
+  assert.ok(html.includes("/map-lab.js?v=6"));
   assert.ok(html.includes("maplibre-gl@6.15.0/dist/maplibre-gl.css"));
 });
 
@@ -89,4 +89,47 @@ test("locally parses a NightRider Field Test CSV without any server request", ()
   assert.match(read("public/map-lab.js"), /lab-field-trace/);
   assert.match(read("public/map-lab.html"), /map-lab-trace\.js/);
   assert.doesNotMatch(read("public/map-lab-trace.js"), /fetch\(|XMLHttpRequest|localStorage/);
+});
+
+test("field trace metrics flag weak GPS and filter implausible jumps", () => {
+  const trace = require("../public/map-lab-trace.js");
+  const fixes = [
+    {epochMs:1000,lat:32,lon:-81,accuracyM:5,speedMps:0},
+    {epochMs:11000,lat:32.0005,lon:-81,accuracyM:5,speedMps:6},
+    {epochMs:12000,lat:33,lon:-81,accuracyM:60,speedMps:0}
+  ];
+  const m = trace.summarize(fixes);
+  assert.equal(m.fixes,3);
+  assert.equal(m.durationS,11);
+  assert.equal(m.inaccurate,1);
+  assert.equal(m.largestGapS,10);
+  assert.ok(m.distanceM > 50 && m.distanceM < 60);
+  assert.equal(trace.summarize([]),null);
+  assert.match(read("public/map-lab.js"), /summarize\(fixes\)/);
+});
+
+test("field trace review bridges bad GPS fixes without erasing raw evidence", () => {
+  const trace = require("../public/map-lab-trace.js");
+  const fixes = [
+    {epochMs:1000,lat:32,lon:-81,accuracyM:5,speedMps:22},
+    {epochMs:6000,lat:32,lon:-80.9988,accuracyM:5,speedMps:22},
+    {epochMs:7000,lat:32.5,lon:-81.5,accuracyM:400,speedMps:0},
+    {epochMs:11000,lat:32,lon:-80.9976,accuracyM:5,speedMps:22},
+    {epochMs:16000,lat:32,lon:-80.9964,accuracyM:5,speedMps:22}
+  ];
+  const reviewed = trace.analyze(fixes);
+  const metrics = trace.summarize(fixes);
+  assert.equal(reviewed.usable.length, 4);
+  assert.equal(reviewed.ignored.length, 1);
+  assert.equal(fixes.length, 5); // Keep raw fixes available for dashed red overlay.
+  assert.ok(metrics.distanceM > 300 && metrics.distanceM < 400);
+  assert.equal(metrics.ignored, 1);
+  assert.equal(metrics.inaccurate, 1);
+  const map = read("public/map-lab.js");
+  assert.match(map, /lab-field-raw/);
+  assert.match(map, /reviewed.usable/);
+  assert.match(map, /summarize\(fixes\)/);
+  const html = read("public/map-lab.html");
+  assert.match(html, /Raw GPS jumps/);
+  assert.match(html, /map-lab-trace\.js\?v=2/);
 });

@@ -115,3 +115,24 @@ validation on an actual phone and desktop browser.
 
 To run static tests: `node --check public/map-lab.js` and
 `node --test tests/map_lab.test.cjs`. CI runs both on the map lab PR.
+
+
+### Road-test GPS diagnostics
+
+The Field Test CSV import is local to your browser and now distinguishes
+**solid orange usable GPS trail** from **dashed red raw GPS readings**.
+The red line intentionally includes inaccurate positions and teleport-like
+spikes for diagnosis; it is not a recommended road or planned route.
+The camera fits usable fixes so a single bad fix cannot shrink your drive.
+
+The summary includes total sample count, elapsed minutes, approximate distance
+reconstructed across rejected fixes, how many fixes were excluded from the
+usable trail, how many reported >30m accuracy, and the longest raw GPS gap.
+It uses an adaptive 15–30m accuracy limit and rejects impossible jumps above
+55m/s between usable fixes. Distances are rough diagnostics, not turn-by-turn
+guidance or certified mileage; low-signal segments may be missing.
+
+No uploaded CSV, derived stats or reconstructed trace is sent to NightRider,
+Dispatch, or a storage service. The chosen visible map region still results
+in normal OpenFreeMap tile requests. Clearing the trail or leaving the page
+discards all data.
