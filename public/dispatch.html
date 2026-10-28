@@ -99,6 +99,7 @@
     <button type="button" class="alt" id="exportOpen">Export ride log</button>
     <button type="button" class="alt" id="copyDispatchLogin">Copy dispatch login URL</button>
     <button type="button" class="alt" id="driverAdminOpen">Driver accounts</button>
+    <button type="button" class="alt" id="dispatchStaffOpen" hidden>Dispatch staff</button>
     <button type="button" class="alt" id="riderAdminOpen">Rider accounts</button>
     <button type="button" class="alt" id="countsOpen">Counts by status</button>
     <button type="button" class="alt" id="pricingOpen">Ride rates</button>
@@ -175,6 +176,29 @@
       <button type="submit" id="pricingSave">Save prices</button>
       <p id="pricingMsg" class="msg" role="status" aria-live="polite"></p>
     </form>
+  </div>
+</div>
+
+<!-- Dispatch staff accounts: visible only to the original Dispatch administrator. -->
+<div id="dispatchStaffModal" class="modal" hidden>
+  <div class="modal-card driver-admin-modal" role="dialog" aria-modal="true" aria-labelledby="dispatchStaffTitle">
+    <div class="driver-admin-modal-head">
+      <h2 id="dispatchStaffTitle">Dispatch staff</h2>
+      <button type="button" class="alt" id="dispatchStaffClose">Close</button>
+    </div>
+    <div class="card">
+      <p class="tiny muted">Give each dispatcher their own account. Multiple devices and dispatchers can stay signed in at once. Each device can sign out independently.</p>
+      <form id="dispatchStaffForm">
+        <div class="row">
+          <label>Name<input id="newDispatchName" autocomplete="name" maxlength="60" required></label>
+          <label>Username<input id="newDispatchUser" autocomplete="off" minlength="3" maxlength="120" required></label>
+          <label>Temporary password<input id="newDispatchPassword" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></label>
+        </div>
+        <button type="submit" id="dispatchStaffSave">Create Dispatch account</button>
+      </form>
+      <p class="msg" id="dispatchStaffMsg" role="status" aria-live="polite"></p>
+      <div id="dispatchStaffList" aria-label="Dispatch staff accounts"></div>
+    </div>
   </div>
 </div>
 
@@ -839,7 +863,130 @@
       if (event.key === "Escape" && !modal.hidden) { close(); }
     });
   }
+  wirePageModal("dispatchStaffOpen", "dispatchStaffClose", "dispatchStaffModal");
   wirePageModal("driverAdminOpen", "driverAdminClose", "driverAdminModal");
+  function staffRequest(path, data) {
+    return api(path, {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(data || {})}).then(function (response) {
+        return response.json().then(function (payload) {
+          if (!response.ok) throw new Error(payload.error || "Dispatch account request failed.");
+          return payload;
+        });
+      });
+  }
+  function refreshDispatchStaff() {
+    var list = $("dispatchStaffList");
+    list.textContent = "Loading Dispatch accounts…";
+    api("/api/dispatch/staff", {cache: "no-store"})
+      .then(function (response) {
+        return response.json().then(function (data) {
+          if (!response.ok) throw new Error(data.error || "Could not load Dispatch staff.");
+          return data;
+        });
+      })
+      .then(function (data) {
+        list.replaceChildren();
+        (data.users || []).forEach(function (person) {
+          var card = document.createElement("div");
+          card.className = "card";
+          var title = document.createElement("p");
+          var strong = document.createElement("strong");
+          strong.textContent = person.display_name;
+          title.appendChild(strong);
+          var detail = document.createElement("span");
+          detail.className = "tiny muted";
+          detail.textContent = " · " + person.username +
+            " · " + (person.enabled ? "Active" : "Disabled") +
+            (person.dispatch_admin ? " · Owner" : "");
+          title.appendChild(detail);
+          card.appendChild(title);
+          if (!person.dispatch_admin) {
+            var actions = document.createElement("div");
+            actions.className = "row";
+            var toggle = document.createElement("button");
+            toggle.type = "button";
+            toggle.className = "alt";
+            toggle.textContent = person.enabled ? "Disable" : "Enable";
+            toggle.addEventListener("click", function () {
+              toggle.disabled = true;
+              staffRequest("/api/dispatch/staff/" + encodeURIComponent(person.id) + "/enabled",
+                {enabled: !person.enabled}).then(function () {
+                  $("dispatchStaffMsg").textContent = "Dispatch account updated.";
+                  refreshDispatchStaff();
+                }).catch(function (error) {
+                  $("dispatchStaffMsg").textContent = error.message;
+                  toggle.disabled = false;
+                });
+            });
+            actions.appendChild(toggle);
+            var revoke = document.createElement("button");
+            revoke.type = "button";
+            revoke.className = "alt";
+            revoke.textContent = "Sign out all devices";
+            revoke.addEventListener("click", function () {
+              revoke.disabled = true;
+              staffRequest("/api/dispatch/staff/" + encodeURIComponent(person.id) + "/sessions", {})
+                .then(function () {
+                  $("dispatchStaffMsg").textContent = person.display_name + " was signed out on all devices.";
+                }).catch(function (error) {
+                  $("dispatchStaffMsg").textContent = error.message;
+                }).finally(function () { revoke.disabled = false; });
+            });
+            actions.appendChild(revoke);
+            var password = document.createElement("input");
+            password.type = "password";
+            password.minLength = 8;
+            password.maxLength = 256;
+            password.autocomplete = "new-password";
+            password.placeholder = "New temporary password";
+            password.setAttribute("aria-label", "New password for " + person.display_name);
+            actions.appendChild(password);
+            var reset = document.createElement("button");
+            reset.type = "button";
+            reset.className = "alt";
+            reset.textContent = "Reset password";
+            reset.addEventListener("click", function () {
+              if (password.value.length < 8) {
+                $("dispatchStaffMsg").textContent = "Enter at least eight characters.";
+                return;
+              }
+              reset.disabled = true;
+              staffRequest("/api/dispatch/staff/" + encodeURIComponent(person.id) + "/password",
+                {password: password.value}).then(function () {
+                  password.value = "";
+                  $("dispatchStaffMsg").textContent = person.display_name +
+                    " has a new password. Existing sessions were signed out.";
+                }).catch(function (error) {
+                  $("dispatchStaffMsg").textContent = error.message;
+                }).finally(function () { reset.disabled = false; });
+            });
+            actions.appendChild(reset);
+            card.appendChild(actions);
+          }
+          list.appendChild(card);
+        });
+      }).catch(function (error) {
+        list.textContent = error.message || "Cannot load staff.";
+      });
+  }
+  $("dispatchStaffOpen").addEventListener("click", refreshDispatchStaff);
+  $("dispatchStaffForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var button = $("dispatchStaffSave");
+    button.disabled = true;
+    staffRequest("/api/dispatch/staff", {
+      display_name: $("newDispatchName").value.trim(),
+      username: $("newDispatchUser").value.trim(),
+      password: $("newDispatchPassword").value
+    }).then(function () {
+      $("dispatchStaffForm").reset();
+      $("dispatchStaffMsg").textContent = "Dispatch account created. Share the temporary credentials privately.";
+      refreshDispatchStaff();
+    }).catch(function (error) {
+      $("dispatchStaffMsg").textContent = error.message;
+    }).finally(function () { button.disabled = false; });
+  });
+
   wirePageModal("riderAdminOpen", "riderAdminClose", "riderAdminModal");
   wirePageModal("countsOpen", "countsClose", "countsModal");
   wirePageModal("pricingOpen", "pricingClose", "pricingModal");
@@ -964,6 +1111,9 @@
 <script>
 fetch("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); }).then(function (d) {
   if (d.user) document.getElementById("sessionName").textContent = d.user.display_name;
+  if (d.user && d.user.role === "dispatch" && d.user.dispatch_admin === true) {
+    document.getElementById("dispatchStaffOpen").hidden = false;
+  }
 }).catch(function () {});
 document.getElementById("signOut").addEventListener("click", function () {
   fetch("/api/auth/logout", {method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"})
