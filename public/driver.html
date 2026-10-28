@@ -278,6 +278,23 @@
 
   $("refresh").addEventListener("click", load);
   // Recipient choice lives in the fixed chat tabs. No popups or focus grabs.
+  api("/api/config").then(function (res) {
+    if (res.ok) {
+      CFG.statusLabels = res.j.statusLabels || {};
+      CFG.stageAction = res.j.stageAction || {};
+      if (!res.j.demoDriver) $("useTestDriver").hidden = true;
+    }
+  }).catch(function () {}).then(function () {
+    return fetch("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); });
+  }).then(function (data) {
+    if (data.user) {
+      accountName = data.user.display_name;
+      $("driverName").textContent = accountName;
+      $("sessionName").textContent = accountName;
+    }
+    load();
+    ping();
+  }).catch(function () { $("msg").textContent = "Could not load your NightRider account."; });
   setInterval(load, 5000);
   setInterval(loadChat, 4000);
   setInterval(function () {
