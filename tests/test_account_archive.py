@@ -154,6 +154,18 @@ class ArchiveContractTests(unittest.TestCase):
         self.assertEqual(code, 409)
         self.assertFalse(server.ACCOUNT_ARCHIVE_GRANTS)
 
+    def test_legacy_direct_driver_deletion_endpoint_is_blocked(self):
+        # No caller, even an administrator, may bypass the archive grant.
+        h = FakeHandler()
+        h.path = "/api/dispatch/users/driver123/delete"
+        h.headers = {}
+        h.read_json = lambda: {}
+        h.require_role = lambda *roles: ADMIN
+        with patch.dict("os.environ", {"DATABASE_URL": "test"}):
+            code, result = server.Handler.do_POST(h)
+        self.assertEqual(code, 409)
+        self.assertIn("archive", result["error"].lower())
+
     def test_export_token_expires(self):
         h = FakeHandler()
         with (patch.object(server, "STORE", self.store),
