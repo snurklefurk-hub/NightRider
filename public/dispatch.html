@@ -481,6 +481,26 @@
         '<div class="ride-summary-route" title="' + esc(r.pickup + " → " + r.dropoff) + '">' +
         esc(r.pickup) + " <span aria-hidden=\"true\">→</span> " + esc(r.dropoff) + "</div>";
       card.appendChild(summary);
+      // Explicit shortcuts never create a popup; they select the existing chat.
+      var textActions = document.createElement("div");
+      textActions.className = "nr-ride-text-actions";
+      if (r.rider_account_id || r.id) {
+        var textRider = document.createElement("button");
+        textRider.type = "button"; textRider.className = "alt";
+        textRider.textContent = "Text rider";
+        textRider.addEventListener("click", function () {
+          openDispatchChat("rider", r.rider_account_id ? "account:" + r.rider_account_id : "ride:" + r.id);
+        });
+        textActions.appendChild(textRider);
+      }
+      if (r.driver) {
+        var textDriver = document.createElement("button");
+        textDriver.type = "button"; textDriver.className = "alt";
+        textDriver.textContent = "Text driver";
+        textDriver.addEventListener("click", function () { openDispatchChat("driver", r.driver); });
+        textActions.appendChild(textDriver);
+      }
+      card.appendChild(textActions);
 
       var detail = document.createElement("div");
       detail.className = "ride-detail";
@@ -582,6 +602,13 @@
             });
             el.appendChild(locate);
           }
+          var textDriver = document.createElement("button");
+          textDriver.type = "button"; textDriver.className = "alt";
+          textDriver.textContent = "Text driver";
+          textDriver.addEventListener("click", function () {
+            openDispatchChat("driver", dr.name);
+          });
+          el.appendChild(textDriver);
           box.appendChild(el);
         });
       }).catch(function () {});
@@ -695,12 +722,24 @@
     api("/api/dispatch/rider-accounts", {cache:"no-store"}).then(function (r) { return r.json(); })
       .then(function (data) {
         riderAccountUsers = data.users || [];
+        nrDispatchChat.setRiderAccounts(riderAccountUsers);
         renderRiderDirectory();
       }).catch(function () {});
   }
 
   // Fixed recipient tabs, separate conversations, and zero incoming auto-scroll.
-  var nrDispatchChat = window.NightRiderChat.mount({ host: "nrDispatchChat", role: "dispatch" });
+  var nrDispatchChat = window.NightRiderChat.mount({
+    host: "nrDispatchChat", role: "dispatch",
+    onNavigate: function () {
+      // A user-clicked shortcut is the only time we move the screen to chat.
+      $("chatCard").scrollIntoView({ behavior: "auto", block: "nearest" });
+    }
+  });
+  function openDispatchChat(kind, id) {
+    if (!nrDispatchChat.showRecipient(kind, id)) {
+      $("msg").textContent = "That conversation is not available. Refresh the account directory.";
+    }
+  }
   function pollChat() { nrDispatchChat.refresh(); }
 
   function cancel(id) {
