@@ -137,3 +137,33 @@ html[data-nr-ui="aero"] .lab-header .nr-ui-mode-group{margin-left:6px}
 @media(prefers-reduced-motion:reduce){
   html[data-nr-ui="aero"] *{animation-duration:.01ms!important;transition-duration:.01ms!important}
 }
+
+/* Shared surfaces omitted by the original LIGHT skin. Diagnostic trail colors
+   remain independent of interface colors. */
+html[data-nr-ui="aero"]{--edge:#77b8d0;--teal:var(--cyan);--muted:var(--mist);--cream:var(--ice)}
+html[data-nr-ui="aero"] :is(.ridecard,.rider-location-panel){background:rgba(243,251,255,.88);color:var(--ice);border-color:#8bc4db;border-radius:13px}
+html[data-nr-ui="aero"] :is(.privlabel,.experimental){color:#80500c;border-color:#b88b39}
+html[data-nr-ui="aero"] .chatrow button.alt[aria-pressed="true"]{background:#fff1d4;border-color:#b88b39;color:#654516;text-shadow:none}
+html[data-nr-ui="aero"] :is(#labSummary,.legend,.nr-lab-map-credit){color:var(--ice)}
+html[data-nr-ui="aero"] .leaflet-bar a{background:#e8f8ff!important;color:#103d58!important;border-color:#77b8d0!important}
+html[data-nr-ui="aero"] .leaflet-bar a:hover{background:#cfeffc!important}
+html[data-nr-ui="aero"] .leaflet-control-attribution{background:rgba(232,248,255,.94)!important;color:#3e6075!important}
+html[data-nr-ui="aero"] .maplibregl-ctrl-group{background:#e8f8ff!important}
+html[data-nr-ui="aero"] .maplibregl-ctrl-group button .maplibregl-ctrl-icon{filter:none}
+html[data-nr-ui="aero"] .dispatch-map-card:fullscreen{background:#e8f8ff!important}
+html[data-nr-ui="aero"] .maplibregl-popup-tip{border-top-color:#e8f8ff!important;border-bottom-color:#e8f8ff!important}
+html[data-nr-ui="aero"] :is(button,.prompt,.avatar,.ridecard .rid){font-family:"Nunito Sans","Trebuchet MS","Segoe UI",system-ui,sans-serif}
+.prompt,.avatar,.ridecard .rid{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+
+html[data-nr-ui="aero"] .nr-welcome{background:#e8f8ff;color:#103d58;border-color:#77b8d0}
+html[data-nr-ui="aero"] .nr-welcome :is(h2,.nr-welcome-list strong){color:#103d58}
+html[data-nr-ui="aero"] .nr-welcome :is(.nr-welcome-kicker){color:#0876b8}
+html[data-nr-ui="aero"] .nr-welcome :is(.nr-welcome-intro,.nr-welcome-list li){color:#3e6075}
+html[data-nr-ui="aero"] .nr-welcome-list li{background:#f0fbff;border-color:#8bc4db}
+html[data-nr-ui="aero"] .nr-welcome-pilot{color:#80500c}
+/* MapLibre supplies its own compact icon buttons; do not skin them as CTAs. */
+html[data-nr-ui] .maplibregl-ctrl-group button{margin:0;padding:0;min-height:29px;border-radius:0;box-shadow:none;text-shadow:none;transform:none;background:transparent}
+html[data-nr-ui="aero"] .maplibregl-ctrl-group button:hover{background:#cfeffc;transform:none}
+
+.account .tabs{align-items:stretch}
+.account .tabs button{margin:0;padding:.7rem .6rem;font-size:.8rem;letter-spacing:.035em;text-transform:none}
