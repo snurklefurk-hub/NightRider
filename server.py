@@ -1,6 +1,7 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
-import datetime, hmac, json, math, os, random, threading, time, urllib.parse, uuid
+import datetime, hmac, json, math, os, random, secrets, threading, time, urllib.parse, uuid
 import auth
+import account_archive
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
 # driver -> pickup leg of the fare can be exercised without a real driver.
@@ -24,6 +25,9 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 PUBLIC = os.path.join(BASE, "public")
 DATA_FILE = os.path.join(BASE, "rides.json")
 LOCK = threading.Lock()
+# Ephemeral one-time archive grants: never grant deletion from the legacy API.
+ACCOUNT_ARCHIVE_GRANTS = {}
+ACCOUNT_ARCHIVE_TTL = 600
 STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
             "at_dropoff", "completed", "cancelled"]
 DEFAULT_PRICING = {
@@ -1212,7 +1216,85 @@ class Handler(SimpleHTTPRequestHandler):
                      snapshot=snapshot)
         return self.send_json(200, snapshot)
 
+    def prepare_account_archive(self, qs):
+        """Issue an expiring export token. Never delete before a local save."""
+        actor = self.user()
+        if not actor or actor["role"] != "dispatch" or not actor.get("dispatch_admin"):
+            return self.send_json(403, {"error": "Dispatch administrator required."})
+        role = _first(qs, "role")
+        account_id = _first(qs, "id")
+        if role not in ("rider", "driver") or not account_id:
+            return self.send_json(400, {"error": "Select a Rider or Driver account."})
+        user = auth.get_account_for_archive(account_id, role)
+        if not user:
+            return self.send_json(404, {"error": "Account not found."})
+        with LOCK:
+            if account_archive.account_has_active_ride(STORE, user):
+                return self.send_json(409, {"error": "Account has an unfinished ride. Close the ride before archiving and deleting."})
+            now = time.time()
+            content = account_archive.serialise_archive(
+                account_archive.build_archive(STORE, user, now))
+            digest = account_archive.archive_sha256(content)
+            token = secrets.token_urlsafe(32)
+            for key, grant in list(ACCOUNT_ARCHIVE_GRANTS.items()):
+                if grant["expires"] < now:
+                    ACCOUNT_ARCHIVE_GRANTS.pop(key, None)
+            ACCOUNT_ARCHIVE_GRANTS[token] = {
+                "actor": actor["id"], "role": role, "account_id": account_id,
+                "sha256": digest, "generated": now, "expires": now + ACCOUNT_ARCHIVE_TTL
+            }
+        return self.send_json(200, {
+            "filename": account_archive.archive_filename(user, now),
+            "content": content, "sha256": digest, "token": token,
+            "expires_at_unix": now + ACCOUNT_ARCHIVE_TTL
+        })
+
+    def delete_account_after_archive(self, data):
+        """Reject destructive calls lacking a freshly validated archive grant."""
+        actor = self.user()
+        if not actor or actor["role"] != "dispatch" or not actor.get("dispatch_admin"):
+            return self.send_json(403, {"error": "Dispatch administrator required."})
+        if not isinstance(data, dict):
+            return self.send_json(400, {"error": "Invalid deletion request."})
+        role, account_id = data.get("role"), data.get("id")
+        token, digest = data.get("token"), data.get("sha256")
+        if (role not in ("rider", "driver") or not isinstance(account_id, str) or
+                not isinstance(token, str) or not isinstance(digest, str)):
+            return self.send_json(400, {"error": "A saved local archive is required before deletion."})
+        with LOCK:
+            grant = ACCOUNT_ARCHIVE_GRANTS.get(token)
+            if (not grant or grant["expires"] < time.time() or
+                    grant["actor"] != actor["id"] or
+                    grant["role"] != role or grant["account_id"] != account_id or
+                    not hmac.compare_digest(grant["sha256"], digest)):
+                return self.send_json(409, {"error": "Archive authorization is missing, expired, or invalid. Save a new local archive."})
+            user = auth.get_account_for_archive(account_id, role)
+            if not user:
+                ACCOUNT_ARCHIVE_GRANTS.pop(token, None)
+                return self.send_json(404, {"error": "Account not found."})
+            if account_archive.account_has_active_ride(STORE, user):
+                return self.send_json(409, {"error": "Account has an unfinished ride. Deletion is blocked."})
+            current = account_archive.serialise_archive(
+                account_archive.build_archive(STORE, user, grant["generated"]))
+            if not hmac.compare_digest(
+                    account_archive.archive_sha256(current), grant["sha256"]):
+                ACCOUNT_ARCHIVE_GRANTS.pop(token, None)
+                return self.send_json(409, {"error": "Account history changed after export. Save an updated archive before deleting."})
+            deleted = (auth.delete_rider_user(account_id) if role == "rider"
+                       else auth.delete_driver_user(account_id))
+            if not deleted:
+                return self.send_json(404, {"error": "Account was not found. No deletion occurred."})
+            # Invalidate all grants for the account: a saved file is required per deletion.
+            for key, item in list(ACCOUNT_ARCHIVE_GRANTS.items()):
+                if item["account_id"] == account_id:
+                    ACCOUNT_ARCHIVE_GRANTS.pop(key, None)
+        record_event("account_deleted", role=role, actor=actor["id"])
+        return self.send_json(200, {"ok": True, "role": role, "account_id": account_id,
+                                    "archive_sha256": digest})
+
     def dispatch_get(self, path, qs):
+        if path == "/api/dispatch/account-archive":
+            return self.prepare_account_archive(qs)
         if path == "/api/dispatch/map":
             with LOCK:
                 snapshot = dispatch_map_snapshot(STORE)
@@ -1575,6 +1657,8 @@ class Handler(SimpleHTTPRequestHandler):
             user = self.require_role("dispatch")
             if os.environ.get("DATABASE_URL", "").strip() and not user:
                 return
+            if len(parts) == 3 and parts[2] == "account-deletion":
+                return self.delete_account_after_archive(data)
             if len(parts) == 3 and parts[2] == "pricing":
                 rates, error = validate_pricing(data or {})
                 if error:
@@ -1612,18 +1696,7 @@ class Handler(SimpleHTTPRequestHandler):
                 created["chat_color"] = driver_chat_color(created["id"])
                 return self.send_json(201, {"user": created})
             if len(parts) == 5 and parts[2] == "users" and parts[4] == "delete":
-                user_id = parts[3]
-                with LOCK:
-                    active_ride = any(
-                        ride.get("driver_account_id") == user_id and
-                        ride.get("status") not in ("completed", "cancelled")
-                        for ride in STORE["rides"].values()
-                    )
-                    if active_ride:
-                        return self.send_json(409, {"error": "This driver has an active ride. Complete or cancel it before deleting the account."})
-                    if not auth.delete_driver_user(user_id):
-                        return self.send_json(404, {"error": "Driver account not found."})
-                return self.send_json(200, {"ok": True})
+                return self.send_json(409, {"error": "Direct account deletion is disabled. Save the required local archive through Dispatch first."})
             if len(parts) == 4 and parts[2] == "users" and parts[3]:
                 if not isinstance(data.get("enabled"), bool):
                     return self.send_json(400, {"error": "enabled must be true or false"})
