@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install once per clone: python3 scripts/setup_commit_gate.py
 # Local safeguard. GitHub API commits bypass local hooks; CI also checks PR messages.
-printf '\nNightRider's three mandatory pre-commit questions:\n' >&2
+printf '\nNightRider: three mandatory pre-commit questions:\n' >&2
 printf '  1. Does this make delivering a professional ride easier or safer?\n' >&2
 printf '  2. Does this improve driver profitability, independence, or retention?\n' >&2
 printf '  3. Does this make the customer experience dependable, transparent, or trustworthy?\n' >&2
