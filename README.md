@@ -28,6 +28,10 @@ preferences are device-local and do not synchronize with browsers.
 
 The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting. Their Leaflet controls and ride markers remain in place, with a raster fallback if vector rendering fails. See [MAP-APPEARANCE.md](MAP-APPEARANCE.md) and [MAP-LAB.md](MAP-LAB.md) for the map setup and preview.
 
+## Messaging
+
+Rider messages always go to Dispatch and the assigned driver. Driver and Dispatch use fixed recipient tabs for Team, private and ride conversations. Shared ride history follows the ride when reassigned. The safety and privacy contract is in [CHAT-POLICY.md](CHAT-POLICY.md).
+
 ## Deployment and data
 
 The live site is hosted on Render using [render.yaml](render.yaml). Production requires PostgreSQL through `DATABASE_URL`; account and session records are in separate tables, while rides, messages, ratings, and presence are kept in one JSON state record. Keep the web service at one instance until that state store supports concurrent writers.

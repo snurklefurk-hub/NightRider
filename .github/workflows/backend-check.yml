@@ -10,6 +10,10 @@ on:
       - 'tests/test_*.py'
       - 'tests/client_notify_check.js'
       - 'public/dispatch.html'
+      - 'public/driver.html'
+      - 'public/index.html'
+      - 'public/nr-chat.js'
+      - 'public/nightrider.css'
       - '.github/workflows/backend-check.yml'
   push:
     branches: [main]
@@ -52,5 +56,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check dispatch private-chat unread cue
-        run: node tests/client_notify_check.js
+      - name: Verify chat JavaScript syntax and recipient contract
+        run: |
+          node --check public/nr-chat.js
+          node tests/client_notify_check.js

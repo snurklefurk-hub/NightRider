@@ -1,0 +1,79 @@
+"""Chat recipient/privacy and retry regression checks."""
+import unittest
+
+from server import add_message, add_ride_message, thread_messages, visible_ride_messages
+
+
+RIDER = {"id": "r1", "role": "rider", "display_name": "Riley"}
+DISPATCH = {"id": "d1", "role": "dispatch", "display_name": "Dispatch"}
+OLD_DRIVER = {"id": "old", "role": "driver", "display_name": "Alex"}
+NEW_DRIVER = {"id": "new", "role": "driver", "display_name": "Sam"}
+
+
+class ChatContractTest(unittest.TestCase):
+    def setUp(self):
+        self.state = {"ride_messages": [], "messages": []}
+
+    def send_ride(self, who, text, audience="shared", client_id=None):
+        msg, error = add_ride_message(
+            self.state, "RIDE1", who,
+            {"text": text, "audience": audience, "client_id": client_id}
+        )
+        self.assertIsNone(error)
+        return msg
+
+    def test_rider_cannot_message_dispatch_privately(self):
+        msg = self.send_ride(RIDER, "I'm outside.", "dispatch")
+        self.assertEqual(msg["audience"], "shared")
+        self.assertEqual([m["text"] for m in visible_ride_messages(self.state, "RIDE1", "driver")],
+                         ["I'm outside."])
+
+    def test_reassigned_driver_sees_previous_shared_ride_history(self):
+        self.send_ride(RIDER, "Where are you?")
+        self.send_ride(DISPATCH, "Driver coming.")
+        self.send_ride(OLD_DRIVER, "Traffic, five minutes.")
+        # A newly assigned driver reads the same ride history, not a per-driver log.
+        history = visible_ride_messages(self.state, "RIDE1", "driver")
+        self.assertEqual([m["role"] for m in history], ["rider", "dispatch", "driver"])
+
+    def test_dispatch_rider_only_does_not_leak_to_drivers(self):
+        self.send_ride(DISPATCH, "I will call you shortly.", "rider")
+        self.send_ride(RIDER, "Thanks")
+        self.assertEqual(len(visible_ride_messages(self.state, "RIDE1", "dispatch")), 2)
+        self.assertEqual([m["text"] for m in visible_ride_messages(self.state, "RIDE1", "driver")],
+                         ["Thanks"])
+
+    def test_legacy_rider_dispatch_message_becomes_driver_visible(self):
+        self.state["ride_messages"].append({
+            "id": "legacy", "ride_id": "RIDE1", "role": "rider",
+            "from": "Riley", "audience": "dispatch", "text": "Old text", "at": 1
+        })
+        self.assertEqual(len(visible_ride_messages(self.state, "RIDE1", "driver")), 1)
+
+    def test_driver_cannot_send_rider_only(self):
+        message, error = add_ride_message(self.state, "RIDE1", OLD_DRIVER,
+                                           {"text": "Private?", "audience": "rider"})
+        self.assertIsNone(message)
+        self.assertIn("Dispatch", error)
+
+    def test_team_private_is_only_visible_to_dispatch_and_target_driver(self):
+        add_message(self.state, "Alex", "To dispatch", driver="Alex", private=True, role="driver")
+        add_message(self.state, "dispatch", "For Alex", driver="Alex", private=True, role="dispatch")
+        add_message(self.state, "Sam", "Team notice", role="driver")
+        self.assertEqual(len(thread_messages(self.state, "dispatch")), 3)
+        self.assertEqual(len(thread_messages(self.state, "Alex")), 3)
+        self.assertEqual([m["text"] for m in thread_messages(self.state, "Sam")], ["Team notice"])
+
+    def test_retry_deduplicates_team_and_ride_messages(self):
+        first = self.send_ride(RIDER, "On my way", client_id="r-100")
+        second = self.send_ride(RIDER, "On my way", client_id="r-100")
+        self.assertEqual(first["id"], second["id"])
+        self.assertEqual(len(self.state["ride_messages"]), 1)
+        team1 = add_message(self.state, "Alex", "Checking", client_id="a-200", sender_id="old")
+        team2 = add_message(self.state, "Alex", "Checking", client_id="a-200", sender_id="old")
+        self.assertEqual(team1["id"], team2["id"])
+        self.assertEqual(len(self.state["messages"]), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

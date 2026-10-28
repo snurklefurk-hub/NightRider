@@ -381,7 +381,7 @@ def dispatch_map_snapshot(store, now=None):
             "location_fresh_seconds": LOCATION_FRESH_SECONDS}
 
 
-def add_message(store, sender, text, driver=None, private=False, role=None):
+def add_message(store, sender, text, driver=None, private=False, role=None, client_id=None, sender_id=None):
     """Append one text to the shared conversation and return it.
 
     A group text (private=False) is seen by dispatch and every driver. A
@@ -393,12 +393,20 @@ def add_message(store, sender, text, driver=None, private=False, role=None):
         return None
     sender = clean_text(sender, 60) or "dispatch"
     private = bool(private)
+    thread = store.setdefault("messages", [])
+    client_id = clean_text(client_id, 80)
+    if client_id and sender_id:
+        for prior in reversed(thread):
+            if prior.get("client_id") == client_id and prior.get("sender_id") == sender_id:
+                return prior
     msg = {"id": uuid.uuid4().hex[:8], "from": sender,
            "role": role or ("dispatch" if sender == "dispatch" else "driver"),
            "channel": "private" if private else "group",
            "driver": clean_text(driver, 60) if private else None,
            "text": text, "at": time.time()}
-    thread = store.setdefault("messages", [])
+    if client_id and sender_id:
+        msg["client_id"] = client_id
+        msg["sender_id"] = sender_id
     thread.append(msg)
     if len(thread) > MESSAGE_LIMIT:
         del thread[:-MESSAGE_LIMIT]
@@ -429,18 +437,32 @@ def add_ride_message(store, ride_id, user, data):
     if not text:
         return None, "Message text is required."
     audience = clean_text((data or {}).get("audience"), 20) or "shared"
-    if audience not in ("shared", "dispatch"):
-        return None, "Choose the driver or dispatch conversation."
     role = user["role"] if user else "rider"
+    # Riders cannot make a private Dispatch-only conversation. Existing rider
+    # messages are treated as shared history when a driver gets assigned.
+    if role == "rider":
+        audience = "shared"
+    if audience not in ("shared", "rider"):
+        return None, "Choose the rider conversation."
     if role == "driver" and audience != "shared":
-        return None, "Drivers can message the rider and dispatch together."
+        return None, "Driver-to-rider messages also go to Dispatch."
     sender = user["display_name"] if user else "Rider"
+    sender_id = user["id"] if user else ""
+    client_id = clean_text((data or {}).get("client_id"), 80)
+    thread = store.setdefault("ride_messages", [])
+    if client_id and sender_id:
+        for prior in reversed(thread):
+            if prior.get("client_id") == client_id and prior.get("sender_id") == sender_id:
+                return prior, None
     message = {
         "id": uuid.uuid4().hex[:12], "ride_id": ride_id,
         "from": sender, "role": role, "audience": audience,
         "text": text, "at": time.time(),
     }
-    store.setdefault("ride_messages", []).append(message)
+    if client_id and sender_id:
+        message["client_id"] = client_id
+        message["sender_id"] = sender_id
+    thread.append(message)
     if len(store["ride_messages"]) > 2000:
         del store["ride_messages"][:-2000]
     return message, None
@@ -451,7 +473,9 @@ def visible_ride_messages(store, ride_id, viewer, since=0.0):
     for message in store.get("ride_messages", []):
         if message.get("ride_id") != ride_id:
             continue
-        if viewer == "driver" and message.get("audience") != "shared":
+        if viewer == "driver" and message.get("audience") != "shared" and message.get("role") != "rider":
+            # Dispatch-to-rider-only messages stay private. Rider-originated
+            # legacy Dispatch-only messages follow the new shared-history rule.
             continue
         try:
             if since and float(message.get("at") or 0) <= float(since):
@@ -980,6 +1004,7 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json(403, {"error": "You are not assigned to this ride."})
                 message, error = add_ride_message(STORE, ride_id, user, {
                     "text": text, "audience": audience,
+                    "client_id": (data or {}).get("client_id"),
                 })
                 if error:
                     return self.send_json(400, {"error": error})
@@ -1009,6 +1034,8 @@ class Handler(SimpleHTTPRequestHandler):
                 driver=to_driver or None,
                 private=private,
                 role=role,
+                client_id=(data or {}).get("client_id"),
+                sender_id=user["id"],
             )
             save(STORE)
         record_event("driver_message" if role == "driver" else "dispatch_message",

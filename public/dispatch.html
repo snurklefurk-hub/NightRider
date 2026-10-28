@@ -12,6 +12,7 @@
   <link rel="icon" href="/nightrider-mark.svg?v=talmadge-2" type="image/svg+xml">
   <link rel="stylesheet" href="/aero-theme.css?v=3">
   <script src="/aero-theme.js?v=2"></script>
+<script src="/nr-chat.js"></script>
 </head>
 <body class="dispatch">
 <header>
@@ -82,15 +83,8 @@
   </div>
 
   <div class="card" id="chatCard">
-    <h2>Chat <span class="tiny muted" id="chatCue" hidden></span></h2>
-    <p class="muted">One live feed for team and ride messages. Messages are shown only to the people who belong in them. Use Reply on a message to answer privately in its original conversation.</p>
-    <div class="chatlog" id="chatLog"></div>
-    <p id="chatReplyHint" class="tiny muted" hidden></p>
-    <div class="row chatrow">
-      <input id="chatText" type="text" placeholder="Message the team…" maxlength="1000" style="flex:1;min-width:0">
-      <button type="button" id="chatSend">Send</button>
-    </div>
-    <p class="msg" id="chatMsg" role="status" aria-live="polite"></p>
+    <h2>Messages</h2>
+    <div id="nrDispatchChat"></div>
   </div>
   </div>
 
@@ -341,6 +335,7 @@
       return r.json();
     }).then(function (d) {
       var all = d.rides || [];
+      nrDispatchChat.setRides(all);
       renderRows(all.slice(0, 10));
       renderCounts(all);
       renderRiders();
@@ -598,6 +593,7 @@
         var box = $("driverAccounts");
         box.innerHTML = "";
         driverAccounts = (data.users || []).filter(function (u) { return u.enabled; });
+        nrDispatchChat.setDrivers(driverAccounts);
         refresh();
         (data.users || []).forEach(function (u) {
           var row = document.createElement("div");
@@ -703,111 +699,9 @@
       }).catch(function () {});
   }
 
-  /* ---- unread text cue: pulse the card, preview the newest waiting text -- */
-  function applyUnread() {
-    var card = $("chatCard");
-    if (!card) { return; }
-    card.classList.toggle("hasunread", chatUnread);
-    var cue = $("chatCue");
-    if (cue) {
-      var text = chatUnread ? preview(chatUnreadText) : "";
-      cue.textContent = text ? "new: \u201c" + text + "\u201d" : "";
-      cue.hidden = !text;
-    }
-  }
-
-  /* Render new messages into the one shared window. Group texts and the
-     private texts dispatch is party to all appear here; private ones are
-     amber and tagged so they are never mistaken for the group thread. */
-  function setChatReply(message) {
-    if (message.ride_id) {
-      chatReplyTarget = { ride_id: message.ride_id,
-        audience: message.audience === "dispatch" ? "dispatch" : "shared" };
-      $("chatReplyHint").textContent = "Replying in ride " + message.ride_id +
-        (chatReplyTarget.audience === "dispatch" ? " · Dispatch only" : " · rider, driver, and Dispatch") + " · click to cancel";
-    } else if (message.role === "driver") {
-      chatReplyTarget = { to_driver: message.from };
-      $("chatReplyHint").textContent = "Replying privately to " + message.from + " · click to cancel";
-    } else {
-      chatReplyTarget = null;
-      $("chatReplyHint").textContent = "Replying to the team · click to cancel";
-    }
-    $("chatReplyHint").hidden = false;
-    $("chatText").focus();
-  }
-
-  function renderChat(msgs, scroll) {
-    var log = $("chatLog");
-    (msgs || []).forEach(function (m) {
-      var key = m.message_kind + ":" + m.id;
-      if (m.id && renderedChatIds[key]) { return; }
-      if (m.id) { renderedChatIds[key] = true; }
-      var mine = m.role === "dispatch" || m.from === "dispatch";
-      var priv = m.channel === "private" || m.audience === "dispatch";
-      var wrap = document.createElement("div");
-      wrap.className = "chatwrap " + (mine ? "me" : "them");
-      var div = document.createElement("div");
-      div.className = "chatline " + (mine ? "me" : "them") + (priv ? " private" : "");
-      var color = /^#[0-9a-f]{6}$/i.test(m.chat_color || "") ? m.chat_color : (mine ? "#f2f0df" : "#5ae6a5");
-      div.style.setProperty("--sender-color", color);
-      var who = document.createElement("span");
-      who.className = "who";
-      who.textContent = (mine ? "Dispatch" : (m.from || "Rider")) +
-        (priv ? " · private" : "") + (m.ride_id ? " · Ride " + m.ride_id : "");
-      who.style.color = color;
-      div.appendChild(who);
-      div.appendChild(document.createTextNode(m.text || ""));
-      var time = document.createElement("span");
-      time.className = "tiny muted"; time.textContent = " " + clock(m.at);
-      div.appendChild(time); wrap.appendChild(div);
-      if (!mine) {
-        var reply = document.createElement("button");
-        reply.type = "button"; reply.className = "alt chatreply"; reply.textContent = "Reply";
-        reply.addEventListener("click", function () { setChatReply(m); });
-        wrap.appendChild(reply);
-      }
-      log.appendChild(wrap);
-    });
-    if (scroll) { log.scrollTop = log.scrollHeight; }
-  }
-
-  function pollChat() {
-    if (chatPolling) { return; }
-    chatPolling = true;
-    api("/api/chat/messages?since=" + chatSeen, { cache: "no-store" })
-      .then(function (r) { return r.json(); })
-      .then(function (d) {
-        var msgs = d.messages || [];
-        var newest = chatSeen, privateIncoming = false;
-        msgs.forEach(function (m) {
-          if (m.at > newest) { newest = m.at; }
-          if (!m.mine && (m.channel === "private" || m.audience === "dispatch") && m.at > chatSeen) privateIncoming = true;
-        });
-        chatSeen = newest; renderChat(msgs, true);
-        if (privateIncoming) {
-          var last = msgs.filter(function (m) { return m.channel === "private" || m.audience === "dispatch"; });
-          if (last.length) { chatUnreadText = last[last.length - 1].text; }
-          chatUnread = true; applyUnread();
-        }
-      }).catch(function () {}).then(function () { chatPolling = false; });
-  }
-
-  function sendChat() {
-    var text = $("chatText").value.trim();
-    if (!text || chatSending) { return; }
-    chatSending = true; $("chatSend").disabled = true;
-    var body = Object.assign({ text: text }, chatReplyTarget || {});
-    api("/api/chat/messages", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) })
-      .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || "Send failed."); return d; }); })
-      .then(function () {
-        $("chatSend").disabled = false; chatSending = false;
-        $("chatText").value = ""; $("chatMsg").textContent = "";
-        chatReplyTarget = null; $("chatReplyHint").hidden = true; $("chatReplyHint").textContent = "";
-        chatUnread = false; chatUnreadText = ""; applyUnread(); pollChat();
-      }).catch(function (error) {
-        chatSending = false; $("chatSend").disabled = false; $("chatMsg").textContent = error.message || "Send failed.";
-      });
-  }
+  // Fixed recipient tabs, separate conversations, and zero incoming auto-scroll.
+  var nrDispatchChat = window.NightRiderChat.mount({ host: "nrDispatchChat", role: "dispatch" });
+  function pollChat() { nrDispatchChat.refresh(); }
 
   function cancel(id) {
     api("/api/rides/" + id + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
@@ -941,11 +835,6 @@
     }
   });
   $("export").addEventListener("click", doExport);
-  $("chatSend").addEventListener("click", sendChat);
-
-  $("chatText").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") { e.preventDefault(); sendChat(); }
-  });
   function fillPricingForm(pricing) {
     $("priceFlagDrop").value = Number(pricing.flag_drop).toFixed(2);
     $("priceApproach").value = Number(pricing.approach_per_mile).toFixed(2);
