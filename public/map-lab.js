@@ -509,7 +509,14 @@
           (metrics.ignored + " estimated filtered")) +
         " · " + metrics.inaccurate +
         " worse than 30m · longest gap " + metrics.largestGapS.toFixed(1) +
-        "s · browser only";
+        "s" +
+        (metrics.hasMotion ?
+          " · fused heading " + metrics.fusedHeadingSamples + "/" + metrics.fixes +
+          " fixes" + (metrics.maxAbsYawDps == null ? "" :
+            " · peak turn " + metrics.maxAbsYawDps.toFixed(0) + "°/s") +
+          (metrics.maxAccelMps2 == null ? "" :
+            " · peak acceleration " + metrics.maxAccelMps2.toFixed(1) + " m/s²") :
+          "") + " · browser only";
       // Raw readings stay visible in dashed red. Enhanced CSVs use the phone's
       // actual decisions; legacy CSVs use the approximate local GPS filter.
       setRoute("lab-field-raw", fixes.map(p => [p.lon, p.lat]), false);
