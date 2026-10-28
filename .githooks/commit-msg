@@ -1,0 +1,28 @@
+#!/bin/sh
+# Install once per clone: python3 scripts/setup_commit_gate.py
+# Local safeguard. GitHub API commits bypass local hooks; CI also checks PR messages.
+printf '\nNightRider's three mandatory pre-commit questions:\n' >&2
+printf '  1. Does this make delivering a professional ride easier or safer?\n' >&2
+printf '  2. Does this improve driver profitability, independence, or retention?\n' >&2
+printf '  3. Does this make the customer experience dependable, transparent, or trustworthy?\n' >&2
+printf 'If none apply: do not commit.\n\n' >&2
+
+if [ -z "$1" ] || [ ! -f "$1" ]; then
+  printf 'ERROR: Git did not provide a commit message file.\n' >&2
+  exit 1
+fi
+
+if grep -Eq '^NR-Value: (safety|driver-business|customer-trust) - [^[:space:]].{14,}$' "$1"; then
+  exit 0
+fi
+cat >&2 <<'EOF'
+COMMIT BLOCKED: You must name a concrete positive outcome on at least one test.
+Include this footer in the commit message (15+ characters describing the benefit):
+
+NR-Value: safety - Keeps navigation stable when GPS accuracy deteriorates.
+
+Allowed categories: safety, driver-business, customer-trust
+A generic label or unrelated slogan is not evidence. Rework a change that
+cannot pass a test. See AGENTS.md for all three full questions.
+EOF
+exit 1
