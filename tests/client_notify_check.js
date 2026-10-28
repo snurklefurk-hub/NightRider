@@ -19,7 +19,7 @@ function element() {
   };
 }
 
-function setup(role) {
+function setup(role, accountOnly) {
   const log = element(), target = element(), field = element(), send = element();
   const status = element(), caption = element();
   const buttons = [];
@@ -58,7 +58,8 @@ function setup(role) {
         ok: true, json: async () => ({
           message: { id: "sent" + (++sequence), at: 120 + sequence, text: body.text,
             role: role, channel: body.private || body.to_driver ? "private" : "group",
-            ride_id: body.ride_id, driver: body.to_driver, audience: body.audience }
+            ride_id: body.ride_id, driver: body.to_driver, audience: body.audience,
+            rider_account_id: body.rider_account_id || (body.account_chat ? "r1" : undefined) }
         })
       });
     },
@@ -68,7 +69,7 @@ function setup(role) {
   vm.createContext(sandbox);
   const script = fs.readFileSync(path.join(__dirname, "..", "public", "nr-chat.js"), "utf8");
   vm.runInContext(script, sandbox);
-  const app = sandbox.NightRiderChat.mount({ role, host: "test-chat" });
+  const app = sandbox.NightRiderChat.mount({ role, host: "test-chat", accountOnly: !!accountOnly });
   return {
     app, log, target, field, send, status, caption, buttons,
     setIncoming(messages) { incoming = messages; }, posts, get gets() { return gets; }
@@ -91,12 +92,21 @@ const tick = () => new Promise(resolve => setImmediate(() => setImmediate(resolv
   dispatch.send.click();
   await tick();
   assert.equal(dispatch.posts[1].to_driver, "Dana", "Driver tab must be private to selected driver");
+  dispatch.app.setRiderAccounts([{id:"r1",display_name:"Riley",enabled:true}]);
+  assert.equal(dispatch.app.showRecipient("rider", "account:r1"), true,
+    "Text rider tile must select the permanent rider account");
+  dispatch.field.value = "You left your sunglasses";
+  dispatch.send.click(); await tick();
+  assert.equal(dispatch.posts[2].rider_account_id, "r1");
+  assert.equal(dispatch.posts[2].ride_id, undefined);
+  assert.equal(dispatch.app.showRecipient("driver", "Dana"), true,
+    "Text driver tile must select the individual driver");
   dispatch.app.show("team");
   dispatch.field.value = "Stand by";
   dispatch.send.click();
   await tick();
-  assert.equal(dispatch.posts[2].to_driver, undefined);
-  assert.equal(dispatch.posts[2].ride_id, undefined);
+  assert.equal(dispatch.posts[3].to_driver, undefined);
+  assert.equal(dispatch.posts[3].ride_id, undefined);
 
   dispatch.log.scrollTop = 37;
   dispatch.setIncoming([{id:"new1", message_kind:"team", from:"Dana", role:"driver",
@@ -124,5 +134,12 @@ const tick = () => new Promise(resolve => setImmediate(() => setImmediate(resolv
   rider.send.click(); await tick();
   assert.equal(rider.posts[0].ride_id, "R1");
   assert.equal(rider.posts[0].audience, "shared");
+  const account = setup("rider", true); await tick();
+  assert.equal(account.buttons.length, 1, "Account chat is accessible without an active ride");
+  account.field.value = "I need help finding a receipt";
+  account.send.click(); await tick();
+  assert.equal(account.posts[0].account_chat, true);
+  assert.equal(account.posts[0].ride_id, undefined);
+  assert.equal(account.app.showRecipient("driver", "Dana"), false);
   console.log("PASS: role recipient routing, fixed tabs, rider sharing, no uncommanded scrolling");
 })().catch(e => { console.error(e); process.exitCode = 1; });
