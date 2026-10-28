@@ -9,8 +9,15 @@
 - **Primary test passed (1 / 2 / 3):**
 - **Specific outcome for professional rides, drivers, or customers:**
 - **Why this is worth maintaining rather than feature bloat:**
-- **Every commit includes a substantive `NR-Value:` trailer:** yes / no
+- **Every commit includes an `NR-Value:` justification or an owner-approved `NR-Override: MAKE IT SO` declaration:** yes / no
 - **Would anything be better if we did NOT ship this?** explain
+
+## Manual owner override (if used)
+
+- Did the product owner directly say **MAKE IT SO** for this exact change?
+- Record the authorized scope and where the owner's instruction can be verified:
+- Integration owner has verified the authorization: yes / no
+- Safety, privacy, testing and release checks remain in force.
 
 ## Mission
 What user-facing outcome is this PR delivering? Which role(s) does it affect?
