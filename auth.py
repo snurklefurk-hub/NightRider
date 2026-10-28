@@ -193,11 +193,16 @@ def change_password(user_id, password):
 
 
 def reset_password(user_id, password):
+    """Legacy driver-account reset: never reset Dispatch or Rider credentials."""
     if len(str(password or "")) < PASSWORD_MIN or len(str(password)) > 256:
         return False
     with _connect() as conn:
-        conn.execute("UPDATE nr_users SET password_hash=%s WHERE id=%s",
-                     (_password_hash(str(password)), user_id))
+        row = conn.execute(
+            "UPDATE nr_users SET password_hash=%s WHERE id=%s AND role='driver' RETURNING id",
+            (_password_hash(str(password)), user_id)
+        ).fetchone()
+        if not row:
+            return False
         conn.execute("DELETE FROM nr_sessions WHERE user_id=%s", (user_id,))
     return True
 
@@ -244,10 +249,17 @@ def list_users(role=None):
 
 
 def set_user_enabled(user_id, enabled):
+    """Legacy driver-account switch: never disable Dispatch or Rider accounts."""
     with _connect() as conn:
-        conn.execute("UPDATE nr_users SET enabled=%s WHERE id=%s", (bool(enabled), user_id))
+        row = conn.execute(
+            "UPDATE nr_users SET enabled=%s WHERE id=%s AND role='driver' RETURNING id",
+            (bool(enabled), user_id)
+        ).fetchone()
+        if not row:
+            return False
         if not enabled:
             conn.execute("DELETE FROM nr_sessions WHERE user_id=%s", (user_id,))
+    return True
 
 
 def delete_driver_user(user_id):
