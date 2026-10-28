@@ -6,15 +6,15 @@
     var host = document.getElementById(options.host);
     if (!host) throw new Error("Chat host not found: " + options.host);
     var tabs = role === "dispatch" ? ["rider", "driver", "team"] :
-               role === "driver" ? ["rider", "dispatch", "team"] : ["rider"];
-    var labels = { rider: "Rider", driver: "Driver", dispatch: "Dispatch", team: "Team" };
+               role === "driver" ? ["team", "dispatch", "rider"] : ["rider"];
+    var labels = { rider: role === "rider" ? "Driver + Dispatch" : "Rider", driver: "Driver", dispatch: "Dispatch", team: "Team" };
     var active = tabs[0], rides = [], drivers = [], selectedRide = "", selectedDriver = "";
-    var messages = new Map(), loaded = false, seenAt = 0, fetching = false, sending = false;
+    var messages = new Map(), loaded = false, seenAt = 0, fetching = false, sending = false, needHistory = false;
     var unread = { rider: 0, driver: 0, dispatch: 0, team: 0 };
     var rendered = new Set(), pendingId = "", pendingSignature = "";
     host.innerHTML =
       '<div class="nr-chat" aria-label="NightRider messages">' +
-      '<div class="nr-chat-tabs" role="group" aria-label="Message recipient">' +
+      '<div class="nr-chat-tabs nr-chat-tabs-' + tabs.length + '" role="group" aria-label="Message recipient">' +
       tabs.map(function (tab) { return '<button type="button" class="nr-chat-tab" data-recipient="' +
         tab + '" aria-pressed="false"><span>' + labels[tab] +
         '</span><span class="nr-chat-count" aria-hidden="true"></span></button>'; }).join("") +
@@ -178,7 +178,7 @@
       return newMessages.length;
     }
     function refresh(full) {
-      if (fetching) return;
+      if (fetching) { if (full) needHistory = true; return; }
       fetching = true;
       var since = full ? 0 : Math.max(0, seenAt - 0.05);
       fetch("/api/chat/messages?since=" + since.toFixed(6), { cache: "no-store" })
@@ -193,7 +193,10 @@
           status.textContent = "";
         }).catch(function () {
           status.textContent = "Messages offline — drafts stay here. Retry when connected.";
-        }).then(function () { fetching = false; });
+        }).then(function () {
+          fetching = false;
+          if (needHistory) { needHistory = false; refresh(true); }
+        });
     }
     function requestBody() {
       var body = { text: field.value.trim() };
@@ -247,15 +250,21 @@
       if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendMessage(); }
     });
     function setRides(next) {
-      var idsBefore = rides.map(function (r) { return r.id; }).join("|");
-      rides = (next || []).filter(function (r) { return r && r.id; });
+      var newRides = (next || []).filter(function (r) { return r && r.id; });
+      var idsBefore = rides.map(function (r) { return String(r.id) + ":" + String(r.rider_name || ""); }).join("|");
+      var idsAfter = newRides.map(function (r) { return String(r.id) + ":" + String(r.rider_name || ""); }).join("|");
+      if (idsAfter === idsBefore) return; // Never rebuild an open select on ordinary refresh.
+      rides = newRides;
       var oldTarget = selectedRide;
       optionsForTarget();
       if (selectedRide !== oldTarget) render(true, false);
-      if (rides.map(function (r) { return r.id; }).join("|") !== idsBefore && loaded) refresh(true);
+      if (loaded) refresh(true);
     }
     function setDrivers(next) {
-      drivers = (next || []).filter(function (d) { return !!(d && (d.display_name || d.name || typeof d === "string")); });
+      var updated = (next || []).filter(function (d) { return !!(d && (d.display_name || d.name || typeof d === "string")); });
+      var names = function (items) { return items.map(function (d) { return d.display_name || d.name || d; }).join("|"); };
+      if (names(drivers) === names(updated)) return;
+      drivers = updated;
       var before = selectedDriver;
       optionsForTarget();
       if (before !== selectedDriver) render(true, false);
