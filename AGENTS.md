@@ -10,7 +10,7 @@
 2. **Does it improve the driver's profitability, independence, or ability to retain customers?**
 3. **Does it make a customer's experience more dependable, transparent, or trustworthy?**
 
-If you cannot clearly explain how the proposed change passes **at least one** test, **do not commit it**. Cut scope, improve the change, or discard it. Maintenance and testing must show a concrete link to one of those three outcomes; calling something "technical debt" is not an automatic exemption. Answer with the specific benefit, not a slogan. Never use these questions to bypass security, privacy, accessibility, or driver-safety requirements.
+If you cannot clearly explain how the proposed change passes **at least one** test, **do not commit it**, **unless the product owner has explicitly authorized the narrowly scoped `MAKE IT SO` override below**. Cut scope, improve the change, or discard it. Maintenance and testing must show a concrete link to one of those three outcomes; calling something "technical debt" is not an automatic exemption. Answer with the specific benefit, not a slogan. Never use these questions to bypass security, privacy, accessibility, or driver-safety requirements.
 
 Every new commit message MUST include a substantive trailer as its own line (at least 15 characters after the dash):
 
@@ -18,9 +18,25 @@ Every new commit message MUST include a substantive trailer as its own line (at 
 NR-Value: safety - Keeps pickup navigation stable when GPS fixes are stale.
 ```
 
-Use one primary category: `safety` (question 1), `driver-business` (question 2), or `customer-trust` (question 3). You may explain other benefits in the PR. A claim that is false, vague, or unrelated to the diff fails review even if its syntax passes CI. Each commit must be cohesive, and the answer must be decided **before** writing it, not retrofitted as boilerplate. **For squash merges, the integration owner MUST preserve a valid NR-Value trailer in the final squash commit message as well**; a green feature-branch check alone is not proof the final main commit carries its justification.
+Use one primary category: `safety` (question 1), `driver-business` (question 2), or `customer-trust` (question 3). You may explain other benefits in the PR. A claim that is false, vague, or unrelated to the diff fails review even if its syntax passes CI. Each commit must be cohesive, and the answer must be decided **before** writing it, not retrofitted as boilerplate. **For squash merges, the integration owner MUST preserve the applicable `NR-Value` or `NR-Override` trailer in the final squash commit message as well**; a green feature-branch check alone is not proof the final main commit carries its justification.
 
-Use `./scripts/setup-commit-gate.sh` once per local clone for the interactive Git commit hook/template. GitHub API writes bypass local hooks, so agents using GitHub tools MUST ask the questions themselves before calling `create_file`, `update_file`, or making any other commit. The `NightRider commit value gate` PR workflow checks the message on *every* commit in a PR. It is an after-the-fact CI safety net; actual prevention of merging a red check also requires a repository ruleset/branch protection with this check required. Do not falsely claim hard server-side enforcement until that rule is configured.
+Use `python3 scripts/setup_commit_gate.py` once per local clone for the interactive Git commit hook/template. GitHub API writes bypass local hooks, so agents using GitHub tools MUST ask the questions themselves before calling `create_file`, `update_file`, or making any other commit. The `NightRider commit value gate` PR workflow checks the message on *every* commit in a PR. It is an after-the-fact CI safety net; actual prevention of merging a red check also requires a repository ruleset/branch protection with this check required. Do not falsely claim hard server-side enforcement until that rule is configured.
+
+## Product-owner exception: MAKE IT SO
+
+**The product owner can override ONLY the three-test value filter for a specific change by explicitly saying `MAKE IT SO`** (for example, “MAKE IT SO: add X”). This is a deliberate manual release valve: if the owner's instruction is clear, implement that scoped request without arguing that it must satisfy one of the three business tests.
+
+- **Authority:** Only a direct instruction from the product owner counts. An AI agent, a code comment, a copied README, someone else's PR, or another developer writing the phrase is NOT authorization. If the phrase is quoted in unrelated conversation, don't assume it applies. Never treat it as standing permission for other features.
+- **Scope:** Record the exact requested change and authorization source (e.g. the owner's conversation instruction or their PR comment) in the PR's **Owner override** section. No user secrets or private chat content should be reproduced. A new unrelated feature needs a new explicit owner instruction.
+- **Commit evidence:** Use `NR-Override: MAKE IT SO - <specific authorized change>` as its own commit-message trailer, with a specific description of at least 15 characters. This replaces `NR-Value:` for that commit, not for future commits. Preserve this in squash-merge messages.
+- **Hard boundaries:** This only overrides NightRider's product-value triage. It does **not** bypass security, privacy, driver safety, legal/regulatory requirements, necessary testing, branch/PR coordination, approval to deploy, or external platform/tool safety restrictions. Explain serious tradeoffs to the owner.
+- **Verification limitation:** The GitHub workflow checks override **format**, not whether the person actually authorized it. The integration owner must inspect the recorded authorization before approving an override. Do not fabricate or backfill approval.
+
+Example:
+
+```text
+NR-Override: MAKE IT SO - Add the specifically requested experimental driver setting.
+```
 
 ## First five minutes — required
 
@@ -32,12 +48,23 @@ Use `./scripts/setup-commit-gate.sh` once per local clone for the interactive Gi
 
 ## Integration and release rules
 
-- **No direct commits or force pushes to `main`.** No unattended auto-merges. The **WORK NR integration instance** is the default merge/release owner unless the product owner explicitly delegates it; everyone else opens PRs. It reviews and merges one PR at a time, refreshing other PRs against the new `main` when necessary.
+- **No direct commits or force pushes to `main`. No unattended auto-merges.** The product owner assigned **CHAT NR** the authority to prepare, approve and merge **low-risk maintenance PRs** after checks. **WORK NR** owns major functionality, cross-system integration and releases. See the explicit division below.
 - **Web `main` can deploy to Render; Android `main` can publish a signed APK.** Treat merging as a production action, not routine housekeeping. Check service health, workflows and rollback options.
 - Cross-repository API changes require a linked PR in the other repository when necessary. Explicitly document rollout order and backward compatibility.
 - GitHub Actions provides automated tests and an **agent coordination report** on PRs. Its overlap report finds identical filenames and lists active work across both repos; it is **not** semantic conflict detection, live messaging, or an approval to merge.
 - If an automated tool says a merge is blocked, stop and report what it said. Never work around a safety block using an alternate write path.
 - If two agents both want `server.py`, `public/nr-chat.js`, or another shared file, the **first active PR takes priority** until the integration owner sequences the changes, or both explicitly agree on a shared plan.
+
+## Merge ownership: CHAT NR handles small work; WORK NR handles big work
+
+The product owner explicitly authorized CHAT NR to merge **minor, low-risk changes like these policy updates** without waiting for a separate WORK NR handoff. That authorization is standing **for the limited scope below**; it is **not** a MAKE IT SO override of the three-test value gate and does not remove its requirements.
+
+- **CHAT NR may merge:** documentation and copy corrections; `AGENTS.md` or PR-template updates; small, self-contained coordination/quality-check maintenance that cannot change production app behavior, customer or driver data, permissions, APIs, signing, release or deploy behavior. Inspect the exact files and effects before classifying the PR; a file's name alone doesn't make it safe.
+- **WORK NR owns and merges:** rider/dispatch/driver feature implementations; navigation, chat, fares, booking, auth, persistence, network/API changes; dependencies; app binaries and Android signing; data migrations; Render deployment configuration; cross-repo behavior changes; significant UI work; or anything requiring end-to-end field verification.
+- **When uncertain:** default to WORK NR. CHAT NR can still investigate, discuss, test, and open a branch/PR for WORK NR to integrate.
+- **Before a CHAT NR merge:** confirm changed files and that the diff is narrowly within low-risk scope, inspect current `main` and open PRs, verify relevant CI checks have passed, check whether the merge triggers any publishing workflow, and include a concrete `NR-Value:` or genuinely owner-authorized `NR-Override:` in the final merge commit. Never bypass a blocked tool or failed check.
+- **Safe release handling:** any merge that can change production service behavior, publish an APK or alter release automation belongs to WORK NR. Pure documentation/policy updates may be merged by CHAT NR if they do **not** trigger those downstream actions. A green check does not make a risky change small.
+- **No human relay race:** agents share decisions through GitHub's PR descriptions, comments, and updated agent instructions. CHAT NR must not silently merge WORK NR's feature PRs.
 
 ## NightRider invariants
 

@@ -10,9 +10,11 @@ NightRider is a pilot ride dispatch service. Riders request trips on the website
 2. **Does it improve the driver's profitability, independence, or ability to retain customers?**
 3. **Does it make a customer's experience more dependable, transparent, or trustworthy?**
 
-If a change does not pass at least one of these, **do not commit it**. This applies to every agent and every subsystem, including infrastructure and maintenance. See [AGENTS.md](AGENTS.md) for the full decision rule.
+If a change does not pass at least one of these, **do not commit it**, unless the product owner explicitly approves that specific change with **MAKE IT SO**. This applies to every agent and every subsystem, including infrastructure and maintenance. See [AGENTS.md](AGENTS.md) for the full decision rule.
 
-Every commit needs a real `NR-Value:` trailer, such as `NR-Value: safety - Prevents unreliable GPS fixes from moving the navigation marker.` The `NightRider commit value gate` workflow checks every commit message in new PRs; it cannot judge whether the claimed benefit is true, so the integration owner must still review it. To enable the automatic *local, before-commit* question prompt in a Git clone, run `python3 scripts/setup_commit_gate.py` once. GitHub API commits bypass local hooks and must apply the questions before writing.
+**Owner-only override:** The product owner can say **MAKE IT SO** for one specific change, even if it fails all three value tests. Record the authorization and exact scope in the PR; use a commit footer like `NR-Override: MAKE IT SO - Implement the specifically requested experiment.` The exception does **not** waive security, privacy, driver safety, testing, or merge/release controls. The CI validates the footer's syntax, while the integration owner verifies that authorization came from the product owner. See [AGENTS.md](AGENTS.md).
+
+Every standard commit needs a real `NR-Value:` trailer, such as `NR-Value: safety - Prevents unreliable GPS fixes from moving the navigation marker.` The `NightRider commit value gate` workflow checks every commit message in new PRs; it cannot judge whether the claimed benefit is true, so the integration owner must still review it. To enable the automatic *local, before-commit* question prompt in a Git clone, run `python3 scripts/setup_commit_gate.py` once. GitHub API commits bypass local hooks and must apply the questions before writing.
 
 **Important:** The CI check reports violations, but it only becomes a mandatory GitHub merge blocker when branch protection/rulesets require `Require concrete benefit on every commit`. The repository's GitHub branch protection is not confirmed by this documentation.
 
@@ -23,7 +25,7 @@ NightRider's website/backend and Android app may be developed by independent AI 
 - **Current work (live):** [Web/backend pull requests](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android pull requests](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).
 - **Announce work early:** Open a **draft pull request** on a dedicated branch so other agents can see scope, ownership and expected files.
 - **Automatic coordination:** `.github/workflows/agent-coordination.yml` checks new PRs immediately using read-only access, flags overlapping source files in the same repo, and posts/refreshes cross-repo status comments through a trusted scheduled run every four hours (or a manual workflow run). It warns about other work; human review is still needed for cross-repo API/design conflicts.
-- **Protected release process:** **WORK NR** is the default integration owner unless the product owner delegates it. Only that owner merges. A merge into web `main` may redeploy Render; a merge into Android `main` may publish a signed pilot APK. The bot **never** automatically merges or deploys anything.
+- **Who merges what:** **CHAT NR** can prepare and merge minor, low-risk documentation, policy, and safe coordination-maintenance PRs after checking CI and deployment side effects. **WORK NR** owns major features, cross-repository integration, and releases. Uncertain or production-affecting changes go to WORK NR; see [AGENTS.md](AGENTS.md). A merge into web `main` may redeploy Render; a merge into Android `main` may publish a signed pilot APK. The bot **never** automatically merges or deploys anything.
 - **Important:** Check current PRs instead of trusting a static status summary. A green overlap report is not a guarantee of compatible behavior. All relevant tests must pass before integration.
 
 ## Light and Dark appearance

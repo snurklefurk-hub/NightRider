@@ -3,16 +3,50 @@
 # Local safeguard. GitHub API commits bypass local hooks; CI also checks PR messages.
 printf '\nNightRider: three mandatory pre-commit questions:\n' >&2
 printf '  1. Does it make delivering a professional ride easier or safer?\n' >&2
-printf "  2. Does it improve the driver's profitability, independence, or ability to retain customers?\\n" >&2
-printf "  3. Does it make a customer's experience more dependable, transparent, or trustworthy?\\n" >&2
-printf 'If none apply: do not commit.\n\n' >&2
+printf "  2. Does it improve the driver's profitability, independence, or ability to retain customers?\n" >&2
+printf "  3. Does it make a customer's experience more dependable, transparent, or trustworthy?\n" >&2
+printf 'If none apply: do not commit without an explicit, scoped owner MAKE IT SO instruction.\n\n' >&2
 
 if [ -z "$1" ] || [ ! -f "$1" ]; then
   printf 'ERROR: Git did not provide a commit message file.\n' >&2
   exit 1
 fi
 
-if grep -Eq '^NR-Value: (safety|driver-business|customer-trust) - [^[:space:]].{14,}$' "$1"; then
+if grep -Eq '^NR-Value: (safety|driver-business|customer-trust) - [^[:space:]].{14,}
+  exit 0
+fi
+cat >&2 <<'EOF'
+COMMIT BLOCKED: You must name a concrete positive outcome on at least one test.
+Include this footer in the commit message (15+ characters describing the benefit):
+
+NR-Value: safety - Keeps navigation stable when GPS accuracy deteriorates.
+
+Allowed categories: safety, driver-business, customer-trust
+If the product owner explicitly authorized a scoped exception, use:
+
+NR-Override: MAKE IT SO - Describe the exact approved change here.
+
+The override MUST come directly from the product owner and be documented in
+the PR; it is not blanket permission or a waiver of safety and privacy checks.
+See AGENTS.md for the conditions.
+EOF
+exit 1
+ "$1" ||
+   grep -Eq '^NR-Override: MAKE IT SO - [^[:space:]].{14,}
+  exit 0
+fi
+cat >&2 <<'EOF'
+COMMIT BLOCKED: You must name a concrete positive outcome on at least one test.
+Include this footer in the commit message (15+ characters describing the benefit):
+
+NR-Value: safety - Keeps navigation stable when GPS accuracy deteriorates.
+
+Allowed categories: safety, driver-business, customer-trust
+A generic label or unrelated slogan is not evidence. Rework a change that
+cannot pass a test. See AGENTS.md for all three full questions.
+EOF
+exit 1
+ "$1"; then
   exit 0
 fi
 cat >&2 <<'EOF'

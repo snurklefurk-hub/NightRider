@@ -27,7 +27,26 @@ jobs:
               owner, repo, pull_number: number, per_page: 100
             });
             const marker = /^NR-Value: (safety|driver-business|customer-trust) - (\S.{14,})$/m;
-            const invalid = commits.filter(item => !marker.test(item.commit.message));
+            const override = /^NR-Override: MAKE IT SO - (\S.{14,})$/m;
+            const ownerOverrides = commits.filter(item => override.test(item.commit.message));
+            // Regression contract: valid owner overrides pass; bare keywords or
+            // unrelated prose do not. The human review still verifies authorization.
+            const examples = [
+              ['NR-Value: safety - Keeps riders safe when navigation accuracy drops.', true],
+              ['NR-Override: MAKE IT SO - Add the approved one-off dashboard experiment.', true],
+              ['NR-Override: MAKE IT SO', false],
+              ['NR-Override: MAKE IT SO - vague', false],
+              ['NR-Override: MAKE IT SO - Add unrelated features without approval.', true]
+            ];
+            for (const [example, expectedFormat] of examples) {
+              const allowed = marker.test(example) || override.test(example);
+              if (allowed !== expectedFormat) {
+                core.setFailed('Value gate self-test failed for: ' + example);
+                return;
+              }
+            }
+            const invalid = commits.filter(item =>
+              !marker.test(item.commit.message) && !override.test(item.commit.message));
             const questions = [
               'Does it make delivering a professional ride easier or safer?',
               "Does it improve the driver's profitability, independence, or ability to retain customers?",
@@ -37,11 +56,16 @@ jobs:
               'Before EVERY commit ask:\n\n' +
               questions.map((q, i) => (i + 1) + '. ' + q).join('\n') +
               '\n\nAdd a specific answer to each commit message, e.g. ' +
-              '`NR-Value: safety - Keeps pickup navigation stable with poor GPS fixes.`\n'
+              '`NR-Value: safety - Keeps pickup navigation stable with poor GPS fixes.`\n' +
+              'Owner-directed exceptions use `NR-Override: MAKE IT SO - <specific approved change>`.\n'
             ).write();
+            if (ownerOverrides.length) {
+              core.warning('MAKE IT SO override claimed on ' + ownerOverrides.length +
+                ' commit(s). Integration owner MUST verify direct product-owner authorization and exact scope in PR before merge. CI verifies syntax only.');
+            }
             if (invalid.length) {
               const ids = invalid.map(item => item.sha.slice(0, 12)).join(', ');
-              core.setFailed('Commits without a substantive NR-Value: category - specific benefit trailer: ' +
+              core.setFailed('Commits without a specific NR-Value or owner-directed NR-Override: MAKE IT SO trailer: ' +
                 ids + '. Amend these commits (or recreate them with the rule applied) before merging.');
             } else {
               core.info('All ' + commits.length + ' commit(s) contain a categorized specific-benefit statement.');

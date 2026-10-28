@@ -3,7 +3,8 @@
 # 2. Does it improve the driver's profitability, independence, or ability to retain customers?
 # 3. Does it make a customer's experience more dependable, transparent, or trustworthy?
 #
-# If the answer is NO to all three, DO NOT COMMIT. Rethink or discard the change.
+# If the answer is NO to all three: DO NOT COMMIT unless the product owner
+# explicitly authorized THIS change by saying MAKE IT SO.
 #
 # Replace the placeholder below with a specific measurable or observable benefit.
 # Valid categories: safety / driver-business / customer-trust.
@@ -11,3 +12,8 @@
 # Your concise commit subject goes above, then include the trailer BELOW:
 #
 NR-Value: CATEGORY - Describe the specific benefit for drivers or customers.
+
+# OWNER-ONLY EXCEPTION (only if the product owner explicitly approved this change):
+# NR-Override: MAKE IT SO - Describe the specific authorized change here.
+# Record the owner's instruction and permitted scope in the pull request.
+# An override does not waive security, driver safety, privacy, tests, or merge checks.
