@@ -46,8 +46,14 @@ def build_archive(store, user, generated_at):
         if role == "rider":
             return ride.get("rider_account_id") == account_id or (
                 not ride.get("rider_account_id") and ride.get("rider_id") == rid)
-        return ride.get("driver_account_id") == account_id or (
-            not ride.get("driver_account_id") and ride.get("driver") == name)
+        if ride.get("driver_account_id") == account_id:
+            return True
+        if not ride.get("driver_account_id") and ride.get("driver") == name:
+            return True
+        if any(log.get("from_driver") == name or log.get("to_driver") == name
+               for log in ride.get("assignment_log", [])):
+            return True
+        return (ride.get("last_driver_release") or {}).get("driver") == name
 
     rides = sorted(
         (dict(ride) for ride in (store.get("rides") or {}).values() if matches(ride)),
@@ -82,6 +88,7 @@ def build_archive(store, user, generated_at):
     else:
         data["rider_history"] = None
         data["account_messages"] = []
+        data["driver_chat_color"] = (store.get("driver_colors") or {}).get(account_id)
         data["driver_records"] = [
             dict(record) for record in (store.get("drivers") or {}).values()
             if record.get("account_id") == account_id or (
