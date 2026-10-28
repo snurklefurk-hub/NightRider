@@ -706,6 +706,14 @@
         '<td class="tiny muted">' + (known && known.last_seen ? new Date(known.last_seen * 1000).toLocaleString() : "—") + "</td>";
       var actionCell = document.createElement("td");
       if (user) {
+        var textAccount = document.createElement("button");
+        textAccount.type = "button"; textAccount.className = "alt";
+        textAccount.textContent = "Text rider";
+        textAccount.addEventListener("click", function () {
+          $("riderAdminModal").hidden = true;
+          openDispatchChat("rider", "account:" + user.id);
+        });
+        actionCell.appendChild(textAccount);
         var reset = document.createElement("button"); reset.type = "button"; reset.className = "alt";
         reset.textContent = "Reset password";
         reset.addEventListener("click", function () { resetAccountPassword(user); });
