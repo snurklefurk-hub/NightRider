@@ -269,6 +269,7 @@
   var STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
     "at_dropoff", "completed", "cancelled"];
   var CFG = { statusLabels: {} };
+  var canDeleteAccounts = false;
   function statusWord(s) { return CFG.statusLabels[s] || s; }
   var cursor = 0;          /* last event seq we have seen */
   var expandedRideIds = {};
@@ -732,14 +733,16 @@
           reset.textContent = "Reset password";
           reset.addEventListener("click", function () { resetAccountPassword(u); });
           row.appendChild(reset);
-          var remove = document.createElement("button");
-          remove.type = "button";
-          remove.className = "alt";
-          remove.textContent = "Archive & delete";
-          remove.addEventListener("click", function () {
-            archiveThenDeleteAccount(u, "driver", remove, "driverAccountMsg", refreshDriverAccounts);
-          });
-          row.appendChild(remove);
+          if (canDeleteAccounts) {
+            var remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "alt";
+            remove.textContent = "Archive & delete";
+            remove.addEventListener("click", function () {
+              archiveThenDeleteAccount(u, "driver", remove, "driverAccountMsg", refreshDriverAccounts);
+            });
+            row.appendChild(remove);
+          }
           box.appendChild(row);
         });
       }).catch(function () {});
@@ -801,13 +804,15 @@
         reset.textContent = "Reset password";
         reset.addEventListener("click", function () { resetAccountPassword(user); });
         actionCell.appendChild(reset);
-        var remove = document.createElement("button");
-        remove.type = "button"; remove.className = "alt";
-        remove.textContent = "Archive & delete";
-        remove.addEventListener("click", function () {
-          archiveThenDeleteAccount(user, "rider", remove, "riderArchiveMsg", refreshRiderAccounts);
-        });
-        actionCell.appendChild(remove);
+        if (canDeleteAccounts) {
+          var remove = document.createElement("button");
+          remove.type = "button"; remove.className = "alt";
+          remove.textContent = "Archive & delete";
+          remove.addEventListener("click", function () {
+            archiveThenDeleteAccount(user, "rider", remove, "riderArchiveMsg", refreshRiderAccounts);
+          });
+          actionCell.appendChild(remove);
+        }
       } else {
         actionCell.textContent = "—";
       }
@@ -1159,6 +1164,14 @@
       .finally(function () { button.disabled = false; });
   });
 
+  api("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); })
+    .then(function (data) {
+      canDeleteAccounts = Boolean(data.user && data.user.role === "dispatch" && data.user.dispatch_admin === true);
+      if (canDeleteAccounts) {
+        refreshDriverAccounts();
+        refreshRiderAccounts();
+      }
+    }).catch(function () {});
   api("/api/config", { cache: "no-store" }).then(function (r) { return r.json(); })
     .then(function (d) {
       CFG.statusLabels = d.statusLabels || {};
