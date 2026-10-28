@@ -1,0 +1,13 @@
+# NightRider: Stop and check all three questions BEFORE committing:
+# 1. Does it make delivering a professional ride easier or safer?
+# 2. Does it improve the driver's profitability, independence, or ability to retain customers?
+# 3. Does it make a customer's experience more dependable, transparent, or trustworthy?
+#
+# If the answer is NO to all three, DO NOT COMMIT. Rethink or discard the change.
+#
+# Replace the placeholder below with a specific measurable or observable benefit.
+# Valid categories: safety / driver-business / customer-trust.
+#
+# Your concise commit subject goes above, then include the trailer BELOW:
+#
+NR-Value: CATEGORY - Describe the specific benefit for drivers or customers.
