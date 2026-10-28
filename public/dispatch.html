@@ -116,6 +116,8 @@
     </div>
     <div class="card" id="riderDirectory">
       <h2>Rider accounts</h2>
+      <p class="tiny muted">Rider and Driver deletion requires saving a local account-history log. Historical ride records remain in NightRider. Use a desktop browser that supports confirmed Save As.</p>
+      <p class="msg" id="riderArchiveMsg" role="status" aria-live="polite"></p>
       <div style="overflow:auto">
         <table>
           <thead><tr><th>Rider</th><th>Account ID</th><th class="num">Rides</th><th class="num">Ratings</th><th class="num">Avg</th><th class="num">Issues</th><th>Account created</th><th>Last seen</th><th>Account actions</th></tr></thead>
@@ -267,6 +269,7 @@
   var STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
     "at_dropoff", "completed", "cancelled"];
   var CFG = { statusLabels: {} };
+  var canDeleteAccounts = false;
   function statusWord(s) { return CFG.statusLabels[s] || s; }
   var cursor = 0;          /* last event seq we have seen */
   var expandedRideIds = {};
@@ -638,6 +641,70 @@
       }).catch(function () {});
   }
 
+  async function archiveThenDeleteAccount(account, role, button, messageId, refreshAccounts) {
+    var status = $(messageId);
+    if (!window.showSaveFilePicker || !window.crypto || !window.crypto.subtle) {
+      status.textContent = "Deletion blocked: a confirmed local Save As is required. Use a current Chrome or Edge desktop browser.";
+      return;
+    }
+    if (button.disabled) return;
+    button.disabled = true;
+    var stamp = new Date().toISOString().slice(0, 10);
+    var slug = String(account.username || "account").replace(/[^a-z0-9_-]/gi, "-").slice(0, 32);
+    var label = account.display_name + " (" + account.username + ")";
+    try {
+      // Open picker directly from this click: waiting for fetch first loses user activation.
+      var file = await window.showSaveFilePicker({
+        suggestedName: "NightRider-" + role + "-" + slug + "-" + stamp + ".json",
+        types: [{description: "NightRider account history", accept: {"application/json": [".json"]}}]
+      });
+      status.textContent = "Preparing account history archive…";
+      var url = "/api/dispatch/account-archive?role=" +
+        encodeURIComponent(role) + "&id=" + encodeURIComponent(account.id);
+      var response = await api(url, {cache: "no-store"});
+      var archive = await response.json();
+      if (!response.ok) throw new Error(archive.error || "Could not create archive.");
+      // Validate the bytes before writing; the backend separately verifies the grant.
+      var bytes = new TextEncoder().encode(archive.content);
+      var digestBuffer = await window.crypto.subtle.digest("SHA-256", bytes);
+      var digest = Array.from(new Uint8Array(digestBuffer), function (v) {
+        return v.toString(16).padStart(2, "0");
+      }).join("");
+      if (digest !== archive.sha256) throw new Error("Archive checksum mismatch. No account was deleted.");
+      var stream = await file.createWritable();
+      try {
+        await stream.write(new Blob([bytes], {type: "application/json"}));
+        await stream.close();
+      } catch (writeError) {
+        try { await stream.abort(); } catch (_) {}
+        throw writeError;
+      }
+      status.textContent = "Account history saved locally. It contains sensitive information; store it securely.";
+      if (!window.confirm("Archive saved. Permanently delete " + label +
+          "'s " + role + " LOGIN? Existing trip records stay in NightRider. This cannot be undone.")) {
+        status.textContent = "Archive saved; account NOT deleted.";
+        return;
+      }
+      var deleted = await api("/api/dispatch/account-deletion", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({role: role, id: account.id,
+          sha256: archive.sha256, token: archive.token})
+      });
+      var result = await deleted.json();
+      if (!deleted.ok) throw new Error(result.error || "Deletion blocked; save an updated archive.");
+      status.textContent = role + " account deleted. Keep the locally saved log as your record.";
+      refreshAccounts();
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        status.textContent = "Save cancelled. Account NOT deleted.";
+      } else {
+        status.textContent = "Deletion blocked: " + (error && error.message || "Archive save failed.");
+      }
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function refreshDriverAccounts() {
     api("/api/dispatch/users", {cache:"no-store"}).then(function (r) { return r.json(); })
       .then(function (data) {
@@ -666,21 +733,16 @@
           reset.textContent = "Reset password";
           reset.addEventListener("click", function () { resetAccountPassword(u); });
           row.appendChild(reset);
-          var remove = document.createElement("button");
-          remove.type = "button";
-          remove.className = "alt";
-          remove.textContent = "Delete";
-          remove.addEventListener("click", function () {
-            if (!window.confirm("Delete " + u.display_name + "'s driver account? They will no longer be able to sign in. Ride and text history will remain.")) return;
-            api("/api/dispatch/users/" + encodeURIComponent(u.id) + "/delete", {
-              method:"POST", headers:{"Content-Type":"application/json"}, body:"{}"
-            }).then(function (r) {
-              return r.json().then(function (data) {
-                if (!r.ok) throw new Error(data.error || "Could not delete account.");
-              });
-            }).then(refreshDriverAccounts).catch(function (error) { window.alert(error.message); });
-          });
-          row.appendChild(remove);
+          if (canDeleteAccounts) {
+            var remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "alt";
+            remove.textContent = "Archive & delete";
+            remove.addEventListener("click", function () {
+              archiveThenDeleteAccount(u, "driver", remove, "driverAccountMsg", refreshDriverAccounts);
+            });
+            row.appendChild(remove);
+          }
           box.appendChild(row);
         });
       }).catch(function () {});
@@ -742,6 +804,15 @@
         reset.textContent = "Reset password";
         reset.addEventListener("click", function () { resetAccountPassword(user); });
         actionCell.appendChild(reset);
+        if (canDeleteAccounts) {
+          var remove = document.createElement("button");
+          remove.type = "button"; remove.className = "alt";
+          remove.textContent = "Archive & delete";
+          remove.addEventListener("click", function () {
+            archiveThenDeleteAccount(user, "rider", remove, "riderArchiveMsg", refreshRiderAccounts);
+          });
+          actionCell.appendChild(remove);
+        }
       } else {
         actionCell.textContent = "—";
       }
@@ -1093,6 +1164,14 @@
       .finally(function () { button.disabled = false; });
   });
 
+  api("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); })
+    .then(function (data) {
+      canDeleteAccounts = Boolean(data.user && data.user.role === "dispatch" && data.user.dispatch_admin === true);
+      if (canDeleteAccounts) {
+        refreshDriverAccounts();
+        refreshRiderAccounts();
+      }
+    }).catch(function () {});
   api("/api/config", { cache: "no-store" }).then(function (r) { return r.json(); })
     .then(function (d) {
       CFG.statusLabels = d.statusLabels || {};

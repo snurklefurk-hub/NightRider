@@ -28,6 +28,14 @@ NightRider's website/backend and Android app may be developed by independent AI 
 - **Who can implement and merge:** **Both CHAT NR and WORK NR** may push and integrate owner-authorized changes, including major features, after appropriate review and tests. **WORK NR provides heavier execution/compute**, not exclusive authority. Use GitHub branches/PRs to coordinate concurrent work and check deployment effects; see [AGENTS.md](AGENTS.md). A merge into web `main` may redeploy Render; a merge into Android `main` may publish a signed pilot APK. The bot **never** automatically merges or deploys anything.
 - **Important:** Check current PRs instead of trusting a static status summary. A green overlap report is not a guarantee of compatible behavior. All relevant tests must pass before integration.
 
+## Dispatch: mandatory local archive before Rider or Driver deletion
+
+Dispatch administrators can select **Archive & delete** on a Rider or Driver account. This is a deliberate, two-step process: the administrator first chooses a local file destination; NightRider compiles a full export of all **currently retained** account metadata, associated trips, ratings/status/assignment history, rider-account messages, applicable ride messages, and Driver team history. The browser checks the SHA-256 checksum and waits for its confirmed local file write to finish before offering the final deletion prompt. If a save fails, is canceled, or is unsupported, the account **cannot** be deleted through Dispatch.
+
+This uses the browser **File System Access API** (desktop Chromium/Chrome/Edge over HTTPS); browsers without a confirmed Save As API fail closed for deletion. A website cannot independently inspect whether an OS actually retained a file, so this provides a successfully completed browser write rather than independent disk verification. Operators must keep the archive safe, since it contains personal ride and message history. No password hashes, login tokens, or other accounts' private account conversations are included.
+
+The backend blocks the old direct Driver delete endpoint and accepts deletion only with an administrator-scoped, single-use, short-lived archive grant and a matching history checksum. If a trip is unfinished, history changed, or the token expired, deletion is blocked and the archive must be saved again. Deletion removes the selected **login and its sessions**, not the retained trip ledger; previously pruned/expired records cannot be exported. This does not constitute a broad personal-data erasure request or a substitute for legal retention/compliance handling.
+
 ## Light and Dark appearance
 
 A single site-wide **LIGHT / DARK** control appears in Rider, Dispatch, the

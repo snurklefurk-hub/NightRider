@@ -262,6 +262,30 @@ def set_user_enabled(user_id, enabled):
     return True
 
 
+def get_account_for_archive(user_id, role):
+    """Return safe metadata; never include passwords or session tokens."""
+    if role not in ("rider", "driver"):
+        return None
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT id,username,display_name,role,enabled,created_at "
+            "FROM nr_users WHERE id=%s AND role=%s", (user_id, role)
+        ).fetchone()
+    if not row:
+        return None
+    return dict(zip(("id", "username", "display_name", "role", "enabled", "created_at"), row))
+
+
+def delete_rider_user(user_id):
+    """Remove Rider login and revoke sessions; historical ride ledger stays."""
+    with _connect() as conn:
+        row = conn.execute(
+            "DELETE FROM nr_users WHERE id=%s AND role='rider' RETURNING id",
+            (user_id,)
+        ).fetchone()
+    return bool(row)
+
+
 def delete_driver_user(user_id):
     """Permanently remove a driver's login and sessions, preserving ride/chat history."""
     with _connect() as conn:
