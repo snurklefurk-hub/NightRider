@@ -1,5 +1,7 @@
 """Chat recipient/privacy and retry regression checks."""
 import unittest
+from unittest.mock import patch
+import server
 
 from server import add_message, add_ride_message, thread_messages, visible_ride_messages
 
@@ -63,6 +65,17 @@ class ChatContractTest(unittest.TestCase):
         self.assertEqual(len(thread_messages(self.state, "dispatch")), 3)
         self.assertEqual(len(thread_messages(self.state, "Alex")), 3)
         self.assertEqual([m["text"] for m in thread_messages(self.state, "Sam")], ["Team notice"])
+
+    def test_previous_driver_keeps_original_chat_color(self):
+        self.send_ride(OLD_DRIVER, "I am delayed")
+        ride = {"id": "RIDE1", "driver": "Sam", "driver_account_id": "new"}
+        self.state["rides"] = {"RIDE1": ride}
+        with patch.object(server, "STORE", self.state):
+            with patch.object(server, "driver_chat_color_map", return_value={
+                "Alex": "#112233", "Sam": "#445566"
+            }):
+                messages = server.unified_chat_messages(DISPATCH)
+        self.assertEqual(messages[0]["chat_color"], "#112233")
 
     def test_retry_deduplicates_team_and_ride_messages(self):
         first = self.send_ride(RIDER, "On my way", client_id="r-100")

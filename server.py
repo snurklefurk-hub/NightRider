@@ -198,9 +198,7 @@ def unified_chat_messages(user, since=0.0):
             message["chat_color"] = PASSENGER_CHAT_COLOR
         else:
             driver_name = message.get("from") or ""
-            if message.get("message_kind") == "ride":
-                ride = STORE["rides"].get(message.get("ride_id"), {})
-                driver_name = ride.get("driver") or driver_name
+            # Preserve the original sender color when the ride changes drivers.
             message["chat_color"] = colors.get(driver_name, "#8dd3ff")
     messages.sort(key=lambda message: float(message.get("at") or 0))
     return messages
