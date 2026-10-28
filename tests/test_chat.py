@@ -117,8 +117,8 @@ class ChatContractTest(unittest.TestCase):
         handler.send_json = lambda code, data: (code, data)
         accounts = [{"id": "r1", "display_name": "Riley", "enabled": True},
                     {"id": "disabled", "display_name": "Former", "enabled": False}]
-        with patch.object(server, "STORE", self.state), \\
-             patch.object(server.auth, "list_users", return_value=accounts), \\
+        with patch.object(server, "STORE", self.state), \
+             patch.object(server.auth, "list_users", return_value=accounts), \
              patch.object(server, "save"), patch.object(server, "record_event"):
             code, payload = handler.post_chat_message(DISPATCH, {
                 "text": "Is your payment resolved?", "rider_account_id": "r1"
