@@ -12,7 +12,7 @@
 
 ## Integration and release rules
 
-- **No direct commits or force pushes to `main`.** No unattended auto-merges. One designated integration owner reviews and merges one PR at a time, rebasing or refreshing other PRs against the new `main` when necessary.
+- **No direct commits or force pushes to `main`.** No unattended auto-merges. The **WORK NR integration instance** is the default merge/release owner unless the product owner explicitly delegates it; everyone else opens PRs. It reviews and merges one PR at a time, refreshing other PRs against the new `main` when necessary.
 - **Web `main` can deploy to Render; Android `main` can publish a signed APK.** Treat merging as a production action, not routine housekeeping. Check service health, workflows and rollback options.
 - Cross-repository API changes require a linked PR in the other repository when necessary. Explicitly document rollout order and backward compatibility.
 - GitHub Actions provides automated tests and an **agent coordination report** on PRs. Its overlap report finds identical filenames and lists active work across both repos; it is **not** semantic conflict detection, live messaging, or an approval to merge.
