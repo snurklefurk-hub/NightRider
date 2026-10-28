@@ -134,12 +134,15 @@ def authenticate(username, password):
         return None
     with _connect() as conn:
         row = conn.execute(
-            "SELECT id, username, display_name, role, password_hash FROM nr_users "
+            "SELECT id, username, display_name, role, password_hash, "
+            "id=(SELECT id FROM nr_users WHERE role='dispatch' ORDER BY created_at,id LIMIT 1) "
+            "AS dispatch_admin FROM nr_users "
             "WHERE username=%s AND enabled=TRUE", (username,),
         ).fetchone()
     if not row or not _password_matches(str(password or ""), row[4]):
         return None
-    return {"id": row[0], "username": row[1], "display_name": row[2], "role": row[3]}
+    return {"id": row[0], "username": row[1], "display_name": row[2],
+            "role": row[3], "dispatch_admin": bool(row[5]) and row[3] == "dispatch"}
 
 
 def _token_hash(token):
@@ -161,13 +164,16 @@ def get_session(token):
         return None
     with _connect() as conn:
         row = conn.execute(
-            "SELECT u.id,u.username,u.display_name,u.role FROM nr_sessions s "
+            "SELECT u.id,u.username,u.display_name,u.role, "
+            "u.id=(SELECT id FROM nr_users WHERE role='dispatch' ORDER BY created_at,id LIMIT 1) "
+            "FROM nr_sessions s "
             "JOIN nr_users u ON u.id=s.user_id WHERE s.token_hash=%s "
             "AND s.expires_at>%s AND u.enabled=TRUE", (_token_hash(token), time.time()),
         ).fetchone()
     if not row:
         return None
-    return {"id": row[0], "username": row[1], "display_name": row[2], "role": row[3]}
+    return {"id": row[0], "username": row[1], "display_name": row[2],
+            "role": row[3], "dispatch_admin": bool(row[4]) and row[3] == "dispatch"}
 
 
 def delete_session(token):
@@ -192,6 +198,34 @@ def reset_password(user_id, password):
     with _connect() as conn:
         conn.execute("UPDATE nr_users SET password_hash=%s WHERE id=%s",
                      (_password_hash(str(password)), user_id))
+        conn.execute("DELETE FROM nr_sessions WHERE user_id=%s", (user_id,))
+    return True
+
+
+def manage_dispatch_staff(user_id, action, value=None):
+    """Manage only non-owner Dispatch accounts; never allow removing the bootstrap admin."""
+    if action not in ("enabled", "password", "sessions"):
+        return False
+    if action == "password":
+        password = str(value or "")
+        if len(password) < PASSWORD_MIN or len(password) > 256:
+            return False
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT id FROM nr_users WHERE id=%s AND role='dispatch' "
+            "AND id<>(SELECT id FROM nr_users WHERE role='dispatch' "
+            "ORDER BY created_at,id LIMIT 1) FOR UPDATE", (user_id,)
+        ).fetchone()
+        if not row:
+            return False
+        if action == "enabled":
+            conn.execute("UPDATE nr_users SET enabled=%s WHERE id=%s",
+                         (value is True, user_id))
+            if value is True:
+                return True
+        elif action == "password":
+            conn.execute("UPDATE nr_users SET password_hash=%s WHERE id=%s",
+                         (_password_hash(password), user_id))
         conn.execute("DELETE FROM nr_sessions WHERE user_id=%s", (user_id,))
     return True
 

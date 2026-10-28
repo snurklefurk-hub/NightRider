@@ -46,7 +46,8 @@ preferences are device-local and do not synchronize with browsers.
 
 ## Current pages
 
-- `/` — rider booking, fare estimate, ride status, location sharing, chat, and driver rating.
+- `/` — redirects to the NightRider Hub (`/hub`). Rider booking has a direct, stable `/rider` URL; older `/index.html` links still work.
+- `/hub` — ecosystem directory linking Rider, Dispatch, Driver Board, Map Lab and Account.
 - `/dispatch.html` — live ride board, map, chat, driver and rider accounts, ride rates, counts, and log export. A dispatch account is required.
 - `/driver.html` — browser driver board for rides and chat. A driver account is required.
 - `/account.html` — sign-in and rider registration.

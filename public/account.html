@@ -58,11 +58,11 @@
   var $ = function (id) { return document.getElementById(id); };
   var params = new URLSearchParams(location.search);
   var next = params.get("next");
-  if (["/", "/driver.html", "/dispatch.html"].indexOf(next) < 0) next = "";
+  if (["/rider", "/index.html", "/driver.html", "/dispatch.html", "/hub"].indexOf(next) < 0) next = "";
   var setupMode = params.get("setup") === "1";
   var mode = setupMode ? "setup" : "login";
   function go(user) {
-    var dest = next || ({ rider: "/", driver: "/driver.html", dispatch: "/dispatch.html" }[user.role] || "/");
+    var dest = next || ({ rider: "/rider", driver: "/driver.html", dispatch: "/dispatch.html" }[user.role] || "/");
     location.replace(dest);
   }
   function setMode(value) {
