@@ -230,7 +230,7 @@
   }
   function ensureRouteLayers() {
     [["lab-trip", "#2fe9ff"], ["lab-approach", "#ffc36b"],
-      ["lab-field-trace", "#ffab3a"]].forEach(([id, color]) => {
+      ["lab-field-raw", "#F16B74"], ["lab-field-trace", "#ffab3a"]].forEach(([id, color]) => {
       if (!map.getSource(id)) {
         map.addSource(id, { type: "geojson", data: EMPTY });
       }
@@ -243,8 +243,9 @@
         map.addLayer({ id, type: "line", source: id,
           paint: { "line-color": color,
             "line-width": ["interpolate", ["linear"], ["zoom"], 9, 2.5, 15, 5, 19, 7],
-            "line-opacity": 0.96,
-            "line-dasharray": id === "lab-approach" ? [2, 1.7] : [1, 0] },
+            "line-opacity": id === "lab-field-raw" ? 0.7 : 0.96,
+            "line-dasharray": id === "lab-approach" || id === "lab-field-raw" ?
+              [2, 1.7] : [1, 0] },
           layout: { "line-cap": "round", "line-join": "round" } });
       }
     });
@@ -254,7 +255,8 @@
     map.getSource(id).setData(routeGeo(coords));
     if (map.getLayer(id)) {
       map.setPaintProperty(id, "line-dasharray",
-        fallback ? [1.5, 3] : id === "lab-approach" ? [2, 1.7] : [1, 0]);
+        fallback ? [1.5, 3] :
+          id === "lab-approach" || id === "lab-field-raw" ? [2, 1.7] : [1, 0]);
     }
   }
   function routeKey(from, to) {
@@ -410,7 +412,10 @@
     }
     ensureRouteLayers();
     updateRoutes();
-    setRoute("lab-field-trace", importedTrace.map(p => [p.lon, p.lat]), false);
+    const reviewedTrace = window.NightRiderTrace ?
+      window.NightRiderTrace.analyze(importedTrace) : { usable: [] };
+    setRoute("lab-field-raw", importedTrace.map(p => [p.lon, p.lat]), false);
+    setRoute("lab-field-trace", reviewedTrace.usable.map(p => [p.lon, p.lat]), false);
   });
   map.on("moveend", updateCamera);
   map.on("load", () => { updateCamera(); updateRideSelect(); renderMarkers(); });
@@ -479,6 +484,7 @@
     $("labTraceClear").disabled = true;
     $("labTraceStatus").textContent = message || "No trace loaded · file stays in this browser tab";
     setRoute("lab-field-trace", [], false);
+    setRoute("lab-field-raw", [], false);
   }
   $("labTraceClear").addEventListener("click", () => clearImportedTrace());
   $("labTraceFile").addEventListener("change", async function () {
@@ -492,13 +498,23 @@
       const fixes = window.NightRiderTrace.parseCsv(await file.text());
       importedTrace = fixes;
       $("labTraceClear").disabled = false;
-      $("labTraceStatus").textContent = "LOCAL FIELD TRACE · " + fixes.length +
-        " fix(es) · never uploaded to NightRider";
-      setRoute("lab-field-trace", fixes.map(p => [p.lon, p.lat]), false);
+      const reviewed = window.NightRiderTrace.analyze(fixes);
+      const metrics = window.NightRiderTrace.summarize(fixes);
+      $("labTraceStatus").textContent = "LOCAL GPS · " + metrics.fixes +
+        " fixes · approx. " + (metrics.distanceM / 1609.344).toFixed(2) +
+        " mi · " + (metrics.durationS / 60).toFixed(1) + " min · " +
+        metrics.ignored + " filtered · " + metrics.inaccurate +
+        " worse than 30m · longest gap " + metrics.largestGapS.toFixed(1) +
+        "s · browser only";
+      // Raw trace stays visible in dashed red so GPS spikes are not hidden.
+      setRoute("lab-field-raw", fixes.map(p => [p.lon, p.lat]), false);
+      setRoute("lab-field-trace", reviewed.usable.map(p => [p.lon, p.lat]), false);
+      // Fit the usable drive instead of letting a 400m GPS jump shrink the map.
+      const visible = reviewed.usable.length ? reviewed.usable : fixes;
       const bounds = new maplibregl.LngLatBounds();
-      fixes.forEach(p => bounds.extend([p.lon, p.lat]));
-      if (fixes.length === 1) {
-        map.easeTo({ center: [fixes[0].lon, fixes[0].lat], zoom: 15, bearing: 0, pitch: 0 });
+      visible.forEach(p => bounds.extend([p.lon, p.lat]));
+      if (visible.length === 1) {
+        map.easeTo({ center: [visible[0].lon, visible[0].lat], zoom: 15, bearing: 0, pitch: 0 });
       } else map.fitBounds(bounds, { padding: 70, maxZoom: 16, duration: 350 });
     } catch (err) {
       clearImportedTrace("Could not load trace: " + (err.message || "invalid file"));
