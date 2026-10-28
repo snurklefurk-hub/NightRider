@@ -1625,11 +1625,16 @@ class Handler(SimpleHTTPRequestHandler):
                         return self.send_json(404, {"error": "Driver account not found."})
                 return self.send_json(200, {"ok": True})
             if len(parts) == 4 and parts[2] == "users" and parts[3]:
-                auth.set_user_enabled(parts[3], data.get("enabled") is True)
+                if not isinstance(data.get("enabled"), bool):
+                    return self.send_json(400, {"error": "enabled must be true or false"})
+                if not auth.set_user_enabled(parts[3], data["enabled"]):
+                    return self.send_json(404, {"error": "Driver account not found."})
                 return self.send_json(200, {"ok": True})
             if len(parts) == 5 and parts[2] == "users" and parts[4] == "password":
-                if not auth.reset_password(parts[3], data.get("password")):
-                    return self.send_json(400, {"error": "Password must be at least 8 characters."})
+                if not 8 <= len(str(data.get("password") or "")) <= 256:
+                    return self.send_json(400, {"error": "Password must contain 8 to 256 characters."})
+                if not auth.reset_password(parts[3], data["password"]):
+                    return self.send_json(404, {"error": "Driver account not found."})
                 return self.send_json(200, {"ok": True})
             if len(parts) == 5 and parts[2] == "rides" and parts[4] == "assign":
                 return self.dispatch_assign(parts[3], data)
