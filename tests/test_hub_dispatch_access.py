@@ -117,7 +117,7 @@ class StaffAccessTests(unittest.TestCase):
         self.assertFalse(any("DELETE FROM nr_sessions" in sql for sql, _ in conn.sql))
 
         conn = FakeConnection(existing=False)
-        with patch.object(auth, "_connect", return_value=conn), \\
+        with patch.object(auth, "_connect", return_value=conn), \
              patch.object(auth, "_password_hash", return_value="hashed"):
             self.assertFalse(auth.reset_password("rider-id", "some-password-123"))
         self.assertTrue(any("role='driver'" in sql for sql, _ in conn.sql))
