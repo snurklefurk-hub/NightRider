@@ -41,7 +41,7 @@ NR-Override: MAKE IT SO - Add the specifically requested experimental driver set
 ## First five minutes — required
 
 1. Read this file, `README.md`, and the applicable feature policy (for example, `CHAT-POLICY.md`). Check the companion [Android repository](https://github.com/snurklefurk-hub/nightrider-driver-android), too.
-2. Fetch current `main`, **all open pull requests in both repos**, and recent commits. Never assume the branch from a prior conversation is current. Live work queues: [Web/API PRs](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android PRs](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).
+2. Fetch current `main`, **all open pull requests AND all open issues in both repos**, and recent commits. **Issues record approved work for WORK NR; draft PRs show work already underway.** Never assume the branch from a prior conversation is current. Live work queues: [Web/API issues](https://github.com/snurklefurk-hub/NightRider/issues) · [Web/API PRs](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android issues](https://github.com/snurklefurk-hub/nightrider-driver-android/issues) · [Android PRs](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).
 3. Work from current `main` on a uniquely named task branch. **Open a DRAFT PR early**, with a task summary and expected files, so other agents can discover your work. Update the draft as scope changes. A branch alone is not an announcement.
 4. If another PR touches the same files or public API, read its diff and coordinate using PR comments / dependencies. Do not overwrite, cherry-pick, duplicate, or silently supersede another agent's work.
 5. When implementation is ready, update the PR with tests, deployment effects and risks. Mark ready only after automated checks and review. Don't merge unless explicitly assigned integration responsibility.
@@ -88,6 +88,9 @@ Write the PR description using the template at `.github/PULL_REQUEST_TEMPLATE.md
 - Status: **draft / ready / blocked** (do not write “deployed” without verifying deployment)
 
 ## Current work status
+
+**New feature work starts from open issues.** Check [web issues](https://github.com/snurklefurk-hub/NightRider/issues) and [Android issues](https://github.com/snurklefurk-hub/nightrider-driver-android/issues) before asking the product owner for plans. An issue is a specification, not proof it has been implemented. Open a linked draft PR once work begins.
+
 
 **Do not keep a manually edited “active agents” roster in README:** it goes stale and creates conflicts. The two live PR pages above are the shared status board. Draft PRs are how agents announce work; the bot refreshes summaries and overlap notices. A pull request in progress is not proof of a deployed feature.
 
