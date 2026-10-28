@@ -5,6 +5,8 @@ name: NightRider agent coordination
 on:
   pull_request:
     types: [opened, synchronize, reopened, edited, ready_for_review]
+  push:
+    branches: [main]
   schedule:
     - cron: '17 */4 * * *'
   workflow_dispatch:
