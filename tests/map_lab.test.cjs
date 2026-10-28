@@ -62,7 +62,7 @@ test("MapLibre v6 loads its actual ESM entrypoint and has a second CDN", () => {
   assert.ok(js.includes("https://cdn.jsdelivr.net/npm/maplibre-gl@6.15.0/dist/maplibre-gl.mjs"));
   assert.ok(js.includes("await import(url)"));
   assert.ok(js.includes("GPUInitializationError"));
-  assert.ok(html.includes("/map-lab.js?v=6"));
+  assert.ok(html.includes("/map-lab.js?v=7"));
   assert.ok(html.includes("maplibre-gl@6.15.0/dist/maplibre-gl.css"));
 });
 
@@ -131,5 +131,31 @@ test("field trace review bridges bad GPS fixes without erasing raw evidence", ()
   assert.match(map, /summarize\(fixes\)/);
   const html = read("public/map-lab.html");
   assert.match(html, /Raw GPS jumps/);
-  assert.match(html, /map-lab-trace\.js\?v=2/);
+  assert.match(html, /map-lab-trace\.js\?v=3/);
+});
+
+test("enhanced Android CSV reports actual map decisions while legacy stays readable", () => {
+  const trace = require("../public/map-lab-trace.js");
+  const old = "epoch_ms,latitude,longitude,accuracy_m,speed_mps\n" +
+    "1793157861000,32.0595,-81.2090,5,19\n";
+  assert.equal(trace.parseCsv(old)[0].mapDecision, null);
+
+  const next = "epoch_ms,latitude,longitude,accuracy_m,speed_mps,provider,map_decision\n" +
+    "1793157861000,32.0595,-81.2090,5,19,gps,accepted\n" +
+    "1793157866000,32.0600,-81.2090,400,0,network,rejected\n" +
+    "1793157871000,32.0605,-81.2090,5,19,gps,accepted\n";
+  const fixes = trace.parseCsv(next);
+  const result = trace.analyze(fixes);
+  const summary = trace.summarize(fixes);
+  assert.equal(result.source, "device");
+  assert.deepEqual(result.usable.map(x => x.mapDecision), ["accepted", "accepted"]);
+  assert.equal(summary.deviceAccepted, 2);
+  assert.equal(summary.deviceRejected, 1);
+  assert.equal(summary.ignored, 1);
+  assert.throws(() => trace.parseCsv(next.replace("network,rejected", "network,maybe")),
+    /Invalid coordinates or timestamp/);
+  assert.throws(() => trace.parseCsv(next.replace("gps,accepted", "=HACK,accepted")),
+    /Invalid coordinates or timestamp/);
+  assert.match(read("public/map-lab.js"), /map-accepted/);
+  assert.match(read("public/map-lab.html"), /map-lab-trace\.js\?v=3/);
 });

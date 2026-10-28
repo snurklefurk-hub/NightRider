@@ -12,7 +12,11 @@
       throw new Error("Trace file is too large (250 KB maximum).");
     }
     const rows = value.replace(/^\uFEFF/, "").trim().split(/\r?\n/);
-    if (rows.shift() !== "epoch_ms,latitude,longitude,accuracy_m,speed_mps") {
+    const oldHeader = "epoch_ms,latitude,longitude,accuracy_m,speed_mps";
+    const enrichedHeader = oldHeader + ",provider,map_decision";
+    const header = rows.shift();
+    const hasDecisions = header === enrichedHeader;
+    if (header !== oldHeader && !hasDecisions) {
       throw new Error("This is not a NightRider Field Test CSV.");
     }
     if (rows.length < 1 || rows.length > 1500) {
@@ -21,18 +25,23 @@
     let previous = 0;
     return rows.map((row, i) => {
       const fields = row.split(",");
-      if (fields.length !== 5 || fields.some(field => field.trim() === "")) {
+      if (fields.length !== (hasDecisions ? 7 : 5) ||
+          fields.some(field => field.trim() === "")) {
         throw new Error("Invalid GPS data at row " + (i + 2) + ".");
       }
-      const [epochMs, lat, lon, accuracyM, speedMps] = fields.map(Number);
+      const [epochMs, lat, lon, accuracyM, speedMps] = fields.slice(0, 5).map(Number);
+      const provider = hasDecisions ? fields[5] : null;
+      const mapDecision = hasDecisions ? fields[6] : null;
       if (![epochMs, lat, lon, accuracyM, speedMps].every(Number.isFinite) ||
           epochMs <= previous || !Number.isSafeInteger(epochMs) ||
           Math.abs(lat) > 90 || Math.abs(lon) > 180 ||
-          accuracyM < 0 || accuracyM > 100000 || speedMps < 0 || speedMps > 500) {
+          accuracyM < 0 || accuracyM > 100000 || speedMps < 0 || speedMps > 500 ||
+          (hasDecisions && (!["gps", "network", "fused", "passive", "unknown"].includes(provider) ||
+          !["accepted", "rejected", "unrated"].includes(mapDecision)))) {
         throw new Error("Invalid coordinates or timestamp at row " + (i + 2) + ".");
       }
       previous = epochMs;
-      return { epochMs, lat, lon, accuracyM, speedMps };
+      return { epochMs, lat, lon, accuracyM, speedMps, provider, mapDecision };
     });
   }
   const radians = degrees => degrees * Math.PI / 180;
@@ -45,6 +54,16 @@
   function analyze(fixes) {
     if (!Array.isArray(fixes) || !fixes.length) {
       return { usable: [], ignored: [], accuracyLimitM: 15 };
+    }
+    // Enhanced exports carry the phone's actual navigation decisions.
+    // Old recordings continue to use the local quality approximation.
+    if (fixes.every(p => p.mapDecision === "accepted" || p.mapDecision === "rejected")) {
+      return {
+        usable: fixes.filter(p => p.mapDecision === "accepted"),
+        ignored: fixes.filter(p => p.mapDecision === "rejected"),
+        accuracyLimitM: null,
+        source: "device"
+      };
     }
     // Adjust for normal city GPS while rejecting isolated degraded fixes.
     const accuracies = fixes.map(p => p.accuracyM).sort((a, b) => a - b);
@@ -65,7 +84,7 @@
       }
       usable.push(p);
     });
-    return { usable, ignored, accuracyLimitM };
+    return { usable, ignored, accuracyLimitM, source: "estimated" };
   }
   function summarize(fixes) {
     if (!Array.isArray(fixes) || fixes.length === 0) return null;
@@ -87,6 +106,9 @@
       distanceM, largestGapS, largestUsableGapS,
       inaccurate: fixes.filter(p => p.accuracyM > 30).length,
       ignored: report.ignored.length,
+      source: report.source,
+      deviceAccepted: report.source === "device" ? report.usable.length : null,
+      deviceRejected: report.source === "device" ? report.ignored.length : null,
       accuracyLimitM: report.accuracyLimitM,
       maxReportedSpeedMps: Math.max(...fixes.map(p => p.speedMps))
     };
