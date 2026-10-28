@@ -131,7 +131,7 @@ test("field trace review bridges bad GPS fixes without erasing raw evidence", ()
   assert.match(map, /summarize\(fixes\)/);
   const html = read("public/map-lab.html");
   assert.match(html, /Raw GPS jumps/);
-  assert.match(html, /map-lab-trace\.js\?v=2/);
+  assert.match(html, /map-lab-trace\.js\?v=3/);
 });
 
 test("enhanced Android CSV reports actual map decisions while legacy stays readable", () => {
