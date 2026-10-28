@@ -157,5 +157,5 @@ test("enhanced Android CSV reports actual map decisions while legacy stays reada
   assert.throws(() => trace.parseCsv(next.replace("gps,accepted", "=HACK,accepted")),
     /Invalid coordinates or timestamp/);
   assert.match(read("public/map-lab.js"), /map-accepted/);
-  assert.match(read("public/map-lab.html"), /map-lab-trace\\.js\\?v=3/);
+  assert.match(read("public/map-lab.html"), /map-lab-trace\.js\?v=3/);
 });
