@@ -11,8 +11,8 @@
   <!-- MapLibre v6 is an ES module; map-lab.js imports its .mjs bundle with a CDN fallback. -->
   <script defer src="/map-lab-midnight.js?v=1"></script>
   <script defer src="/map-theme.js?v=2"></script>
-  <script defer src="/map-lab-trace.js?v=1"></script>
-  <script defer src="/map-lab.js?v=5"></script>
+  <script defer src="/map-lab-trace.js?v=2"></script>
+  <script defer src="/map-lab.js?v=6"></script>
   <link rel="stylesheet" href="/aero-theme.css?v=2">
   <script src="/aero-theme.js?v=2"></script>
 </head>
@@ -81,10 +81,11 @@
         <span><i class="dot dispatch"></i>Dispatcher</span>
         <span><i class="line trip"></i>Trip</span>
         <span><i class="line approach"></i>Approach</span>
-        <span><i class="line field-trace"></i>Field GPS trace</span>
+        <span><i class="line field-trace"></i>Usable GPS trail</span>
+        <span><i class="line field-raw"></i>Raw GPS jumps</span>
       </div>
       <div id="labCamera" class="camera">Center: — · Zoom: —</div>
-      <p class="lab-note">This page is an isolated visual comparison, not the live Dispatch map. Live mode only reads the existing role-protected map endpoint; it never acknowledges, assigns, advances, or cancels rides. Your location is requested only if you press My location. Imported GPS traces are processed locally and cleared on leaving the page; map tile requests can reveal the visible map area to OpenFreeMap. OSRM estimates exclude traffic. OpenFreeMap and OpenStreetMap attribution is shown on the map.</p>
+      <p class="lab-note">This page is an isolated visual comparison, not the live Dispatch map. Live mode only reads the existing role-protected map endpoint; it never acknowledges, assigns, advances, or cancels rides. Your location is requested only if you press My location. Imported GPS traces are processed locally and cleared on leaving the page. Solid orange highlights usable fixes; dashed red preserves raw GPS jumps. Distance is an approximate diagnostic, not a trip odometer; map tile requests can reveal the visible map area to OpenFreeMap. OSRM estimates exclude traffic. OpenFreeMap and OpenStreetMap attribution is shown on the map.</p>
     </footer>
   </main>
 </body>
