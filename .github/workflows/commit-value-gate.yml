@@ -34,10 +34,10 @@ jobs:
               "Does it make a customer's experience more dependable, transparent, or trustworthy?"
             ];
             await core.summary.addHeading('NightRider: commit value gate').addRaw(
-              'Before EVERY commit ask:\\n\\n' +
-              questions.map((q, i) => (i + 1) + '. ' + q).join('\\n') +
-              '\\n\\nAdd a specific answer to each commit message, e.g. ' +
-              '`NR-Value: safety - Keeps pickup navigation stable with poor GPS fixes.`\\n'
+              'Before EVERY commit ask:\n\n' +
+              questions.map((q, i) => (i + 1) + '. ' + q).join('\n') +
+              '\n\nAdd a specific answer to each commit message, e.g. ' +
+              '`NR-Value: safety - Keeps pickup navigation stable with poor GPS fixes.`\n'
             ).write();
             if (invalid.length) {
               const ids = invalid.map(item => item.sha.slice(0, 12)).join(', ');
