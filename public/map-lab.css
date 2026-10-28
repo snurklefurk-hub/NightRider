@@ -54,3 +54,5 @@ a{color:var(--cyan)}
 .lab-trace-tools input{max-width:230px;color:var(--cream);font:inherit}
 #labTraceStatus{flex:1 1 220px}
 .line.field-trace{border-top:3px solid #ffab3a}
+
+.line.field-raw{border-top:3px dashed #f16b74}
