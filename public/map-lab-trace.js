@@ -35,32 +35,61 @@
       return { epochMs, lat, lon, accuracyM, speedMps };
     });
   }
+  const radians = degrees => degrees * Math.PI / 180;
+  function metersBetween(a, b) {
+    const lat = radians(b.lat - a.lat), lon = radians(b.lon - a.lon);
+    const h = Math.sin(lat / 2) ** 2 +
+      Math.cos(radians(a.lat)) * Math.cos(radians(b.lat)) * Math.sin(lon / 2) ** 2;
+    return 12742000 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
+  function analyze(fixes) {
+    if (!Array.isArray(fixes) || !fixes.length) {
+      return { usable: [], ignored: [], accuracyLimitM: 15 };
+    }
+    // Adjust for normal city GPS while rejecting isolated degraded fixes.
+    const accuracies = fixes.map(p => p.accuracyM).sort((a, b) => a - b);
+    const center = Math.floor(accuracies.length / 2);
+    const median = accuracies.length % 2 ? accuracies[center] :
+      (accuracies[center - 1] + accuracies[center]) / 2;
+    const accuracyLimitM = Math.min(30, Math.max(15, median * 2));
+    const usable = [], ignored = [];
+    fixes.forEach(p => {
+      if (p.accuracyM > accuracyLimitM) { ignored.push(p); return; }
+      const previous = usable[usable.length - 1];
+      if (previous) {
+        const elapsed = (p.epochMs - previous.epochMs) / 1000;
+        if (elapsed <= 0 || metersBetween(previous, p) / elapsed > 55) {
+          ignored.push(p);
+          return;
+        }
+      }
+      usable.push(p);
+    });
+    return { usable, ignored, accuracyLimitM };
+  }
   function summarize(fixes) {
     if (!Array.isArray(fixes) || fixes.length === 0) return null;
-    const radians = degrees => degrees * Math.PI / 180;
-    let distanceM = 0, largestGapS = 0, inaccurate = 0;
-    for (let i = 0; i < fixes.length; i++) {
-      const p = fixes[i];
-      if (p.accuracyM > 30) inaccurate++;
-      if (!i) continue;
-      const q = fixes[i - 1];
-      const a = radians(p.lat - q.lat), b = radians(p.lon - q.lon);
-      const h = Math.sin(a / 2) ** 2 +
-        Math.cos(radians(q.lat)) * Math.cos(radians(p.lat)) * Math.sin(b / 2) ** 2;
-      const segment = 12742000 * Math.asin(Math.min(1, Math.sqrt(h)));
-      // Reject obvious GPS jumps from distance totals, but retain raw trail.
-      const elapsed = (p.epochMs - q.epochMs) / 1000;
-      largestGapS = Math.max(largestGapS, elapsed);
-      if (elapsed > 0 && segment / elapsed <= 55 && q.accuracyM <= 30 && p.accuracyM <= 30) {
-        distanceM += segment;
-      }
+    const report = analyze(fixes);
+    let distanceM = 0, largestGapS = 0, largestUsableGapS = 0;
+    for (let i = 1; i < fixes.length; i++) {
+      largestGapS = Math.max(largestGapS,
+        (fixes[i].epochMs - fixes[i - 1].epochMs) / 1000);
+    }
+    for (let i = 1; i < report.usable.length; i++) {
+      const a = report.usable[i - 1], b = report.usable[i];
+      distanceM += metersBetween(a, b);
+      largestUsableGapS = Math.max(largestUsableGapS,
+        (b.epochMs - a.epochMs) / 1000);
     }
     return {
       fixes: fixes.length,
       durationS: (fixes[fixes.length - 1].epochMs - fixes[0].epochMs) / 1000,
-      distanceM, largestGapS, inaccurate,
+      distanceM, largestGapS, largestUsableGapS,
+      inaccurate: fixes.filter(p => p.accuracyM > 30).length,
+      ignored: report.ignored.length,
+      accuracyLimitM: report.accuracyLimitM,
       maxReportedSpeedMps: Math.max(...fixes.map(p => p.speedMps))
     };
   }
-  return { parseCsv, summarize };
+  return { parseCsv, analyze, summarize };
 });
