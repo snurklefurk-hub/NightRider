@@ -985,7 +985,7 @@ class Handler(SimpleHTTPRequestHandler):
     def page_access(self, path):
         if not os.environ.get("DATABASE_URL", "").strip():
             return True
-        roles = {"/": ("rider",), "/index.html": ("rider",),
+        roles = {"/rider": ("rider",), "/rider/": ("rider",), "/index.html": ("rider",),
                  "/driver.html": ("driver",), "/dispatch.html": ("dispatch",)}
         allowed = roles.get(path)
         if not allowed:
@@ -997,7 +997,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.end_headers()
             return False
         if user["role"] not in allowed:
-            destinations = {"rider": "/", "driver": "/driver.html", "dispatch": "/dispatch.html"}
+            destinations = {"rider": "/rider", "driver": "/driver.html", "dispatch": "/dispatch.html"}
             self.send_response(302)
             self.send_header("Location", destinations[user["role"]])
             self.end_headers()
@@ -1293,6 +1293,18 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
+        if path == "/":
+            # Bare domain opens Hub; legacy ride links with query parameters open Rider.
+            location = "/rider?" + parsed.query if parsed.query else "/hub"
+            self.send_response(302)
+            self.send_header("Location", location)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        if path in ("/hub", "/hub/"):
+            self.path = "/hub.html"
+        elif path in ("/rider", "/rider/"):
+            self.path = "/index.html"
         if path == "/healthz":
             try:
                 if os.environ.get("DATABASE_URL", "").strip():
