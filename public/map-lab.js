@@ -503,10 +503,15 @@
       $("labTraceStatus").textContent = "LOCAL GPS · " + metrics.fixes +
         " fixes · approx. " + (metrics.distanceM / 1609.344).toFixed(2) +
         " mi · " + (metrics.durationS / 60).toFixed(1) + " min · " +
-        metrics.ignored + " filtered · " + metrics.inaccurate +
+        (metrics.source === "device" ?
+          (metrics.deviceAccepted + " map-accepted · " +
+           metrics.deviceRejected + " map-rejected") :
+          (metrics.ignored + " estimated filtered")) +
+        " · " + metrics.inaccurate +
         " worse than 30m · longest gap " + metrics.largestGapS.toFixed(1) +
         "s · browser only";
-      // Raw trace stays visible in dashed red so GPS spikes are not hidden.
+      // Raw readings stay visible in dashed red. Enhanced CSVs use the phone's
+      // actual decisions; legacy CSVs use the approximate local GPS filter.
       setRoute("lab-field-raw", fixes.map(p => [p.lon, p.lat]), false);
       setRoute("lab-field-trace", reviewed.usable.map(p => [p.lon, p.lat]), false);
       // Fit the usable drive instead of letting a 400m GPS jump shrink the map.
