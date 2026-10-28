@@ -41,14 +41,14 @@ NR-Override: MAKE IT SO - Add the specifically requested experimental driver set
 ## First five minutes — required
 
 1. Read this file, `README.md`, and the applicable feature policy (for example, `CHAT-POLICY.md`). Check the companion [Android repository](https://github.com/snurklefurk-hub/nightrider-driver-android), too.
-2. Fetch current `main`, **all open pull requests AND all open issues in both repos**, and recent commits. **Issues record approved work for WORK NR; draft PRs show work already underway.** Never assume the branch from a prior conversation is current. Live work queues: [Web/API issues](https://github.com/snurklefurk-hub/NightRider/issues) · [Web/API PRs](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android issues](https://github.com/snurklefurk-hub/nightrider-driver-android/issues) · [Android PRs](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).
+2. Fetch current `main`, **all open pull requests AND all open issues in both repos**, and recent commits. **Issues record planned work for any implementing agent; draft PRs show work already underway.** Never assume the branch from a prior conversation is current. Live work queues: [Web/API issues](https://github.com/snurklefurk-hub/NightRider/issues) · [Web/API PRs](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android issues](https://github.com/snurklefurk-hub/nightrider-driver-android/issues) · [Android PRs](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).
 3. Work from current `main` on a uniquely named task branch. **Open a DRAFT PR early**, with a task summary and expected files, so other agents can discover your work. Update the draft as scope changes. A branch alone is not an announcement.
 4. If another PR touches the same files or public API, read its diff and coordinate using PR comments / dependencies. Do not overwrite, cherry-pick, duplicate, or silently supersede another agent's work.
-5. When implementation is ready, update the PR with tests, deployment effects and risks. Mark ready only after automated checks and review. Don't merge unless explicitly assigned integration responsibility.
+5. When implementation is ready, update the PR with tests, deployment effects and risks. Mark ready only after automated checks and review. The implementing agent may merge after required checks and coordination.
 
 ## Integration and release rules
 
-- **No direct commits or force pushes to `main`. No unattended auto-merges.** The product owner assigned **CHAT NR** the authority to prepare, approve and merge **low-risk maintenance PRs** after checks. **WORK NR** owns major functionality, cross-system integration and releases. See the explicit division below.
+- **No direct commits or force pushes to `main`. No unattended auto-merges.** Either CHAT NR or WORK NR can implement and merge authorized work after checks; choose mode by capability rather than seniority.
 - **Web `main` can deploy to Render; Android `main` can publish a signed APK.** Treat merging as a production action, not routine housekeeping. Check service health, workflows and rollback options.
 - Cross-repository API changes require a linked PR in the other repository when necessary. Explicitly document rollout order and backward compatibility.
 - GitHub Actions provides automated tests and an **agent coordination report** on PRs. Its overlap report finds identical filenames and lists active work across both repos; it is **not** semantic conflict detection, live messaging, or an approval to merge.
