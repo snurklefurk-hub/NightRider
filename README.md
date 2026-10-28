@@ -2,6 +2,20 @@
 
 NightRider is a pilot ride dispatch service. Riders request trips on the website, dispatch assigns them, and drivers use either the driver webpage or the separate Android app. All three roles sign in with NightRider accounts.
 
+## The NightRider three-test commit rule
+
+**Before EVERY commit, ask all three questions:**
+
+1. **Does it make delivering a professional ride easier or safer?**
+2. **Does it improve the driver's profitability, independence, or ability to retain customers?**
+3. **Does it make a customer's experience more dependable, transparent, or trustworthy?**
+
+If a change does not pass at least one of these, **do not commit it**. This applies to every agent and every subsystem, including infrastructure and maintenance. See [AGENTS.md](AGENTS.md) for the full decision rule.
+
+Every commit needs a real `NR-Value:` trailer, such as `NR-Value: safety - Prevents unreliable GPS fixes from moving the navigation marker.` The `NightRider commit value gate` workflow checks every commit message in new PRs; it cannot judge whether the claimed benefit is true, so the integration owner must still review it. To enable the automatic *local, before-commit* question prompt in a Git clone, run `python3 scripts/setup_commit_gate.py` once. GitHub API commits bypass local hooks and must apply the questions before writing.
+
+**Important:** The CI check reports violations, but it only becomes a mandatory GitHub merge blocker when branch protection/rulesets require `Require concrete benefit on every commit`. The repository's GitHub branch protection is not confirmed by this documentation.
+
 ## Working with multiple AI agents
 
 NightRider's website/backend and Android app may be developed by independent AI agents at the same time. **Read [AGENTS.md](AGENTS.md) before changing code.** GitHub is the shared coordination hub; separate chat instances do not automatically share their plans or decisions.

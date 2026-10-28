@@ -1,0 +1,48 @@
+# Read-only value check for every commit presented in a PR.
+# The local hook asks the questions BEFORE committing; CI rejects unexamined PR commits.
+name: NightRider commit value gate
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review, edited]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  value-gate:
+    name: Require concrete benefit on every commit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate the three-test answer on every PR commit
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const {owner, repo} = context.repo;
+            const number = context.issue.number;
+            const commits = await github.paginate(github.rest.pulls.listCommits, {
+              owner, repo, pull_number: number, per_page: 100
+            });
+            const marker = /^NR-Value: (safety|driver-business|customer-trust) - (\S.{14,})$/m;
+            const invalid = commits.filter(item => !marker.test(item.commit.message));
+            const questions = [
+              'Does it make delivering a professional ride easier or safer?',
+              "Does it improve the driver's profitability, independence, or ability to retain customers?",
+              "Does it make a customer's experience more dependable, transparent, or trustworthy?"
+            ];
+            await core.summary.addHeading('NightRider: commit value gate').addRaw(
+              'Before EVERY commit ask:\n\n' +
+              questions.map((q, i) => (i + 1) + '. ' + q).join('\n') +
+              '\n\nAdd a specific answer to each commit message, e.g. ' +
+              '`NR-Value: safety - Keeps pickup navigation stable with poor GPS fixes.`\n'
+            ).write();
+            if (invalid.length) {
+              const ids = invalid.map(item => item.sha.slice(0, 12)).join(', ');
+              core.setFailed('Commits without a substantive NR-Value: category - specific benefit trailer: ' +
+                ids + '. Amend these commits (or recreate them with the rule applied) before merging.');
+            } else {
+              core.info('All ' + commits.length + ' commit(s) contain a categorized specific-benefit statement.');
+            }

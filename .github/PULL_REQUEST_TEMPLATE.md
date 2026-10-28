@@ -1,3 +1,17 @@
+## Three-test value gate (required)
+
+**Before each commit, ask all three questions and answer at least one concretely:**
+
+1. Does it make delivering a professional ride easier or safer?
+2. Does it improve the driver's profitability, independence, or ability to retain customers?
+3. Does it make a customer's experience more dependable, transparent, or trustworthy?
+
+- **Primary test passed (1 / 2 / 3):**
+- **Specific outcome for professional rides, drivers, or customers:**
+- **Why this is worth maintaining rather than feature bloat:**
+- **Every commit includes a substantive `NR-Value:` trailer:** yes / no
+- **Would anything be better if we did NOT ship this?** explain
+
 ## Mission
 What user-facing outcome is this PR delivering? Which role(s) does it affect?
 
