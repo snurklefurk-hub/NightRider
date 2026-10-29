@@ -15,7 +15,7 @@ test("Hub keeps the eight requested destinations with a public affiliate-info li
   ]);
   assert.equal(tiles[2][1], "a");
   assert.match(tiles[2][2], /href="\/for-affiliates\.html"/);
-  assert.match(tiles[2][4], /Future plans for hospitality referrals/);
+  assert.match(tiles[2][4], /Plans for hotels and venues: concierge bookings/);
   assert.match(hub, /<a class="card hub-tile" href="\/partner-portal">\s*<h2>Partner Portal<\/h2>/);
   assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(hub, /max-width: 900px/);
@@ -60,10 +60,7 @@ test("Affiliates and Partners page describes future workflows honestly and retai
     "Your request won't just disappear into an algorithm.",
     "non-emergency medical transportation (NEMT)",
     "ADA accessibility and nondiscrimination requirements for regular rides.",
-    "Software demo only",
-    "does not currently provide transportation",
-    "create client accounts for partners",
-    "capabilities described here are future design goals"
+    "The booking portal, concierge fees, and client handoff features below are planned—not live tools."
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -100,7 +97,7 @@ test("Hub keeps driver info and offers authenticated Driver demo", () => {
   }
 });
 
-test("Driver info page publishes all owner standards and honest software demo warnings", () => {
+test("Driver info page publishes owner standards and a usable test account entry", () => {
   const page = read("public/for-drivers.html");
   for (const phrase of [
     "For the people behind the wheel",
@@ -123,17 +120,15 @@ test("Driver info page publishes all owner standards and honest software demo wa
     "We don't want to be the next Uber.",
     "modern evolution of the classic taxi",
     "What you can explore today",
-    "Try a simulated trip.",
-    "Navigation is an active WIP",
-    "features on the Driver page may be completely absent or nonfunctional.",
+    "Take the Driver tools for a spin.",
+    "view LIGHT and DARK navigation screenshots",
     "leaving out what doesn't.",
     "See the Rider and Dispatch experiences.",
     "Share feedback on the software.",
-    "Where things stand:",
-    "software only until fully fleshed out, tested in real world conditions, and audited.",
+    "Before launch:",
+    "Real-world testing, audits, and driver feedback are part of the plan.",
     "No transportation services are offered",
-    "all trips are simulated",
-    "Public rider account creation is paused"
+    "All trips and payments are simulated"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -149,6 +144,34 @@ test("Driver info page publishes all owner standards and honest software demo wa
   assert.match(page, /src="\/aero-theme\.js\?v=2"/);
   assert.ok(page.includes('name="viewport"'));
   assert.ok(page.includes("prefers-reduced-motion") || page.includes("nightrider-motion.js"));
+});
+
+test("Hub previews destinations without repeating the sitewide demo notice", () => {
+  const hub = read("public/hub.html");
+  for (const phrase of [
+    "browser-based booking, clear fares",
+    "direct customer relationships",
+    "concierge bookings, flexible referral pricing, and a real local dispatcher",
+    "driver independence, and trust earned",
+    "follow trip updates and messages",
+    "preview the LIGHT and DARK navigation designs",
+    "the Dispatch map, and test conversations",
+    "Partner Desk and Affiliate Hub sandboxes"
+  ]) {
+    assert.ok(hub.includes(phrase), phrase);
+  }
+  assert.doesNotMatch(hub, /No driver will come|completely absent or nonfunctional/i);
+  for (const file of [
+    "public/hub.html", "public/for-customers.html", "public/for-drivers.html",
+    "public/for-affiliates.html", "public/ethos.html", "public/partner-portal.html",
+    "public/account.html"
+  ]) {
+    const body = read(file).split("<body>")[1];
+    assert.equal((body.match(/class="nr-demo-notice"/g) || []).length, 1, file);
+    assert.equal((body.match(/No transportation services are offered\./g) || []).length, 1, file);
+    assert.equal((body.match(/All trips and payments are simulated\./g) || []).length, 1, file);
+    assert.doesNotMatch(body, /Only the code is live|Nothing is live except the code|may be completely absent or nonfunctional/i, file);
+  }
 });
 
 test("Hub has separate public rider and driver information destinations", () => {
@@ -189,12 +212,12 @@ test("Customer page explains design aspirations and simulated use without offeri
     "A familiar driver beats another mystery ride.",
     "All drivers are vetted, tested, and checked <strong>FAR</strong> above industry standards.",
     "No separate customer app to download.",
-    "book a ride from any device.",
+    "The goal is browser-based booking on any device.",
     "Use practice trip details.",
     "Try the other sides.",
     "No transportation services are offered",
-    "all trips are simulated",
-    "Nothing is live except the code"
+    "All trips and payments are simulated",
+    "Public rider account creation is paused"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -224,7 +247,9 @@ test("Public demo entry points publish all three roles without active-service or
   for (const source of [hub, customers, drivers, welcome]) {
     assert.match(source, /DEMO/);
     assert.match(source, /PASSWORD/);
-    assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
     assert.doesNotMatch(source, /We're growing carefully|evolving pilot|always on duty|register as a rider|no Indians/i);
+  }
+  for (const source of [hub, customers, welcome]) {
+    assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
   }
 });
