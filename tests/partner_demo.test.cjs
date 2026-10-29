@@ -68,7 +68,7 @@ test("Hub removes Accounts tile and uses one-click shared demo logins", async ()
   };
   const window = {location:{assign(url){next.push(url);}}};
   const fetch = async (url,options) => {
-    if (url==="/api/auth/me") return {json:async()=>({user:null})};
+    if (url==="/api/auth/me") return {ok:true,json:async()=>({user:null})};
     const payload = JSON.parse(options.body);
     sent.push({url,payload});
     return {ok:true,json:async()=>({user:{role:payload.demo_role,is_demo:true}})};
