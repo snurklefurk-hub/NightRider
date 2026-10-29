@@ -62,12 +62,13 @@ preferences are device-local and do not synchronize with browsers.
 
 ## Current pages
 
-- `/` — redirects to the NightRider Hub (`/hub`). Rider booking has a direct, stable `/rider` URL; older `/index.html` links still work.
-- `/hub` — ecosystem directory linking Rider, Dispatch, Driver Board, Map Lab and Account.
-- `/dispatch.html` — live ride board, map, chat, driver and rider accounts, ride rates, counts, and log export. A dispatch account is required.
-- `/driver.html` — browser driver board for rides and chat. A driver account is required.
-- `/account.html` — sign-in and rider registration.
-- `/map-lab.html` — vector-map preview and local Android Field Test CSV review, with GPS quality and motion diagnostics; it does not change rides.
+- `/` — redirects to the NightRider Hub (`/hub`). The simulated Rider workflow has a direct, stable `/rider` URL; older `/index.html` links still work.
+- `/hub` — public software demo directory linking Rider, limited Dispatch demo, Info for customers, Info for drivers, Driver demo, Map Lab and Accounts. The internal browser Driver board is intentionally not a Hub tile.
+- `/dispatch.html` — simulated ride board, map, chat, account directories, ride rates, counts and log export. The public demo Dispatch account is restricted; administrator-only functions remain private.
+- `/driver.html` — browser Driver demo for trip management, chat and static LIGHT/DARK navigation screenshots. A Driver account is required.
+- `/account.html` — choose a Rider, Driver or Dispatch demo role and sign in using `DEMO` / `PASSWORD`, or sign in to an existing private account. Public Rider registration is paused.
+- `/for-customers.html` and `/for-drivers.html` — public statements of NightRider's intended service standards and WIP status, not active transportation offerings.
+- `/map-lab.html` — vector-map preview and local Android Field Test CSV review, with GPS quality and motion diagnostics; it does not change simulated trips.
 
 The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting. Their Leaflet controls and ride markers remain in place, with a raster fallback if vector rendering fails. See [MAP-APPEARANCE.md](MAP-APPEARANCE.md) and [MAP-LAB.md](MAP-LAB.md) for the map setup and preview.
 
