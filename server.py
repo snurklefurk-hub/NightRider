@@ -990,9 +990,7 @@ class Handler(SimpleHTTPRequestHandler):
         if not os.environ.get("DATABASE_URL", "").strip():
             return True
         roles = {"/rider": ("rider",), "/rider/": ("rider",), "/index.html": ("rider",),
-                 "/driver.html": ("driver",), "/dispatch.html": ("dispatch",),
-                 "/partner-desk": ("dispatch",), "/partner-desk/": ("dispatch",),
-                 "/partner-desk.html": ("dispatch",)}
+                 "/driver.html": ("driver",), "/dispatch.html": ("dispatch",)}
         allowed = roles.get(path)
         if not allowed:
             return True
@@ -1001,9 +999,6 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", "/account.html?next=" + urllib.parse.quote(path, safe="/"))
             self.end_headers()
-            return False
-        if path in ("/partner-desk", "/partner-desk/", "/partner-desk.html") and not user.get("dispatch_admin"):
-            self.send_json(403, {"error": "Dispatch administrator required."})
             return False
         if user["role"] not in allowed:
             destinations = {"rider": "/rider", "driver": "/driver.html", "dispatch": "/dispatch.html"}
@@ -1495,13 +1490,20 @@ class Handler(SimpleHTTPRequestHandler):
             self.path = "/hub.html"
         elif path in ("/partner-portal", "/partner-portal/"):
             self.path = "/partner-portal.html"
-        elif path in ("/partner-desk", "/partner-desk/"):
-            self.path = "/partner-desk.html"
+        elif path in ("/partner-desk", "/partner-desk/", "/partner-desk.html"):
+            self.send_response(302)
+            self.send_header("Location", "/dispatch.html#partner-offers")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
         elif path in ("/affiliate-hub", "/affiliate-hub/"):
             self.path = "/affiliate-hub.html"
         elif path in ("/partner-desk-demo", "/partner-desk-demo/"):
-            # Separate public static sandbox. Real Partner Desk keeps its admin gate.
-            self.path = "/partner-desk.html"
+            self.send_response(302)
+            self.send_header("Location", "/partner-portal")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
         elif path in ("/rider", "/rider/"):
             self.path = "/index.html"
         if path == "/healthz":

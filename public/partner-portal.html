@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#071b12">
-  <title>NightRider — Partner Portal</title>
+  <title>NightRider — Partner Hub</title>
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/nightrider.css?v=verdant-1">
   <link rel="stylesheet" href="/aero-theme.css?v=3">
@@ -19,42 +19,40 @@
   </header>
   <main class="partner-layout">
     <div class="partner-intro">
-      <h1>Partner Portal</h1>
-      <p class="muted">Explore partner offers and decisions in the public sandboxes, or use your existing private partner access.</p>
+      <h1>Partner Hub</h1>
+      <p class="muted">A single starting point for organizations interested in NightRider. This is a software demo: no transportation services, accounts, rides, or payments are being created here.</p>
     </div>
-    <section aria-labelledby="partner-demos">
-      <h2 id="partner-demos">Public demos</h2>
-      <p>No login required. Sample records and changes stay in this browser. Use fictional information only.</p>
+    <section aria-labelledby="partner-next-step">
+      <h2 id="partner-next-step">Choose a next step</h2>
+      <p>Partner access is not being provisioned at this time. Please do not enter passenger, payment, or other sensitive information.</p>
       <div class="partner-grid">
         <article class="partner-panel">
-          <h3>Partner Desk demo</h3>
-          <p>Explore sample transportation partners, review fictional offers, and try the operator's decisions.</p>
-          <div class="partner-actions"><a class="partner-action" href="/partner-desk-demo">Open Partner Desk demo</a></div>
+          <h3>Request account consideration</h3>
+          <p>Tell us that your organization is interested. This form does not create an account or send information; it records nothing in this demo.</p>
+          <form id="partnerRequestForm">
+            <label for="partnerOrganization">Organization name</label>
+            <input id="partnerOrganization" name="organization" maxlength="120" autocomplete="organization" required>
+            <label for="partnerContact">Work email or phone</label>
+            <input id="partnerContact" name="contact" maxlength="160" autocomplete="email" required>
+            <div class="partner-actions"><button type="submit" class="primary">Request account creation</button></div>
+          </form>
+          <p id="partnerRequestMessage" class="partner-small" role="status" aria-live="polite"></p>
         </article>
         <article class="partner-panel">
-          <h3>Affiliate Hub demo</h3>
-          <p>Select a fictional company, propose a sample trip, and explore acknowledgments and withdrawals.</p>
-          <div class="partner-actions"><a class="partner-action" href="/affiliate-hub?demo=1">Open Affiliate Hub demo</a></div>
-        </article>
-      </div>
-    </section>
-    <section aria-labelledby="partner-private">
-      <h2 id="partner-private">Private workspace access</h2>
-      <p>Existing credentials are required. Public demo accounts do not grant access to private partner records.</p>
-      <div class="partner-grid">
-        <article class="partner-panel">
-          <h3>Operator Partner Desk</h3>
-          <p>For existing Dispatch administrators. Sign in with your private administrator account to manage approved partners and preview offers.</p>
-          <div class="partner-actions"><a class="partner-action" href="/partner-desk">Open protected Partner Desk</a></div>
-        </article>
-        <article class="partner-panel">
-          <h3>Verified Affiliate Hub</h3>
-          <p>For approved transportation affiliates. Enter the private access key issued to your company by NightRider Dispatch.</p>
-          <div class="partner-actions"><a class="partner-action" href="/affiliate-hub">Verified affiliate sign-in</a></div>
+          <h3>Partner login</h3>
+          <p>Use this only if NightRider has already given your organization login details for a simulation. Logging in does not confirm a ride.</p>
+          <div class="partner-actions"><a class="partner-action" href="/affiliate-hub">Partner login</a></div>
         </article>
       </div>
     </section>
   </main>
+  <script>
+    document.getElementById("partnerRequestForm").addEventListener("submit", function (event) {
+      event.preventDefault();
+      event.currentTarget.reset();
+      document.getElementById("partnerRequestMessage").textContent = "Account requests are not being accepted in this software demo. No account was created and no details were sent.";
+    });
+  </script>
   <script src="/nightrider-motion.js"></script>
 </body>
 </html>

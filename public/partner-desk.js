@@ -4,13 +4,6 @@
   const $ = (id) => document.getElementById(id);
   const message = $("deskMessage");
   const workspace = $("deskWorkspace");
-  const demoMode = /^\/partner-desk-demo\/?$/.test(window.location.pathname);
-  if (demoMode) {
-    $("deskAccessNotice").textContent = "Public sample workspace — all people, prices and offers are fictional. Nothing reaches NightRider's real partner records or creates a ride.";
-    $("deskDemoControls").classList.remove("partner-hidden");
-    $("partnerForm").querySelector('[type="submit"]').textContent = "Add sample partner";
-    message.textContent = "Opening public Partner Desk demo…";
-  }
   const date = (value) => value ? new Date(value * 1000).toLocaleString() : "—";
   const text = (tag, value, className) => {
     const el = document.createElement(tag);
@@ -27,7 +20,6 @@
   const line = (parent, tag, value, className) => parent.appendChild(text(tag, value, className));
   const error = (err) => { message.textContent = err.message || "Request failed."; };
   async function request(path, body) {
-    if (demoMode) return window.NightRiderPartnerDemo.api(path, body);
     const response = await fetch(path, {
       method: body === undefined ? "GET" : "POST",
       credentials: "same-origin", cache: "no-store",
@@ -37,42 +29,6 @@
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Request failed (" + response.status + ")");
     return result;
-  }
-  function showSecret(key) {
-    $("partnerSecret").textContent = key;
-    $("partnerSecretBox").classList.remove("partner-hidden");
-  }
-  function renderPartners(partners) {
-    const list = $("partnerList");
-    list.replaceChildren();
-    if (!partners.length) line(list, "p", "No verified transportation partners yet.", "partner-muted");
-    partners.forEach(p => {
-      const row = document.createElement("div");
-      row.className = "partner-entry";
-      line(row, "strong", p.name);
-      line(row, "div", p.contact || "No contact listed", "partner-small");
-      line(row, "div", p.enabled ? "Approved · access active" : "Access disabled", "partner-status");
-      const actions = document.createElement("div");
-      actions.className = "partner-actions";
-      actions.appendChild(button(p.enabled ? "Disable" : "Re-enable", async () => {
-        if (!confirm((p.enabled ? "Disable " : "Re-enable ") + p.name + " partner access?")) return;
-        try {
-          await request("/api/partner-desk/partners/" + encodeURIComponent(p.id) + "/enabled", {enabled: !p.enabled});
-          await refresh();
-        } catch (e) { error(e); }
-      }));
-      if (!demoMode) actions.appendChild(button("Rotate key", async () => {
-        if (!confirm("Rotate " + p.name + " access key? Its old key will stop working immediately.")) return;
-        try {
-          const data = await request("/api/partner-desk/partners/" + encodeURIComponent(p.id) + "/rotate", {});
-          showSecret(data.access_token_once);
-          message.textContent = "New key issued for " + p.name + ". Copy it securely.";
-          await refresh();
-        } catch (e) { error(e); }
-      }));
-      row.appendChild(actions);
-      list.appendChild(row);
-    });
   }
   function renderOffers(offers) {
     const list = $("offerList");
@@ -114,39 +70,10 @@
     try {
       const data = await request("/api/partner-desk");
       workspace.classList.remove("partner-hidden");
-      renderPartners(data.partners);
       renderOffers(data.offers);
       renderEvents(data.events);
-      if (message.textContent.startsWith("Checking") || message.textContent.startsWith("Opening")) message.textContent = demoMode ? "Public Partner Desk demo ready. No real partner records loaded." : "Partner Desk ready · software demo only.";
+      if (message.textContent.startsWith("Checking")) message.textContent = "Partner offers ready in Dispatch · software demo only.";
     } catch (e) { workspace.classList.add("partner-hidden"); error(e); }
-  }
-  $("hideSecret").addEventListener("click", () => {
-    $("partnerSecret").textContent = "";
-    $("partnerSecretBox").classList.add("partner-hidden");
-  });
-  $("partnerForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const submit = form.querySelector("[type=submit]");
-    submit.disabled = true;
-    try {
-      const data = await request("/api/partner-desk/partners", {
-        name: $("partnerName").value, contact: $("partnerContact").value
-      });
-      if (!demoMode) showSecret(data.access_token_once);
-      form.reset();
-      message.textContent = demoMode ? "Sample partner added to this browser only." : "Partner approved. Copy their one-time key securely.";
-      await refresh();
-    } catch (e) { error(e); }
-    finally { submit.disabled = false; }
-  });
-  if (demoMode) {
-    $("deskResetDemo").addEventListener("click", () => {
-      if (!confirm("Reset all sample partners and offers in this browser?")) return;
-      window.NightRiderPartnerDemo.reset();
-      message.textContent = "Sample partners and offers reset.";
-      refresh();
-    });
   }
   refresh();
 })();
