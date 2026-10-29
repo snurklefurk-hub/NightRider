@@ -51,21 +51,51 @@ test("Hub keeps driver info and offers authenticated Driver demo", () => {
   }
 });
 
-test("Driver info page expresses future standards and a software-only preview", () => {
+test("Driver info page publishes all owner standards and honest software demo warnings", () => {
   const page = read("public/for-drivers.html");
   for (const phrase of [
+    "For the people behind the wheel",
     "A professional ride should feel professional.",
+    "The future design goal is to help good drivers join a dependable, respectable business.",
+    "A real job with the flex and lifestyle of a gig app, and less of the uncertainty and headache.",
+    "The design starts with professionalism, independence, and transparent expectations.",
     "The standard comes first.",
+    "01 / PRIDE",
+    "Take pride in your work.",
+    "02 / RELIABILITY",
+    "We do what we say and say what we mean.",
+    "03 / RESPECT",
+    "Standards go both ways.",
+    "04 / TRANSPARENCY",
     "No race to the bottom.",
-    "Your business. Your reputation. Your customers.",
+    "You'll never bid or fight other drivers",
+    "no tricks, no carrot, no stick.",
+    "Uber and Lyft can still fill empty hours.",
+    "We don't want to be the next Uber.",
+    "modern evolution of the classic taxi",
     "What you can explore today",
-    "appropriate licensing and insurance",
+    "Try a simulated trip.",
+    "Navigation is an active WIP",
+    "features on the Driver page may be completely absent or nonfunctional.",
+    "leaving out what doesn't.",
+    "See the Rider and Dispatch experiences.",
+    "Share feedback on the software.",
+    "Where things stand:",
+    "software only until fully fleshed out, tested in real world conditions, and audited.",
     "No transportation services are offered",
-    "all trips are simulated"
+    "all trips are simulated",
+    "Public rider account creation is paused"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
-  assert.match(page, /href="\/hub"/);
+  const standards = ["01 / PRIDE", "02 / RELIABILITY", "03 / RESPECT", "04 / TRANSPARENCY"];
+  const positions = standards.map(phrase => page.indexOf(phrase));
+  assert.ok(positions.every(position => position >= 0));
+  assert.deepEqual(positions, [...positions].sort((a,b) => a-b));
+  assert.equal((page.match(/class="card drivers-principle"/g) || []).length, 4);
+  assert.match(page, /href="\/account\.html\?demo=driver"[^>]*>Try the Driver demo<\/a>/);
+  assert.match(page, /href="\/hub"[^>]*>Back to NightRider Hub<\/a>/);
+  assert.doesNotMatch(page, /uncertaintity|overburderning|room the the next guy|\bdoesnt\b/i);
   assert.match(page, /href="\/aero-theme\.css\?v=3"/);
   assert.match(page, /src="\/aero-theme\.js\?v=2"/);
   assert.ok(page.includes('name="viewport"'));
