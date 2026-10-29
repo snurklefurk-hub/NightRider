@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>NightRider — Driver</title>
 <link rel="stylesheet" href="nightrider.css?v=verdant-1">
+<link rel="stylesheet" href="/driver-navigation.css?v=1">
   <link rel="icon" href="/nightrider-mark.svg?v=talmadge-2" type="image/svg+xml">
   <link rel="stylesheet" href="/aero-theme.css?v=3">
   <script src="/aero-theme.js?v=2"></script>
@@ -30,6 +31,26 @@
     <p class="tiny muted" id="driverLocationStatus" role="status" aria-live="polite">Location is not being shared from this browser.</p>
     <p class="msg" id="msg"></p>
   </div>
+  <section class="card driver-navigation-preview" id="driverNavigationPreview" aria-labelledby="navigationPreviewTitle" hidden>
+    <p class="preview-kicker">Simulated navigation screenshots</p>
+    <h2 id="navigationPreviewTitle">A look at driver navigation</h2>
+    <p class="muted preview-intro">Preview the current custom LIGHT and DARK navigation styles on the same fictional trip. These are simulated illustrations of the Android driver screen, with made-up locations and guidance.</p>
+    <div class="navigation-shots">
+      <figure>
+        <a class="navigation-shot" href="/images/navigation/navigation-light.png" target="_blank" rel="noopener" aria-label="Open full-size LIGHT simulated navigation screenshot">
+          <img src="/images/navigation/navigation-light.png" width="1260" height="2580" alt="LIGHT navigation simulation: pale blue controls and map, a blue route to a fictional pickup, and guidance to turn right onto Bay Street in 420 feet." decoding="async">
+        </a>
+        <figcaption><strong>LIGHT · Custom daytime style</strong>Sky-blue controls, pale roads and the existing blue navigation route.</figcaption>
+      </figure>
+      <figure>
+        <a class="navigation-shot" href="/images/navigation/navigation-dark.png" target="_blank" rel="noopener" aria-label="Open full-size DARK simulated navigation screenshot">
+          <img src="/images/navigation/navigation-dark.png" width="1260" height="2580" alt="DARK navigation simulation: forest-green controls, dark map, a blue route and the same fictional turn instruction and pickup." decoding="async">
+        </a>
+        <figcaption><strong>DARK · Custom nighttime style</strong>Forest-green controls, high-contrast roads and the existing blue navigation route.</figcaption>
+      </figure>
+    </div>
+    <p class="preview-note">Select an image to view it full size. Static previews only: no GPS, live directions, or transportation service.</p>
+  </section>
   <div class="card">
     <h2>Open requests</h2>
     <div id="openRides" class="grid"></div>
@@ -292,6 +313,7 @@
       accountName = data.user.display_name;
       $("driverName").textContent = accountName;
       $("sessionName").textContent = accountName;
+      $("driverNavigationPreview").hidden = data.user.is_demo !== true;
     }
     load();
     ping();
