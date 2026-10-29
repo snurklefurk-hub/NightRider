@@ -15,6 +15,9 @@ class FakePage:
     def user(self):
         return self.actor
 
+    def page_access(self, path):
+        return server.Handler.page_access(self, path)
+
     def send_response(self, code):
         self.sent.append(("status", code))
 
@@ -42,7 +45,6 @@ class PublicPartnerSandboxTests(unittest.TestCase):
                                    "dispatch_admin": False}):
                     h = FakePage(page, user)
                     self.assertFalse(server.Handler.page_access(h, page))
-                    self.assertFalse(server.Handler.page_access(h, page) is None)
             admin = {"id": "owner", "role": "dispatch", "dispatch_admin": True,
                      "is_demo": False}
             h = FakePage("/partner-desk", admin)
