@@ -37,3 +37,37 @@ test("Driver info page expresses standards, economics and realistic project matu
   assert.ok(page.includes('name="viewport"'));
   assert.ok(page.includes("prefers-reduced-motion") || page.includes("nightrider-motion.js"));
 });
+
+test("Hub has separate public customer and driver information destinations", () => {
+  const hub = read("public/hub.html");
+  assert.match(hub, /<h2>Info for customers<\/h2>/);
+  assert.match(hub, /href="\/for-customers\.html"/);
+  assert.match(hub, /<h2>Info for drivers<\/h2>/);
+  assert.doesNotMatch(hub, /<h2>Driver board<\/h2>/);
+  // Keep direct rider booking and the other ecosystem modules.
+  for (const link of ["/rider", "/dispatch.html", "/map-lab.html", "/account.html"]) {
+    assert.ok(hub.includes('href="' + link + '"'), link);
+  }
+});
+
+test("Customer page explains NightRider standards without promising guaranteed coverage", () => {
+  const page = read("public/for-customers.html");
+  for (const phrase of [
+    "A ride you can feel good about booking.",
+    "Clean, comfortable, and calm.",
+    "Know what to expect.",
+    "Clarity beats gimmicks.",
+    "A familiar driver beats another mystery ride.",
+    "No separate customer app to download.",
+    "A request isn't a guaranteed ride",
+    "not a nationwide fleet or an always-available on-demand network"
+  ]) {
+    assert.ok(page.includes(phrase), phrase);
+  }
+  assert.match(page, /href="\/rider"/);
+  assert.match(page, /href="\/hub"/);
+  assert.match(page, /href="\/for-drivers\.html"/);
+  assert.match(page, /href="\/aero-theme\.css\?v=3"/);
+  assert.match(page, /src="\/aero-theme\.js\?v=2"/);
+  assert.ok(page.includes('name="viewport"'));
+});

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071b12">
+  <meta name="description" content="What customers can expect from NightRider: a clean, comfortable ride, clear communication, transparent expectations, and professional service.">
+  <title>NightRider — Info for customers</title>
+  <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/nightrider.css?v=verdant-1">
+  <link rel="stylesheet" href="/aero-theme.css?v=3">
+  <script src="/aero-theme.js?v=2"></script>
+  <style>
+    .customer-info { max-width: 1040px; margin: 0 auto; padding: clamp(28px, 5vw, 64px) 20px 76px; }
+    .customer-eyebrow { margin: 0 0 12px; color: var(--cyan); font-size: .76rem;
+      font-weight: 800; text-transform: uppercase; letter-spacing: .18em; }
+    .customer-hero { max-width: 820px; }
+    .customer-hero h1 { font-size: clamp(2rem, 5vw, 3.7rem); line-height: 1.13;
+      letter-spacing: .055em; text-wrap: balance; margin: 0 0 20px; }
+    .customer-lede { font-size: clamp(1.05rem, 2vw, 1.3rem); line-height: 1.65;
+      max-width: 740px; color: var(--ice); margin: 0 0 26px; }
+    .customer-promise { padding: 24px clamp(18px, 4vw, 32px); margin: 30px 0 48px;
+      border-left: 4px solid var(--cyan); background: var(--panel);
+      border-radius: 0 16px 16px 0; }
+    .customer-promise p { margin: 0; font-size: clamp(1.15rem, 2.6vw, 1.55rem);
+      font-weight: 750; line-height: 1.45; }
+    .customer-section { margin: 0 0 50px; }
+    .customer-section h2 { font-size: 1.25rem; margin: 0 0 15px; letter-spacing: .09em; }
+    .customer-section > p { max-width: 820px; line-height: 1.75; }
+    .customer-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .customer-principle { padding: 23px; border-radius: 16px; }
+    .customer-principle h3 { color: var(--ice); margin: 0 0 9px; font-size: 1.08rem; }
+    .customer-principle p { margin: 0; line-height: 1.65; color: var(--mist); }
+    .customer-number { color: var(--cyan); font-weight: 800; font-size: .82rem;
+      display: inline-block; margin-bottom: 10px; letter-spacing: .1em; }
+    .customer-steps { display: grid; gap: 13px; }
+    .customer-step { padding: 18px 20px; border: 1px solid var(--line);
+      border-radius: 14px; background: var(--sheet); }
+    .customer-step h3 { margin: 0 0 6px; color: var(--ice); font-size: 1rem; }
+    .customer-step p { margin: 0; color: var(--mist); line-height: 1.6; }
+    .customer-note { margin: 18px 0 0; padding: 18px; border-radius: 12px;
+      border: 1px solid var(--line); color: var(--mist); line-height: 1.65; }
+    .customer-actions { display: flex; align-items: center; gap: 14px;
+      flex-wrap: wrap; margin-top: 25px; }
+    .customer-actions a { display: inline-flex; align-items: center; justify-content: center;
+      min-height: 46px; padding: 11px 22px; border-radius: 12px;
+      text-decoration: none; font-weight: 750; }
+    .customer-actions .customer-book { background: var(--cyan); color: var(--ink);
+      border: 1px solid var(--cyan); }
+    .customer-actions .customer-secondary { border: 1px solid var(--line); color: var(--ice); }
+    .customer-actions a:focus-visible { outline: 3px solid var(--lamp); outline-offset: 3px; }
+    .customer-footer { padding-top: 28px; border-top: 1px solid var(--line); color: var(--mist); }
+    .customer-footer a { color: var(--cyan); font-weight: 700; }
+    html[data-nr-ui="aero"] .customer-actions .customer-book {
+      background: #0876b8; color: #fff; border-color: #0876b8;
+    }
+    html[data-nr-ui="aero"] .customer-actions .customer-secondary {
+      color: var(--ice);
+    }
+    @media (max-width: 680px) {
+      .customer-grid { grid-template-columns: 1fr; }
+      .customer-principle { padding: 19px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/hub">Night<span>Rider</span></a>
+    <nav aria-label="Site navigation">
+      <a href="/hub">Hub</a>
+      <a href="/rider">Rider</a>
+      <a href="/for-customers.html" aria-current="page">Info for customers</a>
+    </nav>
+  </header>
+  <main class="customer-info">
+    <section class="customer-hero" aria-labelledby="customer-title">
+      <p class="customer-eyebrow">For the people in the passenger seat</p>
+      <h1 id="customer-title">A ride you can feel good about booking.</h1>
+      <p class="customer-lede">Getting from one place to another shouldn't be a gamble. NightRider is built around a straightforward idea: show up prepared, treat people well, communicate clearly, and take pride in the ride.</p>
+      <p class="muted">We're not trying to win you over with the lowest number on a screen. We're working to earn your trust through the experience itself.</p>
+    </section>
+
+    <div class="customer-promise" role="note">
+      <p>Not necessarily the cheapest ride. The ride you're glad you chose.</p>
+    </div>
+
+    <section class="customer-section" aria-labelledby="customer-standards">
+      <h2 id="customer-standards">What matters to us</h2>
+      <div class="customer-grid">
+        <article class="card customer-principle">
+          <span class="customer-number">01 / COMFORT</span>
+          <h3>Clean, comfortable, and calm.</h3>
+          <p>A well-kept vehicle, a comfortable place to sit, and a quiet ride unless you'd rather chat. The small details should feel like the basics, not a special upgrade.</p>
+        </article>
+        <article class="card customer-principle">
+          <span class="customer-number">02 / DEPENDABILITY</span>
+          <h3>Know what to expect.</h3>
+          <p>Clear pickup information, realistic timing, and useful updates when plans change. We believe reliability starts before the car arrives.</p>
+        </article>
+        <article class="card customer-principle">
+          <span class="customer-number">03 / RESPECT &amp; SAFETY</span>
+          <h3>Professional on both sides of the door.</h3>
+          <p>Careful driving, courteous treatment, proper vehicle upkeep, and appropriate licensing and insurance are the standard we believe transportation professionals should meet. Riders and drivers both deserve a safe, respectful experience.</p>
+        </article>
+        <article class="card customer-principle">
+          <span class="customer-number">04 / HONEST VALUE</span>
+          <h3>Clarity beats gimmicks.</h3>
+          <p>Trip details and fare estimates should make sense. We want you to understand what you're requesting and get service that feels worth what you pay—not be lured by a bargain that disappoints.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="customer-section" aria-labelledby="customer-relationship">
+      <h2 id="customer-relationship">A familiar driver beats another mystery ride.</h2>
+      <p>We believe transportation works better when customers can recognize the people providing it and drivers have a reason to remember their customers. You shouldn't need to guess whether the person arriving takes their work seriously.</p>
+      <p>Repeat business matters to us because trust is earned over time. Our aim is to be someone you can confidently call again, recommend to friends, or ask a hotel concierge about—not just another anonymous ride in a queue.</p>
+      <p>That trust goes both ways. Treat your driver and their vehicle with respect, and expect the same respect in return. Unsafe or abusive behavior isn't part of the deal.</p>
+    </section>
+
+    <section class="customer-section" aria-labelledby="customer-booking">
+      <h2 id="customer-booking">How to get started</h2>
+      <div class="customer-steps">
+        <article class="customer-step">
+          <h3>Open the Rider page in your browser.</h3>
+          <p>No separate customer app to download. The web booking experience works from a modern phone, tablet, or computer.</p>
+        </article>
+        <article class="customer-step">
+          <h3>Tell us where and when you need to go.</h3>
+          <p>Enter your pickup and destination details, review the trip information, and submit your request. The booking experience supports requests for now or later.</p>
+        </article>
+        <article class="customer-step">
+          <h3>Stay informed.</h3>
+          <p>Use the Rider page to follow the request and communicate when needed. A request isn't a guaranteed ride until it has been accepted and arranged.</p>
+        </article>
+      </div>
+      <p class="customer-note"><strong>We're growing carefully.</strong> NightRider is currently an evolving pilot, not a nationwide fleet or an always-available on-demand network. Service depends on the drivers, schedules, and coverage available for your trip. We would rather set a clear expectation than promise what we can't deliver.</p>
+      <div class="customer-actions">
+        <a class="customer-book" href="/rider">Open Rider booking</a>
+        <a class="customer-secondary" href="/hub">Back to the Hub</a>
+      </div>
+    </section>
+
+    <footer class="customer-footer">
+      <p>Comfort, reliability, and professionalism shouldn't be rare. <a href="/for-drivers.html">Read what we expect from our drivers.</a></p>
+    </footer>
+  </main>
+  <script src="/nightrider-motion.js"></script>
+</body>
+</html>
