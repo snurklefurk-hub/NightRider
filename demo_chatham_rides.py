@@ -132,7 +132,7 @@ def samples(store):
                 else "Fictional demo driver" if status == "completed" else None,
             "created": created, "status_log": log,
             "simulated": True, "transportation_service": False,
-            "payment_method": "Simulation only — no payment collected",
+            "payment_method": "Simulation only: no payment collected",
             "demo_preview": True,
         })
     return out

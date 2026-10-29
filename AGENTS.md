@@ -2,7 +2,7 @@
 
 **Read this file before making ANY code or deployment change.** NightRider is developed by multiple independent ChatGPT/frontier-model instances. They do not share live chat state or an automatic coordination channel. **GitHub is the source of truth.**
 
-## Mandatory NightRider value gate — BEFORE EVERY COMMIT
+## Mandatory NightRider value gate: BEFORE EVERY COMMIT
 
 **Stop before each commit, including docs, tests, configuration changes, and automated GitHub file writes. Ask all three questions, every time:**
 
@@ -38,7 +38,7 @@ Example:
 NR-Override: MAKE IT SO - Add the specifically requested experimental driver setting.
 ```
 
-## First five minutes — required
+## First five minutes: required
 
 1. Read this file, `README.md`, and the applicable feature policy (for example, `CHAT-POLICY.md`). Check the companion [Android repository](https://github.com/snurklefurk-hub/nightrider-driver-android), too.
 2. Fetch current `main`, **all open pull requests AND all open issues in both repos**, and recent commits. **Issues record planned work for any implementing agent; draft PRs show work already underway.** Never assume the branch from a prior conversation is current. Live work queues: [Web/API issues](https://github.com/snurklefurk-hub/NightRider/issues) · [Web/API PRs](https://github.com/snurklefurk-hub/NightRider/pulls) · [Android issues](https://github.com/snurklefurk-hub/nightrider-driver-android/issues) · [Android PRs](https://github.com/snurklefurk-hub/nightrider-driver-android/pulls).

@@ -13,9 +13,11 @@ is retained separately.
 The Hub opens Rider, Driver and Dispatch demo tiles with automatic shared-demo
 sign-in. The Affiliates and Partners tile describes future hospitality and
 referral plans; the Partner Hub tile opens the unified landing page with
-account-request and existing-login choices. Account requests are deliberately
-not accepted or provisioned in this demo. Partner offers remain simulations and
-NightRider-side review happens in Dispatch.
+account-request preview, existing-login path, and an interactive browser-local
+offer demonstration. Account requests are not accepted or provisioned. Partners
+can try sample offer submissions in Partner Hub and review them through the
+shared DEMO Dispatch board, without creating real rides. Existing partner offer
+review remains restricted to authorized Dispatch administrators.
 See [HUB.md](HUB.md) and [PARTNER-DESK.md](PARTNER-DESK.md).
 
 ## The NightRider three-test commit rule
@@ -109,14 +111,14 @@ preferences are device-local and do not synchronize with browsers.
 
 ## Current pages
 
-- `/` — redirects to the NightRider Hub (`/hub`). The simulated Rider workflow has a direct, stable `/rider` URL; older `/index.html` links still work.
-- `/hub` — exactly eight tiles: Info for Riders, Info for Drivers, Partner Hub, Our Ethos; Rider Demo, Driver Demo, Dispatch Demo, Account Sign-in. Desktop shows two rows of four, with the same reading order on smaller screens.
-- `/dispatch.html` — simulated ride board, map, chat, account directories, ride rates, counts and log export. The public demo Dispatch account is restricted; administrator-only functions remain private.
-- `/driver.html` — browser Driver demo for trip management, chat and static LIGHT/DARK navigation screenshots. A Driver account is required.
-- `/account.html` — choose a Rider, Driver or Dispatch demo role and sign in using `DEMO` / `PASSWORD`, or sign in to an existing private account. Public Rider registration is paused.
-- `/for-customers.html` and `/for-drivers.html` — public statements of NightRider's intended service standards and WIP status, not active transportation offerings.
-- `/ethos.html` — the shared principles behind the rider experience and independent driver tools.
-- `/partner-portal` — public Partner Hub landing page with a non-provisioning account-request form and an existing partner login link. It does not accept requests, create accounts, or expose Dispatch controls.
+- `/`: redirects to the NightRider Hub (`/hub`). The simulated Rider workflow has a direct, stable `/rider` URL; older `/index.html` links still work.
+- `/hub`: exactly eight tiles: Info for Riders, Info for Drivers, Affiliates and Partners, Our Ethos; Rider Demo, Driver Demo, Dispatch Demo, Partner Hub. Desktop shows two rows of four, with the same reading order on smaller screens.
+- `/dispatch.html`: simulated ride board, map, chat, account directories, ride rates, counts and log export. The public demo Dispatch account is restricted; administrator-only functions remain private.
+- `/driver.html`: browser Driver demo for trip management, chat and static LIGHT/DARK navigation screenshots. A Driver account is required.
+- `/account.html`: choose a Rider, Driver or Dispatch demo role and sign in using `DEMO` / `PASSWORD`, or sign in to an existing private account. Public Rider registration is paused.
+- `/for-customers.html` and `/for-drivers.html`: public statements of NightRider's intended service standards and WIP status, not active transportation offerings.
+- `/ethos.html`: the shared principles behind the rider experience and independent driver tools.
+- `/partner-portal`: public Partner Hub landing page with a non-provisioning account-request form and an existing partner login link. It does not accept requests, create accounts, or expose Dispatch controls.
 
 The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting. Their Leaflet controls and ride markers remain in place, with a raster fallback if vector rendering fails. The standalone web map preview is retired; old bookmarks return to the Hub. See [MAP-APPEARANCE.md](MAP-APPEARANCE.md) for the operational map setup.
 

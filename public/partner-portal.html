@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#071b12">
-  <title>NightRider — Partner Hub</title>
+  <title>NightRider | Partner Hub</title>
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/nightrider.css?v=verdant-1">
   <link rel="stylesheet" href="/aero-theme.css?v=3">
@@ -20,7 +20,7 @@
   <main class="partner-layout">
     <div class="partner-intro">
       <h1>Partner Hub</h1>
-      <p class="muted">A single starting point for organizations interested in NightRider. This is a software demo: no transportation services, accounts, rides, or payments are being created here.</p>
+      <p class="muted">Explore how local hotels, venues, and businesses could send offers to NightRider. Try the complete sample workflow before requesting an account.</p>
     </div>
     <section aria-labelledby="partner-next-step">
       <h2 id="partner-next-step">Choose a next step</h2>
@@ -28,7 +28,7 @@
       <div class="partner-grid">
         <article class="partner-panel">
           <h3>Request account consideration</h3>
-          <p>Tell us that your organization is interested. This form does not create an account or send information; it records nothing in this demo.</p>
+          <p>Preview an account request using fictional information. Account requests are not being accepted yet, and nothing you enter is sent or saved.</p>
           <form id="partnerRequestForm">
             <label for="partnerOrganization">Organization name</label>
             <input id="partnerOrganization" name="organization" maxlength="120" autocomplete="organization" required>
@@ -39,20 +39,54 @@
           <p id="partnerRequestMessage" class="partner-small" role="status" aria-live="polite"></p>
         </article>
         <article class="partner-panel">
+          <h3>Try the Partner Hub demo</h3>
+          <p>Make a sample offer, track its status, and see what Dispatch does with it. All sample records stay in your browser.</p>
+          <div class="partner-actions"><a class="partner-action" href="/partner-portal?demo=1#partner-demo" id="openPartnerDemo">Open interactive demo</a></div>
+        </article>
+        <article class="partner-panel">
           <h3>Partner login</h3>
           <p>Use this only if NightRider has already given your organization login details for a simulation. Logging in does not confirm a ride.</p>
           <div class="partner-actions"><a class="partner-action" href="/affiliate-hub">Partner login</a></div>
         </article>
       </div>
     </section>
+    <section id="partner-demo" class="partner-demo-area" aria-labelledby="partner-demo-heading" hidden>
+      <div class="partner-intro">
+        <h2 id="partner-demo-heading">Interactive partner demo</h2>
+        <p class="partner-small">Sample offers stay in this browser. Use the Dispatch Demo tile on the <a href="/hub">NightRider Hub</a> to review and respond as Dispatch, then return here to acknowledge terms.</p>
+      </div>
+      <p id="affiliateMessage" class="partner-message" role="status" aria-live="polite">Preparing your sample partner workspace.</p>
+<section class="partner-panel partner-hidden" id="affiliateDemoControls"><h2>Sample partner workspace</h2><p>Fictional offers stay in this browser and do not create rides or accounts.</p><label for="demoPartnerPick">Sample organization</label><select id="demoPartnerPick"></select><div class="partner-actions"><button type="button" id="affiliateResetDemo">Reset sample data</button></div></section>
+<section class="partner-panel partner-hidden" id="affiliateLogin"><h2>Partner login</h2><form id="keyForm"><label for="partnerKey">Simulation access key</label><input id="partnerKey" type="password" autocomplete="off" required aria-describedby="keyHelp"><p id="keyHelp" class="partner-small">This is for existing simulation credentials only. It stays in this page's memory and is not saved in the browser.</p><button type="submit" class="primary">Sign in</button></form></section>
+<div id="affiliateWorkspace" class="partner-grid partner-hidden">
+<section class="partner-panel"><h2>Propose a trip</h2><p class="partner-small" id="partnerIdentity"></p><form id="offerForm">
+<label for="tripReference">Your reservation reference</label><input id="tripReference" name="reference" maxlength="80" required>
+<label for="pickup">Pickup location</label><input id="pickup" name="pickup" maxlength="180" required>
+<label for="dropoff">Destination</label><input id="dropoff" name="dropoff" maxlength="180" required>
+<label for="pickupAt">Pickup date &amp; time (local)</label><input id="pickupAt" name="pickup_at_local" type="datetime-local" required>
+<label for="passengers">Passengers (1–4)</label><input id="passengers" name="passengers" type="number" min="1" max="4" value="1" required>
+<label for="bags">Checked bags (0–4, fit to be verified)</label><input id="bags" name="bags" type="number" min="0" max="4" value="0" required>
+<label for="payout">Proposed affiliate compensation (USD)</label><input id="payout" name="payout" type="number" step="0.01" min="0.01" max="10000" required>
+<label for="notes">Pickup instructions (no sensitive passenger details)</label><textarea id="notes" name="notes" maxlength="800"></textarea>
+<label class="partner-check" for="authorized"><input id="authorized" type="checkbox" required> I am using fictional details to explore the sample proposal workflow.</label>
+<button class="primary" type="submit">Submit simulated offer</button></form></section>
+<section class="partner-panel"><h2>Your offers</h2><div class="partner-actions"><button type="button" id="refreshAffiliate">Refresh statuses</button><button type="button" id="affiliateLogout">Leave workspace</button></div><div id="affiliateOffers"></div></section>
+</div>
+    </section>
   </main>
   <script>
+    if (new URLSearchParams(window.location.search).get("demo") === "1") {
+      document.getElementById("partner-demo").hidden = false;
+    }
     document.getElementById("partnerRequestForm").addEventListener("submit", function (event) {
       event.preventDefault();
+      const organization = document.getElementById("partnerOrganization").value.trim();
       event.currentTarget.reset();
-      document.getElementById("partnerRequestMessage").textContent = "Account requests are not being accepted in this software demo. No account was created and no details were sent.";
+      document.getElementById("partnerRequestMessage").textContent = "Sample request previewed for " + organization + ". Nothing was sent or saved, and no account was created.";
     });
   </script>
-  <script src="/nightrider-motion.js"></script>
+  <script src="/partner-demo.js?v=1" defer></script>
+  <script src="/affiliate-hub.js?v=3" defer></script>
+  <script src="/nightrider-motion.js" defer></script>
 </body>
 </html>

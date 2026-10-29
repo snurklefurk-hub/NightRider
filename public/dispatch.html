@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>NightRider — Dispatch</title>
+<title>NightRider | Dispatch</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.css">
 <link rel="stylesheet" href="/map-theme.css?v=2">
@@ -29,7 +29,7 @@
 
   <div class="card" id="dispatchStatus">
     <p class="muted">Software demonstration board. Dispatch holds a connection open and is woken the instant a test rider
-      requests a ride — no polling every few seconds. Each incoming request is acknowledged back to
+      requests a ride: no polling every few seconds. Each incoming request is acknowledged back to
       the rider as a handshake, so nothing is silently dropped.</p>
     <div class="dispatch-refresh-row">
       <button type="button" id="refresh" class="dispatch-refresh-button" title="Force refresh" aria-label="Force refresh">↻</button>
@@ -114,7 +114,7 @@
     <section id="demoRideSection" aria-label="Chatham County fictional demo rides" hidden>
       <h3>DEMO · Previous Chatham County rides</h3>
       <p class="tiny muted">Fictional passengers and fares, public pickup/drop-off addresses.
-        5 completed, 2 cancelled. Read-only examples — not real bookings,
+        5 completed, 2 cancelled. Read-only examples: not real bookings,
         not driver assignments, and no payments.</p>
       <div id="demoRideRows" class="ridecards"></div>
     </section>
@@ -133,6 +133,13 @@
       <section class="partner-panel partner-full"><h3>Incoming offers</h3><div id="offerList"></div></section>
       <section class="partner-panel partner-full"><h3>Offer activity</h3><div id="eventList" class="partner-small"></div></section>
     </div>
+    <section class="partner-panel partner-full" id="dispatchSampleOffers" aria-labelledby="dispatchSampleTitle" hidden>
+      <h3 id="dispatchSampleTitle">Partner Hub sample offers</h3>
+      <p class="tiny muted">Review fictitious proposals right here in Dispatch. Accept or decline, then return to Partner Hub to see the partner-side acknowledgment. Changes stay in this browser.</p>
+      <p id="dispatchDemoOfferStatus" role="status" class="partner-message" aria-live="polite"></p>
+      <div class="partner-actions"><button type="button" id="dispatchDemoOfferRefresh">Refresh sample offers</button><button type="button" id="dispatchDemoOfferReset">Reset samples</button></div>
+      <div id="dispatchDemoOfferList"></div>
+    </section>
   </section>
 
 
@@ -344,7 +351,7 @@
     return Math.floor(m / 60) + "h " + (m % 60) + "m";
   }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]; }); }
-  function clock(ts) { if (!ts) return "—"; return new Date(ts * 1000).toLocaleTimeString(); }
+  function clock(ts) { if (!ts) return "-"; return new Date(ts * 1000).toLocaleTimeString(); }
   function api(path, opts) { return fetch(path, opts || {}); }
 
   /* ---- live push: one long request instead of a 4s timer ---------------- */
@@ -357,7 +364,7 @@
         polling = false;
         (d.events || []).forEach(handle);
         if (typeof d.cursor === "number") { cursor = Math.max(cursor, d.cursor); }
-        setConn(d.timed_out ? "Live — waiting for the next request." : "Live — received an update.");
+        setConn(d.timed_out ? "Live: waiting for the next request." : "Live: received an update.");
         listen();
       })
       .catch(function (e) {
@@ -428,7 +435,7 @@
 
   function ackCell(r) {
     var a = r.dispatch_ack;
-    if (!a) return r.status === "requested" ? '<span class="msg">awaiting ack</span>' : '<span class="muted">—</span>';
+    if (!a) return r.status === "requested" ? '<span class="msg">awaiting ack</span>' : '<span class="muted">-</span>';
     return '<span class="tiny muted">' + clock(a.at) + " · " + a.latency_s + "s</span>";
   }
 
@@ -590,17 +597,17 @@
       detail.className = "ride-detail";
       detail.innerHTML =
         '<p class="riderline"><strong>' + esc(r.rider_name) + '</strong> ' +
-        '<span class="tiny muted">rider ' + esc(r.rider_id || "—") + "</span></p>" +
+        '<span class="tiny muted">rider ' + esc(r.rider_id || "-") + "</span></p>" +
         '<p class="routeline"><span class="muted">From</span> ' + esc(r.pickup) +
         '<br><span class="muted">To</span> ' + esc(r.dropoff) + "</p>" +
         '<div class="metaline"><span>' + r.distance_mi + " mi</span><span>" + money(r.fare) + "</span>" +
-        "<span>" + esc(r.driver || "—") + "</span><span>" + ackCell(r) + "</span></div>";
+        "<span>" + esc(r.driver || "-") + "</span><span>" + ackCell(r) + "</span></div>";
       var stages = stageBlock(r);
       if (stages) { detail.appendChild(stages); }
       if (r.last_driver_release) {
         var releaseNote = document.createElement("p");
         releaseNote.className = "tiny muted";
-        releaseNote.textContent = (r.status === "requested" ? "Cancelled by driver — returned to the open queue. " : "Previously cancelled/released by driver. ") +
+        releaseNote.textContent = (r.status === "requested" ? "Cancelled by driver: returned to the open queue. " : "Previously cancelled/released by driver. ") +
           r.last_driver_release.driver + " · " + clock(r.last_driver_release.at);
         detail.appendChild(releaseNote);
       }
@@ -647,7 +654,7 @@
       var detail = document.createElement("div");
       detail.className = "ride-detail";
       detail.innerHTML =
-        '<p class="tiny muted">Fictional demonstration only — no actual passenger,' +
+        '<p class="tiny muted">Fictional demonstration only: no actual passenger,' +
         ' no dispatch assignment, no alerts, and no payment.</p>' +
         '<p class="routeline"><span class="muted">From</span> ' + esc(r.pickup) +
         '<br><span class="muted">To</span> ' + esc(r.dropoff) + '</p>' +
@@ -962,10 +969,10 @@
         '<td class="tiny">' + esc(entry.id) + "</td>" +
         '<td class="num">' + (summary.rides || 0) + "</td>" +
         '<td class="num">' + (summary.ratings || 0) + "</td>" +
-        '<td class="num">' + (summary.avg != null ? summary.avg : "—") + "</td>" +
+        '<td class="num">' + (summary.avg != null ? summary.avg : "-") + "</td>" +
         '<td class="num">' + (summary.issues || 0) + "</td>" +
-        '<td class="tiny muted">' + (user && user.created_at ? new Date(user.created_at * 1000).toLocaleString() : "—") + "</td>" +
-        '<td class="tiny muted">' + (known && known.last_seen ? new Date(known.last_seen * 1000).toLocaleString() : "—") + "</td>";
+        '<td class="tiny muted">' + (user && user.created_at ? new Date(user.created_at * 1000).toLocaleString() : "-") + "</td>" +
+        '<td class="tiny muted">' + (known && known.last_seen ? new Date(known.last_seen * 1000).toLocaleString() : "-") + "</td>";
       var actionCell = document.createElement("td");
       if (user) {
         var textAccount = document.createElement("button");
@@ -990,7 +997,7 @@
           actionCell.appendChild(remove);
         }
       } else {
-        actionCell.textContent = "—";
+        actionCell.textContent = "-";
       }
       tr.appendChild(actionCell);
       body.appendChild(tr);
@@ -1398,6 +1405,8 @@ document.getElementById("signOut").addEventListener("click", function () {
     .finally(function () { location.replace("/account.html"); });
 });
 </script>
+  <script src="/partner-demo.js?v=1" defer></script>
+  <script src="/dispatch-partner-demo.js?v=1" defer></script>
   <script src="/partner-desk.js?v=3" defer></script>
   <script src="/nightrider-motion.js"></script>
 </body>

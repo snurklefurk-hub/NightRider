@@ -17,7 +17,7 @@
     const offer = {id: "demo-offer-1", partner_id: partner.id, partner_name: partner.name,
       reference: "SAMPLE-101", pickup: "Resort main entrance, Hilton Head Island",
       dropoff: "Coligny Beach Park", pickup_at: created + 86400,
-      passengers: 2, bags: 1, payout: 42.00, notes: "Sample trip — no actual passenger",
+      passengers: 2, bags: 1, payout: 42.00, notes: "Sample trip: no actual passenger",
       authorized: true, status: "submitted", revision: 1,
       created_at: created, updated_at: created, expires_at: created + 86400};
     return {partners: [partner], offers: [offer], events: [

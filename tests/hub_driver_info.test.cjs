@@ -128,7 +128,13 @@ test("Driver info page publishes owner standards and a usable test account entry
   const positions = standards.map(phrase => page.indexOf(phrase));
   assert.ok(positions.every(position => position >= 0));
   assert.deepEqual(positions, [...positions].sort((a,b) => a-b));
-  assert.equal((page.match(/class="card drivers-principle"/g) || []).length, 4);
+  assert.equal((page.match(/class="card drivers-principle"/g) || []).length, 6);
+  assert.match(page, /class="drivers-grid drivers-philosophy"/);
+  assert.match(page, /05 \/ RELATIONSHIPS/);
+  assert.match(page, /06 \/ THE BOTTOM LINE/);
+  assert.match(page, /<h3>Build something worth keeping\.<\/h3>/);
+  assert.match(page, /<h3>A modern taxi, not another Uber\.<\/h3>/);
+  assert.match(page, /<p><strong>Bottom line:<\/strong> We don't want to be the next Uber/);
   assert.match(page, /href="\/account\.html\?demo=driver"[^>]*>Try the Driver demo<\/a>/);
   assert.match(page, /href="\/hub"[^>]*>Back to NightRider Hub<\/a>/);
   assert.doesNotMatch(page, /uncertaintity|overburderning|room the the next guy|\bdoesnt\b/i);
