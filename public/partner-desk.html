@@ -5,9 +5,10 @@
 <link rel="stylesheet" href="/nightrider.css?v=verdant-1"><link rel="stylesheet" href="/aero-theme.css?v=3">
 <link rel="stylesheet" href="/partner-hub.css?v=1"><script src="/aero-theme.js?v=2"></script></head>
 <body><aside class="nr-demo-notice" aria-label="Software demo notice"><strong>WIP · Software demo only.</strong> No transportation services are offered. All trips and payments are simulated. <a href="/hub">NightRider Hub</a>.</aside>
-<header><a class="brand" href="/hub">Night<span>Rider</span></a><nav aria-label="Section navigation"><a href="/hub">Hub</a><a href="/dispatch.html">Dispatch</a><a href="/affiliate-hub">Affiliate Hub</a></nav></header>
+<header><a class="brand" href="/hub">Night<span>Rider</span></a><nav aria-label="Section navigation"><a href="/hub">Hub</a><a href="/dispatch.html">Dispatch</a><a href="/affiliate-hub?demo=1">Affiliate demo</a></nav></header>
 <main class="partner-layout"><div class="partner-intro"><h1>Partner Desk</h1><p class="muted">The operator's control center for approved transportation affiliates, incoming job proposals and decisions. NightRider offers one standard service: four passenger seats, four doors and ordinary luggage space. There are no vehicle upgrades.</p></div>
-<div class="partner-alert">Only a real Dispatch administrator can manage affiliate credentials and offers. Public DEMO accounts cannot create, accept or approve them. Decisions in this preview do <strong>not</strong> create rides in Dispatch or the Driver app.</div>
+<div class="partner-alert" id="deskAccessNotice">Only a real Dispatch administrator can manage affiliate credentials and offers. Public DEMO accounts cannot create, accept or approve them. Decisions in this preview do <strong>not</strong> create rides in Dispatch or the Driver app.</div>
+<div id="deskDemoControls" class="partner-panel partner-hidden"><strong>Public sandbox · sample information only.</strong><p>Explore the same offer decisions without touching real partners. Your fictitious changes stay in this browser only. <a href="/affiliate-hub?demo=1">Switch to Affiliate Hub demo</a> or <a href="/partner-desk">open the protected operator workspace</a>.</p><button type="button" id="deskResetDemo">Reset sample data</button></div>
 <p id="deskMessage" class="partner-message" role="status" aria-live="polite">Checking administrator access…</p>
 <div id="deskWorkspace" class="partner-grid partner-hidden">
 <section class="partner-panel"><h2>Approve transportation affiliate</h2>
@@ -17,4 +18,4 @@
 <section class="partner-panel"><h2>Verified partners</h2><div id="partnerList" aria-live="polite"></div></section>
 <section class="partner-panel partner-full"><h2>Incoming affiliate offers</h2><p class="partner-small">An operator acceptance is <strong>not</strong> a ride confirmation. Partners must acknowledge it; the resulting agreement remains a software simulation.</p><div id="offerList"></div></section>
 <section class="partner-panel partner-full"><h2>Audit activity</h2><div id="eventList" class="partner-small"></div></section>
-</div></main><script src="/partner-desk.js?v=1" defer></script><script src="/nightrider-motion.js" defer></script></body></html>
+</div></main><script src="/partner-demo.js?v=1" defer></script><script src="/partner-desk.js?v=2" defer></script><script src="/nightrider-motion.js" defer></script></body></html>
