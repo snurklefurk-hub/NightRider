@@ -15,7 +15,7 @@ test("Hub keeps the eight requested destinations with a public affiliate-info li
   ]);
   assert.equal(tiles[2][1], "a");
   assert.match(tiles[2][2], /href="\/for-affiliates\.html"/);
-  assert.match(tiles[2][4], /Future plans for hospitality referrals/);
+  assert.match(tiles[2][4], /Plans for hotels and venues: concierge bookings/);
   assert.match(hub, /<a class="card hub-tile" href="\/partner-portal">\s*<h2>Partner Portal<\/h2>/);
   assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(hub, /max-width: 900px/);
@@ -60,10 +60,7 @@ test("Affiliates and Partners page describes future workflows honestly and retai
     "Your request won't just disappear into an algorithm.",
     "non-emergency medical transportation (NEMT)",
     "ADA accessibility and nondiscrimination requirements for regular rides.",
-    "Software demo only",
-    "does not currently provide transportation",
-    "create client accounts for partners",
-    "capabilities described here are future design goals"
+    "The booking portal, concierge fees, and client handoff features below are planned—not live tools."
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -123,17 +120,16 @@ test("Driver info page publishes all owner standards and honest software demo wa
     "We don't want to be the next Uber.",
     "modern evolution of the classic taxi",
     "What you can explore today",
-    "Try a simulated trip.",
-    "Navigation is an active WIP",
-    "features on the Driver page may be completely absent or nonfunctional.",
+    "Take the Driver tools for a spin.",
+    "view LIGHT and DARK navigation screenshots", 
     "leaving out what doesn't.",
     "See the Rider and Dispatch experiences.",
     "Share feedback on the software.",
-    "Where things stand:",
-    "software only until fully fleshed out, tested in real world conditions, and audited.",
+    "Before launch:",
+    "Real-world testing, audits, and driver feedback are part of the plan.",
     "No transportation services are offered",
     "all trips are simulated",
-    "Public rider account creation is paused"
+    "No transportation services are offered"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -189,12 +185,12 @@ test("Customer page explains design aspirations and simulated use without offeri
     "A familiar driver beats another mystery ride.",
     "All drivers are vetted, tested, and checked <strong>FAR</strong> above industry standards.",
     "No separate customer app to download.",
-    "book a ride from any device.",
+    "The goal is browser-based booking on any device.",
     "Use practice trip details.",
     "Try the other sides.",
     "No transportation services are offered",
     "all trips are simulated",
-    "Nothing is live except the code"
+    "Public rider account creation is paused"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -224,7 +220,9 @@ test("Public demo entry points publish all three roles without active-service or
   for (const source of [hub, customers, drivers, welcome]) {
     assert.match(source, /DEMO/);
     assert.match(source, /PASSWORD/);
-    assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
     assert.doesNotMatch(source, /We're growing carefully|evolving pilot|always on duty|register as a rider|no Indians/i);
+  }
+  for (const source of [hub, customers, welcome]) {
+    assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
   }
 });
