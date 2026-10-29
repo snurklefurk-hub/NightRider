@@ -35,9 +35,8 @@ async function clickScenario(settings = {}) {
   const window = {
     crypto: {subtle: {async digest(_algorithm, bytes) {
       calls.push("digest");
-      return crypto.createHash("sha256").update(Buffer.from(bytes)).digest().buffer.slice(
-        crypto.createHash("sha256").update(Buffer.from(bytes)).digest().byteOffset,
-        crypto.createHash("sha256").update(Buffer.from(bytes)).digest().byteOffset+32);
+      const digest = crypto.createHash("sha256").update(Buffer.from(bytes)).digest();
+      return digest.buffer.slice(digest.byteOffset, digest.byteOffset + digest.byteLength);
     }}},
     showSaveFilePicker: async () => {
       calls.push("picker");
