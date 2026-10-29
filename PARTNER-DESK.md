@@ -1,20 +1,46 @@
 # Partner Desk and Affiliate Hub — pilot preview
 
-This is an **invite-only SOFTWARE DEMO**, not a live transportation service.
+This is a **SOFTWARE DEMO**, not a live transportation service.
 No affiliate offer creates a ride, reserves a driver, collects payment, or sends
 an external notification. Do not use this workflow for customer commitments.
 
+**Two distinct demonstration experiences**:
+- A PUBLIC SANDBOX for anyone opening the Partner Desk or Affiliate Hub tiles on
+  `/hub`. All partner records and sample offers are fictitious, live **only in
+  that browser's local storage**, and never touch the server's affiliate database.
+- The original PRIVATE OPERATOR / AFFILIATE preview behind administrator
+  sessions and administrator-issued partner keys. These server-backed simulated
+  offers remain restricted and are **not** displayed in public demos.
+
 ## Entry points
 
-- `/hub`: public links to Partner Desk and Affiliate Hub.
+- `/hub`: clicking a Rider, Driver or Dispatch tile signs into that existing
+  role's shared DEMO account automatically and opens its appropriate workspace.
+  The Accounts tile is removed; existing account sign-in remains accessible in
+  the header and from the introduction.
+- `/partner-desk-demo`: PUBLIC browser-only Partner Desk sandbox, no login.
+- `/affiliate-hub?demo=1`: PUBLIC browser-only Affiliate Hub sandbox, no key.
+  Select a sample company to simulate different partner views.
 - `/partner-desk`: authenticated **non-demo Dispatch administrator** only.
-- `/affiliate-hub`: public login form; only an administrator-issued partner key
-  can unlock private partner offer details.
+- `/affiliate-hub` (without the demo query): private affiliate key login,
+  issued by a verified administrator, as before.
 
 The database must be configured for these API endpoints. The pages intentionally
 show an access-denied state when the current user isn't authorized.
 
-## Operator walkthrough (test records only)
+## Public sandbox walkthrough
+
+1. Open the Hub and click **Partner Desk** or **Affiliate Hub**.
+2. The operator sandbox can add fictitious sample partners, accept or decline
+   sample offers and view sample audit events.
+3. The affiliate sandbox automatically selects a fictitious partner. Submit
+   sample offers, acknowledge accepted terms, or withdraw them.
+4. Switch between the sample operator and affiliate pages using the demo links.
+   Both share local browser demo state, not any backend partner records.
+5. Use **Reset sample data** to restore the initial example. Browser storage
+   can be cleared by the browser; no passenger or partner data should be entered.
+
+## Private operator walkthrough (test records only)
 
 1. Sign in to the existing Dispatch administrator account. The shared public
    DEMO Dispatch login cannot approve partners or review partner records.
@@ -40,8 +66,10 @@ show an access-denied state when the current user isn't authorized.
 - Ordinary rides are still created only by authenticated riders.
 - Only verified, enabled, administrator-approved partners with a valid key may
   submit B2B offers. Each can read and change **only its own** offers.
-- No public signup, shared demo affiliate credentials, or partner access to
-  Dispatch's rider/driver conversations.
+- The public sandbox has no server-side affiliate credentials, private partner
+  records, or access to Dispatch's rider/driver conversations. Private affiliate
+  authorization is unchanged, and the public demo must never call operational
+  `/api/partner-desk` or `/api/affiliate-hub` endpoints.
 - A company submitting an offer must attest that it has authority to do so on
   behalf of the passenger. Do not include sensitive passenger data in notes.
 - NightRider advertises **one** everyday service: four doors, up to four

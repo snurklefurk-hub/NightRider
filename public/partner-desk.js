@@ -4,6 +4,13 @@
   const $ = (id) => document.getElementById(id);
   const message = $("deskMessage");
   const workspace = $("deskWorkspace");
+  const demoMode = /^\/partner-desk-demo\/?$/.test(window.location.pathname);
+  if (demoMode) {
+    $("deskAccessNotice").textContent = "Public sample workspace — all people, prices and offers are fictional. Nothing reaches NightRider's real partner records or creates a ride.";
+    $("deskDemoControls").classList.remove("partner-hidden");
+    $("partnerForm").querySelector('[type="submit"]').textContent = "Add sample partner";
+    message.textContent = "Opening public Partner Desk demo…";
+  }
   const date = (value) => value ? new Date(value * 1000).toLocaleString() : "—";
   const text = (tag, value, className) => {
     const el = document.createElement(tag);
@@ -20,6 +27,7 @@
   const line = (parent, tag, value, className) => parent.appendChild(text(tag, value, className));
   const error = (err) => { message.textContent = err.message || "Request failed."; };
   async function request(path, body) {
+    if (demoMode) return window.NightRiderPartnerDemo.api(path, body);
     const response = await fetch(path, {
       method: body === undefined ? "GET" : "POST",
       credentials: "same-origin", cache: "no-store",
@@ -53,7 +61,7 @@
           await refresh();
         } catch (e) { error(e); }
       }));
-      actions.appendChild(button("Rotate key", async () => {
+      if (!demoMode) actions.appendChild(button("Rotate key", async () => {
         if (!confirm("Rotate " + p.name + " access key? Its old key will stop working immediately.")) return;
         try {
           const data = await request("/api/partner-desk/partners/" + encodeURIComponent(p.id) + "/rotate", {});
@@ -109,7 +117,7 @@
       renderPartners(data.partners);
       renderOffers(data.offers);
       renderEvents(data.events);
-      if (message.textContent.startsWith("Checking")) message.textContent = "Partner Desk ready · software demo only.";
+      if (message.textContent.startsWith("Checking") || message.textContent.startsWith("Opening")) message.textContent = demoMode ? "Public Partner Desk demo ready. No real partner records loaded." : "Partner Desk ready · software demo only.";
     } catch (e) { workspace.classList.add("partner-hidden"); error(e); }
   }
   $("hideSecret").addEventListener("click", () => {
@@ -125,12 +133,20 @@
       const data = await request("/api/partner-desk/partners", {
         name: $("partnerName").value, contact: $("partnerContact").value
       });
-      showSecret(data.access_token_once);
+      if (!demoMode) showSecret(data.access_token_once);
       form.reset();
-      message.textContent = "Partner approved. Copy their one-time key securely.";
+      message.textContent = demoMode ? "Sample partner added to this browser only." : "Partner approved. Copy their one-time key securely.";
       await refresh();
     } catch (e) { error(e); }
     finally { submit.disabled = false; }
   });
+  if (demoMode) {
+    $("deskResetDemo").addEventListener("click", () => {
+      if (!confirm("Reset all sample partners and offers in this browser?")) return;
+      window.NightRiderPartnerDemo.reset();
+      message.textContent = "Sample partners and offers reset.";
+      refresh();
+    });
+  }
   refresh();
 })();
