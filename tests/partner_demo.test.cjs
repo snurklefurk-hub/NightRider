@@ -81,3 +81,70 @@ test("Hub removes Accounts tile and uses one-click shared demo logins", async ()
   assert.deepEqual(next,["/rider","/driver.html","/dispatch.html"]);
   assert.ok(sent.every(x=>x.url==="/api/auth/login" && x.payload.username==="DEMO" && x.payload.password==="PASSWORD"));
 });
+
+test("Hub preserves an authenticated real Dispatch administrator session", async () => {
+  const html = fs.readFileSync(path.join(publicDir, "hub.html"), "utf8");
+  const code = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+  const redirects = [], calls = [];
+  const tile = {
+    dataset:{demoRole:"dispatch",demoTarget:"/dispatch.html"},
+    addEventListener(type, callback){this[type]=callback;}
+  };
+  const session = {textContent:""};
+  const link = {textContent:"",href:""};
+  const document = {
+    querySelectorAll(){return [tile];},
+    getElementById(id){return id === "hubSession" ? session : link;}
+  };
+  const window = {location:{assign(url){redirects.push(url);}}};
+  const fetch = async (url) => {
+    calls.push(url);
+    if(url==="/api/auth/me") {
+      return {ok:true,json:async()=>({user:{role:"dispatch",is_demo:false,
+        dispatch_admin:true,display_name:"Real Dispatch administrator"}})};
+    }
+    throw Error("Real session must never be replaced by a DEMO login");
+  };
+  vm.runInNewContext(code,{window,document,fetch,JSON});
+  await tile.click({button:0,preventDefault(){},metaKey:false,ctrlKey:false,
+    shiftKey:false,altKey:false});
+  assert.deepEqual(redirects, ["/dispatch.html"]);
+  assert.equal(calls.includes("/api/auth/login"), false);
+});
+
+test("Hub refuses DEMO login when current session cannot be verified", async () => {
+  const html = fs.readFileSync(path.join(publicDir, "hub.html"), "utf8");
+  const code = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
+  const redirects = [], calls = [];
+  const tile = {
+    dataset:{demoRole:"dispatch",demoTarget:"/dispatch.html"},
+    addEventListener(type,callback){this[type]=callback;}
+  };
+  const session = {textContent:""};
+  const document = {
+    querySelectorAll(){return [tile];},
+    getElementById(id){return id==="hubSession"?session:{textContent:"",href:""};}
+  };
+  const window = {location:{assign(url){redirects.push(url);}}};
+  const fetch = async (url) => {
+    calls.push(url);
+    if(url==="/api/auth/me") throw Error("Session endpoint unavailable");
+    throw Error("Must not post login after failed session lookup");
+  };
+  vm.runInNewContext(code,{window,document,fetch,JSON});
+  await tile.click({button:0,preventDefault(){},metaKey:false,ctrlKey:false,
+    shiftKey:false,altKey:false});
+  assert.equal(calls.includes("/api/auth/login"), false);
+  assert.deepEqual(redirects,[]);
+  assert.match(session.textContent,/unavailable/i);
+});
+
+test("Dispatch explicitly describes archive access when user is DEMO or non-admin", () => {
+  const html = fs.readFileSync(path.join(publicDir, "dispatch.html"), "utf8");
+  assert.match(html,/id="clearChatHistory" hidden/);
+  assert.match(html,/id="clearRideHistory" hidden/);
+  assert.match(html,/Shared DEMO Dispatch login: history deletion is disabled/);
+  assert.match(html,/This Dispatch account is not the designated administrator/);
+  assert.match(html,/Administrator verified\. Save a local archive before deleting/);
+  assert.match(html,/Unable to check administrator status/);
+});
