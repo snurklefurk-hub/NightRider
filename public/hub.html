@@ -38,33 +38,33 @@
     <div class="hub-intro">
       <h1>NightRider Hub</h1>
       <p class="muted">NightRider is a work in progress: software demo only, with no transportation services offered. Only the code is live. Riders, drivers, friends, family, and anyone interested are welcome to explore all the features using test data.</p>
-      <p class="muted">Choose Rider, Driver, or Dispatch on the <a href="/account.html">demo sign-in page</a>. Each role uses username <strong>DEMO</strong> and password <strong>PASSWORD</strong>. Public rider account creation is paused.</p>
+      <p class="muted">Select a demo tile to enter automatically with its sample account, or explore Partner Desk and Affiliate Hub using entirely fictional browser-only data. No manual demo login required. <a href="/account.html">Existing account sign-in</a> is still available separately.</p>
     </div>
     <div class="hub-grid" aria-label="NightRider destinations">
-      <a class="card hub-tile" href="/rider">
+      <a class="card hub-tile" href="/account.html?demo=rider" data-demo-role="rider" data-demo-target="/rider">
         <h2>Rider</h2>
         <p>Simulate a trip, follow its practice progress, and try the messaging tools. No driver will come.</p>
-        <span class="hub-route">/rider</span>
+        <span class="hub-route">Open Rider demo automatically</span>
       </a>
       <a class="card hub-tile" href="/for-customers.html">
         <h2>Info for customers</h2>
         <p>Explore the ideas behind the software: comfort, clear expectations, safety, and professionalism.</p>
         <span class="hub-route">Future intent · Open to everyone</span>
       </a>
-      <a class="card hub-tile" href="/dispatch.html">
+      <a class="card hub-tile" href="/account.html?demo=dispatch" data-demo-role="dispatch" data-demo-target="/dispatch.html">
         <h2>Dispatch</h2>
         <p>Explore simulated trips, demo drivers, and test conversations with limited Dispatch access.</p>
-        <span class="hub-route">/dispatch.html · Demo sign-in available</span>
+        <span class="hub-route">Open Dispatch demo automatically</span>
       </a>
-      <a class="card hub-tile" href="/partner-desk">
+      <a class="card hub-tile" href="/partner-desk-demo">
         <h2>Partner Desk</h2>
         <p>Operator workspace for verified transportation partners, simulated affiliate offers and decisions.</p>
-        <span class="hub-route">/partner-desk · Dispatch administrator access</span>
+        <span class="hub-route">Open public Partner Desk sandbox</span>
       </a>
-      <a class="card hub-tile" href="/affiliate-hub">
+      <a class="card hub-tile" href="/affiliate-hub?demo=1">
         <h2>Affiliate Hub</h2>
         <p>Invite-only workspace for approved transportation companies to propose and track simulated everyday rides.</p>
-        <span class="hub-route">/affiliate-hub · Verified partner access</span>
+        <span class="hub-route">Open public Affiliate Hub sandbox</span>
       </a>
       <a class="card hub-tile" href="/for-drivers.html">
         <h2>Info for drivers</h2>
@@ -76,25 +76,46 @@
         <p>Explore map appearance and navigation diagnostics.</p>
         <span class="hub-route">/map-lab.html · Experimental</span>
       </a>
-      <a class="card hub-tile" href="/account.html?demo=driver">
+      <a class="card hub-tile" href="/account.html?demo=driver" data-demo-role="driver" data-demo-target="/driver.html">
         <h2>Driver demo</h2>
         <p>Try accepting and progressing a simulated trip with the shared Driver test account.</p>
-        <span class="hub-route">DEMO / PASSWORD · Simulation only</span>
-      </a>
-      <a class="card hub-tile" href="/account.html">
-        <h2>Accounts</h2>
-        <p>Choose a demo role and sign in with DEMO / PASSWORD. Public rider registration is paused.</p>
-        <span class="hub-route">/account.html</span>
+        <span class="hub-route">Open Driver demo automatically</span>
       </a>
     </div>
     <div class="hub-footer">
-      <span class="tiny muted" id="hubSession" role="status">Checking sign-in…</span>
+      <span class="tiny muted" id="hubSession" role="status" aria-live="polite">Checking sign-in…</span>
       <a class="alt" href="/account.html" id="hubSignIn">Sign in</a>
     </div>
   </main>
   <script>
     (function () {
       var session = document.getElementById("hubSession");
+      // Existing public DEMO identities are intentionally shared; issue a
+      // normal session via the existing login endpoint before redirecting.
+      document.querySelectorAll("[data-demo-role]").forEach(function (tile) {
+        tile.addEventListener("click", async function (event) {
+          if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          if (tile.dataset.loading === "1") return;
+          tile.dataset.loading = "1";
+          session.textContent = "Opening " + tile.dataset.demoRole + " demo…";
+          try {
+            var response = await fetch("/api/auth/login", {
+              method: "POST", credentials: "same-origin", cache: "no-store",
+              headers: {"Content-Type": "application/json"},
+              body: JSON.stringify({username: "DEMO", password: "PASSWORD", demo_role: tile.dataset.demoRole})
+            });
+            var result = await response.json();
+            if (!response.ok || !result.user || result.user.role !== tile.dataset.demoRole || !result.user.is_demo) {
+              throw new Error(result.error || "Demo sign-in unavailable.");
+            }
+            window.location.assign(tile.dataset.demoTarget);
+          } catch (error) {
+            tile.dataset.loading = "";
+            session.textContent = (error && error.message || "Demo sign-in failed") + ". Use the account sign-in link if needed.";
+          }
+        });
+      });
       var link = document.getElementById("hubSignIn");
       fetch("/api/auth/me", {cache: "no-store"})
         .then(function (response) { return response.json(); })
