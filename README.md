@@ -10,6 +10,13 @@ database. Public Rider account creation is paused. Demo Dispatch cannot manage a
 change passwords, delete records, or change shared pricing. Existing administrator access
 is retained separately.
 
+The Hub now opens Rider, Driver and Dispatch demo tiles with automatic shared-demo
+sign-in. The Accounts tile is removed, but existing account sign-in remains in
+the Hub header. Partner Desk and Affiliate Hub tiles open **public browser-only
+sample workspaces** containing fictional records, without touching operational
+partner records. Real operator and verified affiliate access remain private.
+See [PARTNER-DESK.md](PARTNER-DESK.md).
+
 ## The NightRider three-test commit rule
 
 **Before EVERY commit, ask all three questions:**
