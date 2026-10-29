@@ -192,3 +192,91 @@ def list_offers(store, partner=None):
     return sorted((dict(o) for o in offers.values()
                    if partner is None or o["partner_id"] == partner["id"]),
                   key=lambda o: o["created_at"], reverse=True)
+
+
+def _admin(handler):
+    user = handler.require_role("dispatch")
+    if not user:
+        return None
+    if user.get("is_demo") or not user.get("dispatch_admin"):
+        handler.send_json(403, {"error": "Dispatch administrator required; demo users cannot manage partners."})
+        return None
+    return user
+
+
+def _member(handler, store, lock):
+    # Intentionally not a cookie: a partner key cannot accidentally inherit
+    # a rider/driver/Dispatch session or become usable from a cross-site form.
+    with lock:
+        partner = authenticate(store, handler.headers.get("X-NR-Partner-Token", ""))
+        return dict(partner) if partner else None
+
+
+def api_get(handler, store, lock, path):
+    if not __import__("os").environ.get("DATABASE_URL", "").strip():
+        return handler.send_json(503, {"error": "Partner accounts require a database."})
+    if path == "/api/partner-desk":
+        if not _admin(handler):
+            return
+        with lock:
+            partners, _, events = collections(store)
+            result = {"partners": [public_partner(p) for p in partners.values()],
+                      "offers": list_offers(store), "events": list(events[-100:])}
+        return handler.send_json(200, result)
+    if path == "/api/affiliate-hub":
+        member = _member(handler, store, lock)
+        if not member:
+            return handler.send_json(401, {"error": "Verified partner access token required."})
+        with lock:
+            result = {"partner": public_partner(member),
+                      "offers": list_offers(store, member)}
+        return handler.send_json(200, result)
+    return handler.send_json(404, {"error": "not found"})
+
+
+def api_post(handler, store, lock, save, path, data):
+    if not __import__("os").environ.get("DATABASE_URL", "").strip():
+        return handler.send_json(503, {"error": "Partner accounts require a database."})
+    if not isinstance(data, dict):
+        return handler.send_json(400, {"error": "A JSON object is required."})
+    parts = path.strip("/").split("/")
+    is_admin = len(parts) >= 2 and parts[1] == "partner-desk"
+    if is_admin:
+        actor = _admin(handler)
+        if not actor:
+            return
+        member = None
+        actor_name = actor["id"]
+    elif len(parts) >= 2 and parts[1] == "affiliate-hub":
+        member = _member(handler, store, lock)
+        if not member:
+            return handler.send_json(401, {"error": "Verified partner access token required."})
+        actor_name = member["id"]
+    else:
+        return handler.send_json(404, {"error": "not found"})
+    try:
+        with lock:
+            if is_admin and parts == ["api", "partner-desk", "partners"]:
+                value, token = create_partner(store, data.get("name"), data.get("contact"), actor_name)
+                result, code = {"partner": value, "access_token_once": token}, 201
+            elif is_admin and len(parts) == 5 and parts[2] == "partners" and parts[4] == "enabled":
+                value = set_partner_enabled(store, parts[3], data.get("enabled"), actor_name)
+                result, code = {"partner": value}, 200
+            elif is_admin and len(parts) == 5 and parts[2] == "partners" and parts[4] == "rotate":
+                token = rotate_token(store, parts[3], actor_name)
+                result, code = {"access_token_once": token}, 200
+            elif is_admin and len(parts) == 5 and parts[2] == "offers" and parts[4] in ("accept", "decline"):
+                value = transition(store, parts[3], actor_name, parts[4], data.get("revision"))
+                result, code = {"offer": value}, 200
+            elif not is_admin and parts == ["api", "affiliate-hub", "offers"]:
+                value = submit_offer(store, member, data)
+                result, code = {"offer": value}, 201
+            elif not is_admin and len(parts) == 5 and parts[2] == "offers" and parts[4] in ("confirm", "withdraw"):
+                value = transition(store, parts[3], actor_name, parts[4], data.get("revision"), member)
+                result, code = {"offer": value}, 200
+            else:
+                return handler.send_json(404, {"error": "not found"})
+            save(store)
+    except PartnerError as exc:
+        return handler.send_json(exc.code, {"error": str(exc)})
+    return handler.send_json(code, result)
