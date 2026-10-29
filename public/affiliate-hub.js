@@ -142,7 +142,7 @@
       catch (e) { error(e); }
     });
     refresh().then(() => {
-      message.textContent = "Public Affiliate Hub demo ready. Sample partner selected automatically.";
+      message.textContent = "Sample partner workspace ready. No real bookings or accounts exist.";
     }).catch(error);
   }
 })();

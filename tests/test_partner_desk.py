@@ -155,19 +155,16 @@ class PartnerDomainTests(unittest.TestCase):
         self.assertEqual(self.store["affiliate_offers"][offer["id"]]["status"], "expired")
         self.assertTrue(self.saved)
 
-    def test_partner_desk_page_is_admin_only_and_portal_links_exist(self):
+    def test_partner_actions_remain_admin_only_and_legacy_desk_routes_redirect(self):
         from pathlib import Path
         public = Path(__file__).resolve().parents[1] / "public"
         self.assertIn('href="/partner-portal"', (public / "hub.html").read_text())
         html = (public / "partner-portal.html").read_text()
-        self.assertIn('href="/partner-desk-demo"', html)
-        self.assertIn('href="/affiliate-hub?demo=1"', html)
-        for page in ("/partner-desk", "/partner-desk/", "/partner-desk.html"):
-            for user in (None, STAFF, DEMO):
-                h = FakeHandler(user)
-                self.assertFalse(server.Handler.page_access(h, page))
-            h = FakeHandler(ADMIN)
-            self.assertTrue(server.Handler.page_access(h, page))
+        self.assertIn('Request account creation', html)
+        self.assertIn('href="/affiliate-hub">Partner login', html)
+        self.assertNotIn('verified affiliate', html.lower())
+        for user in (None, STAFF, DEMO):
+            self.assertIn(self.get("/api/partner-desk", user)[0], (401, 403))
 
 
 if __name__ == "__main__":

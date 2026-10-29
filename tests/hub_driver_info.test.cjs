@@ -6,17 +6,17 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Hub keeps the eight requested destinations with a public affiliate-info link", () => {
+test("Hub has one Partner Hub tile and keeps its eight destination layout", () => {
   const hub = read("public/hub.html");
   const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
   assert.deepEqual(tiles.map(tile => tile[3]), [
-    "Info for Riders", "Info for Drivers", "Affiliates and Partners", "Our Ethos",
-    "Rider Demo", "Driver Demo", "Dispatch Demo", "Partner Portal"
+    "Info for Riders", "Info for Drivers", "Partner Hub", "Our Ethos",
+    "Rider Demo", "Driver Demo", "Dispatch Demo", "Account Sign-in"
   ]);
   assert.equal(tiles[2][1], "a");
-  assert.match(tiles[2][2], /href="\/for-affiliates\.html"/);
-  assert.match(tiles[2][4], /Plans for hotels and venues: concierge bookings/);
-  assert.match(hub, /<a class="card hub-tile" href="\/partner-portal">\s*<h2>Partner Portal<\/h2>/);
+  assert.match(tiles[2][2], /href="\/partner-portal"/);
+  assert.equal((hub.match(/href="\/partner-portal"/g) || []).length, 1);
+  assert.match(tiles[7][2], /href="\/account\.html"/);
   assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(hub, /max-width: 900px/);
   assert.match(hub, /max-width: 520px/);
@@ -24,7 +24,7 @@ test("Hub keeps the eight requested destinations with a public affiliate-info li
 
 test("public pages have no retired preview mentions or links, and all local page links resolve", () => {
   const shortRoutes = {"/hub":"hub.html", "/rider":"index.html", "/partner-portal":"partner-portal.html",
-    "/partner-desk":"partner-desk.html", "/partner-desk-demo":"partner-desk.html", "/affiliate-hub":"affiliate-hub.html"};
+    "/partner-desk":"dispatch.html", "/partner-desk-demo":"partner-portal.html", "/affiliate-hub":"affiliate-hub.html"};
   for (const name of fs.readdirSync(path.join(root, "public")).filter(name => name.endsWith(".html"))) {
     const html = read("public/" + name);
     assert.doesNotMatch(html, /map[ -]?lab/i, name);
@@ -36,49 +36,14 @@ test("public pages have no retired preview mentions or links, and all local page
   }
 });
 
-test("Affiliates and Partners page describes future workflows honestly and retains portal links", () => {
+test("Partner landing offers non-provisioning request and existing-login flows", () => {
   const hub = read("public/hub.html");
-  const page = read("public/for-affiliates.html");
-  assert.match(hub, /href="\/for-affiliates\.html"[^>]*>\s*<h2>Affiliates and Partners<\/h2>/);
-  for (const phrase of [
-    "We're looking forward to working with other companies in the future.",
-    "Hotels, resorts, bars, clubs, restaurants",
-    "A third-party portal built for your clientele",
-    "upfront pricing and availability",
-    "SMS message",
-    "one-click account setup or sign-in",
-    "appropriate customer consent",
-    "Concierge fees and flexible pricing",
-    "concierge/front desk fee",
-    "transparent or opaque pricing",
-    "required fare disclosures to riders",
-    "integrate seamlessly into the NightRider ecosystem",
-    "A real local company. A real dispatcher.",
-    "You're not just sending a ride request out into the aether",
-    "real local transportation company",
-    "live dispatcher always on duty while we're accepting bookings",
-    "Your request won't just disappear into an algorithm.",
-    "non-emergency medical transportation (NEMT)",
-    "ADA accessibility and nondiscrimination requirements for regular rides.",
-    "The booking portal, concierge fees, and client handoff features below are planned—not live tools."
-  ]) {
-    assert.ok(page.includes(phrase), phrase);
-  }
-  assert.match(page, /href="\/partner-portal"[^>]*>Explore the Partner Portal demos<\/a>/);
-  assert.match(page, /href="\/hub"[^>]*>Back to the Hub<\/a>/);
-  assert.match(page, /aria-current="page"/);
-  assert.match(page, /href="\/aero-theme\.css\?v=3"/);
-  assert.match(page, /src="\/aero-theme\.js\?v=2"/);
-  assert.doesNotMatch(page, /ADA complaint|we are ADA compliant|NEMT is an ADA exemption/i);
-  const localSection = page.indexOf('id="affiliate-local-dispatch"');
-  assert.ok(localSection > page.indexOf('id="affiliate-pricing"'));
-  assert.ok(localSection < page.indexOf('id="affiliate-accessibility"'));
-  assert.match(page, /<strong>live dispatcher always on duty while we're accepting bookings<\/strong>/);
-  assert.ok(page.includes("When NightRider begins offering transportation"));
-  assert.doesNotMatch(page, /our dispatcher is on duty now|book a real ride today|24\/7 dispatch available now/i);
   const portal = read("public/partner-portal.html");
-  assert.match(portal, /href="\/partner-desk-demo"/);
-  assert.match(portal, /href="\/affiliate-hub\?demo=1"/);
+  assert.match(hub, /<h2>Partner Hub<\/h2>/);
+  assert.match(portal, /Request account creation/);
+  assert.match(portal, /Account requests are not being accepted/);
+  assert.match(portal, /href="\/affiliate-hub">Partner login<\/a>/);
+  assert.doesNotMatch(portal, /protected|verified affiliate|Partner Desk demo/i);
 });
 
 test("Hub keeps driver info and offers authenticated Driver demo", () => {
@@ -95,6 +60,16 @@ test("Hub keeps driver info and offers authenticated Driver demo", () => {
   for (const destination of ["/partner-portal", "/account.html"]) {
     assert.ok(hub.includes('href="' + destination + '"'), destination);
   }
+});
+
+test("Dispatch contains the unified NightRider-side partner offer workflow", () => {
+  const dispatch = read("public/dispatch.html");
+  assert.match(dispatch, /id="partner-offers"/);
+  assert.match(dispatch, /id="offerList"/);
+  assert.match(dispatch, /src="\/partner-desk\.js\?v=3"/);
+  const desk = read("public/partner-desk.js");
+  assert.match(desk, /\/api\/partner-desk\/offers\//);
+  assert.doesNotMatch(desk, /partnerForm|Rotate key|deskDemoControls/);
 });
 
 test("Driver info page publishes owner standards and a usable test account entry", () => {
@@ -151,12 +126,12 @@ test("Hub previews destinations without repeating the sitewide demo notice", () 
   for (const phrase of [
     "browser-based booking, clear fares",
     "direct customer relationships",
-    "concierge bookings, flexible referral pricing, and a real local dispatcher",
+    "request account consideration, or use an existing partner login",
     "safer professional rides, rider trust, and a better local transportation industry",
     "follow trip updates and messages",
     "preview the LIGHT and DARK navigation designs",
     "the Dispatch map, and test conversations",
-    "Partner Desk and Affiliate Hub sandboxes"
+    "Partner landing · Request or login"
   ]) {
     assert.ok(hub.includes(phrase), phrase);
   }

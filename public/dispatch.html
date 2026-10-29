@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="/map-theme.css?v=2">
 <link rel="stylesheet" href="nightrider.css?v=verdant-1">
 <link rel="stylesheet" href="/dispatch-map.css?v=verdant-1">
+<link rel="stylesheet" href="/partner-hub.css?v=1">
   <link rel="icon" href="/nightrider-mark.svg?v=talmadge-2" type="image/svg+xml">
   <link rel="stylesheet" href="/aero-theme.css?v=3">
   <script src="/aero-theme.js?v=2"></script>
@@ -122,6 +123,17 @@
     </div>
     <p class="tiny muted" id="clearRidesMsg" role="status" aria-live="polite">Checking history-management access…</p>
   </div>
+
+  <section class="card" id="partner-offers" aria-labelledby="partnerOffersTitle">
+    <h2 id="partnerOffersTitle">Partner offers</h2>
+    <p class="tiny muted">Dispatch reviews every NightRider-side partner offer here. Accepting or declining a proposal is a software simulation only; it does not create a ride, charge anyone, or contact a driver.</p>
+    <div class="partner-alert" id="deskAccessNotice">Only a Dispatch administrator can review partner offers. Other Dispatch staff can continue using the ride board without switching workspaces.</div>
+    <p id="deskMessage" class="partner-message" role="status" aria-live="polite">Checking Dispatch access…</p>
+    <div id="deskWorkspace" class="partner-grid partner-hidden">
+      <section class="partner-panel partner-full"><h3>Incoming offers</h3><div id="offerList"></div></section>
+      <section class="partner-panel partner-full"><h3>Offer activity</h3><div id="eventList" class="partner-small"></div></section>
+    </div>
+  </section>
 
 
 
@@ -1386,6 +1398,7 @@ document.getElementById("signOut").addEventListener("click", function () {
     .finally(function () { location.replace("/account.html"); });
 });
 </script>
+  <script src="/partner-desk.js?v=3" defer></script>
   <script src="/nightrider-motion.js"></script>
 </body>
 </html>

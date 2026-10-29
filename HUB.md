@@ -7,8 +7,8 @@ On desktop, show exactly two rows of four tiles in this reading order:
 
 | First row | | | |
 | --- | --- | --- | --- |
-| Info for Riders | Info for Drivers | Affiliates and Partners | Our Ethos |
-| Rider Demo | Driver Demo | Dispatch Demo | Partner Portal |
+| Info for Riders | Info for Drivers | Partner Hub | Our Ethos |
+| Rider Demo | Driver Demo | Dispatch Demo | Account Sign-in |
 
 Keep the same source and keyboard order as the grid becomes two columns or one
 column on smaller screens. Affiliates and Partners now links to a **public
@@ -16,10 +16,10 @@ future-plans information page** at `/for-affiliates.html`. It describes intended
 hospitality/referral and third-party booking capabilities, but offers no active
 transportation or payment services. Account sign-in remains in the header.
 
-The Affiliates and Partners information page is **not** Partner Portal. The
-separate Partner Portal groups the existing public Partner Desk and Affiliate Hub demos
-and clearly labels the separate protected administrator and verified affiliate
-entry points. It does not authenticate visitors or grant partner privileges.
+Partner Hub is the sole Hub entry for partner visitors. It gives a clear,
+truthful account-request and existing-login choice, but does not accept,
+transmit, or provision account requests. NightRider-side offer work belongs on
+Dispatch, not on a separate Partner Desk page.
 
 Retire the standalone map preview and its public links. Preserve Rider and
 Dispatch maps, their shared Midnight palette, LIGHT/DARK behavior, ride markers,
@@ -42,8 +42,8 @@ feature. The portal consolidates existing access rather than duplicating it.
 
 Verify the exact tile order, four desktop columns, smaller-screen reading order,
 LIGHT/DARK and keyboard focus. Verify the Affiliates and Partners page and its
-working Partner Portal / Hub links, future-only wording, and honest ADA goals. Check all public links, legacy information links,
-demo session preservation and protected partner access with isolated fixtures.
+working Partner Hub links, future-only wording, and honest ADA goals. Check all public links, legacy information links,
+demo session preservation and Dispatch-only partner-offer access with isolated fixtures.
 Run the existing frontend and backend suites and inspect GitHub checks before
 merging. A web merge can redeploy Render; verify the deployed commit, health and
 public pages before reporting it live. No migrations or Android release are
