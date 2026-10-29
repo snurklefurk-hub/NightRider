@@ -86,12 +86,20 @@
   <div class="card" id="chatCard">
     <h2>Messages</h2>
     <div id="nrDispatchChat"></div>
+    <div class="row">
+      <button type="button" class="alt" id="clearChatHistory" hidden>Export &amp; delete all chat logs</button>
+    </div>
+    <p class="tiny muted" id="clearChatMsg" role="status" aria-live="polite"></p>
   </div>
   </div>
 
   <div class="card" id="rideBoard">
     <h2>Recent rides</h2>
     <div id="rows" class="ridecards"></div>
+    <div class="row">
+      <button type="button" class="alt" id="clearRideHistory" hidden>Export &amp; delete ride history</button>
+    </div>
+    <p class="tiny muted" id="clearRidesMsg" role="status" aria-live="polite"></p>
   </div>
 
 
@@ -707,6 +715,79 @@
     }
   }
 
+  // Mirrors account deletion: opening Save As requires an actual user click,
+  // checksum validation and successful file.close() come BEFORE confirming and
+  // submitting a single-use archive grant. No silent download fallback.
+  async function archiveThenDeleteHistory(kind, button, messageId) {
+    var output = $(messageId);
+    if (!canDeleteAccounts) {
+      output.textContent = "Dispatch administrator required.";
+      return;
+    }
+    if (!window.showSaveFilePicker || !window.crypto || !window.crypto.subtle) {
+      output.textContent = "Deletion blocked: a confirmed local Save As is required. Use Chrome or Edge desktop.";
+      return;
+    }
+    if (button.disabled) return;
+    button.disabled = true;
+    try {
+      var stamp = new Date().toISOString().slice(0, 10);
+      // The picker must open synchronously from the button click.
+      var file = await window.showSaveFilePicker({
+        suggestedName: "NightRider-" + kind + "-history-" + stamp + ".json",
+        types: [{description: "NightRider retained history", accept: {"application/json": [".json"]}}]
+      });
+      output.textContent = "Preparing " + kind + " history archive…";
+      var response = await api("/api/dispatch/history-archive?kind=" + encodeURIComponent(kind),
+        {cache: "no-store"});
+      var archive = await response.json();
+      if (!response.ok) throw new Error(archive.error || "Could not prepare history.");
+      var bytes = new TextEncoder().encode(archive.content);
+      var checksum = await window.crypto.subtle.digest("SHA-256", bytes);
+      var digest = Array.from(new Uint8Array(checksum), function (n) {
+        return n.toString(16).padStart(2, "0");
+      }).join("");
+      if (digest !== archive.sha256) throw new Error("Archive checksum mismatch. Nothing deleted.");
+      var stream = await file.createWritable();
+      try {
+        await stream.write(new Blob([bytes], {type:"application/json"}));
+        await stream.close();
+      } catch (writeError) {
+        try { await stream.abort(); } catch (_) {}
+        throw writeError;
+      }
+      output.textContent = "Archive saved locally. Contains sensitive information; store securely.";
+      var description = kind === "chat" ? "ALL retained chat logs (including private messages)" :
+        "ALL retained completed and cancelled rides, linked ride chats and ride ratings";
+      if (!window.confirm("Archive saved. Permanently delete " + description +
+          "? No active rides will be deleted. This cannot be undone.")) {
+        output.textContent = "Archive saved. History NOT deleted.";
+        return;
+      }
+      var deleted = await api("/api/dispatch/history-deletion", {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({kind: kind, token: archive.token, sha256: archive.sha256})
+      });
+      var result = await deleted.json();
+      if (!deleted.ok) throw new Error(result.error || "Deletion blocked. Export an updated archive.");
+      output.textContent = "History cleared. Retain your saved archive.";
+      // Clears stale rendered bubbles and recent-ride tiles in this tab.
+      window.location.reload();
+    } catch (error) {
+      output.textContent = error && error.name === "AbortError" ?
+        "Save cancelled. Nothing deleted." :
+        "Deletion blocked: " + (error && error.message || "Archive save failed.");
+    } finally {
+      button.disabled = false;
+    }
+  }
+  $("clearChatHistory").addEventListener("click", function () {
+    archiveThenDeleteHistory("chat", this, "clearChatMsg");
+  });
+  $("clearRideHistory").addEventListener("click", function () {
+    archiveThenDeleteHistory("rides", this, "clearRidesMsg");
+  });
+
   function refreshDriverAccounts() {
     api("/api/dispatch/users", {cache:"no-store"}).then(function (r) { return r.json(); })
       .then(function (data) {
@@ -1170,6 +1251,8 @@
     .then(function (data) {
       canManageAccounts = Boolean(data.user && !data.user.is_demo);
       canDeleteAccounts = Boolean(canManageAccounts && data.user.role === "dispatch" && data.user.dispatch_admin === true);
+      $("clearChatHistory").hidden = !canDeleteAccounts;
+      $("clearRideHistory").hidden = !canDeleteAccounts;
       $("driverAccountForm").hidden = !canManageAccounts;
       $("pricingSave").hidden = !canManageAccounts;
       ["priceFlagDrop", "priceApproach", "priceTrip", "priceMultiplier"].forEach(function (id) {
