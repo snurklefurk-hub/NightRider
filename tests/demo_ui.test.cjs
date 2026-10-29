@@ -39,3 +39,31 @@ test("demo role selector submits the chosen role and opens its matching workspac
     assert.deepEqual(redirects, [destination]);
   }
 });
+
+test("navigation screenshot gallery appears for demo Drivers without requesting location", async () => {
+  const html = fs.readFileSync(path.join(publicDir, "driver.html"), "utf8");
+  const scripts = [...html.matchAll(/<script>\s*([\s\S]*?)<\/script>/g)].map(match => match[1]);
+  for (const isDemo of [true, false]) {
+    const elements = {};
+    const document = {getElementById(id) {
+      return elements[id] ||= {hidden:id === "driverNavigationPreview", addEventListener() {}, appendChild() {}};
+    }};
+    const user = {role:"driver",display_name:"Fixture Driver",is_demo:isDemo};
+    const context = {document, setInterval() {},
+      window:{addEventListener() {}, NightRiderChat:{mount:() => ({setRides() {},refresh() {}})}},
+      navigator:{geolocation:{getCurrentPosition() {assert.fail("Screenshot gallery must not request GPS");},
+                              watchPosition() {assert.fail("Screenshot gallery must not watch GPS");}}},
+      fetch(url) { return Promise.resolve({ok:true,json:async () => url === "/api/auth/me" ? {user} : {rides:[]}}); }};
+    for (const script of scripts) vm.runInNewContext(script, context);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(elements.driverNavigationPreview.hidden, !isDemo);
+  }
+  for (const mode of ["light", "dark"]) {
+    const asset = "images/navigation/navigation-" + mode + ".png";
+    assert.ok(html.includes('src="/' + asset + '"'));
+    const png = fs.readFileSync(path.join(publicDir, asset));
+    assert.equal(png.subarray(1, 4).toString(), "PNG");
+    assert.equal(png.readUInt32BE(16), 1260);
+    assert.equal(png.readUInt32BE(20), 2580);
+  }
+});
