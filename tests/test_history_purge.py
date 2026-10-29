@@ -51,10 +51,15 @@ class HistoryDeletionTests(unittest.TestCase):
         server.HISTORY_PURGE_GRANTS.clear()
         self.store = fixture()
         self.saves = []
+        self.events = []
+        # Match the production signature so a duplicate event-kind keyword
+        # fails the test rather than being swallowed by a loose MagicMock.
+        def event(kind, ride=None, **extra):
+            self.events.append((kind, extra))
         self.patches = [
             patch.object(server, "STORE", self.store),
             patch.object(server, "save", lambda x: self.saves.append(True)),
-            patch.object(server, "record_event"),
+            patch.object(server, "record_event", event),
             patch.object(server, "RIDER_LOCATIONS", {}),
         ]
         for p in self.patches:
@@ -90,6 +95,7 @@ class HistoryDeletionTests(unittest.TestCase):
         self.assertEqual(len(self.store["rides"]), 2)
         self.assertEqual(self.store["chat_epoch"], 1)
         self.assertEqual(len(self.saves), 1)
+        self.assertEqual(self.events, [("history_purged", {"history_kind": "chat"})])
         self.assertEqual(len(server.HISTORY_PURGE_GRANTS), 0)
         self.assertEqual(self.delete("chat", exported["token"], exported["sha256"])[0], 409)
 
