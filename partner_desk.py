@@ -163,7 +163,8 @@ def transition(store, offer_id, actor, action, revision, partner=None):
         raise PartnerError(404, "Offer not found.")
     if type(revision) is not int or revision != offer["revision"]:
         raise PartnerError(409, "Offer changed; refresh and review its current terms.")
-    if offer["status"] == "submitted" and time.time() >= offer["expires_at"]:
+    deadline = offer.get("confirmation_due_at") if offer["status"] == "awaiting_partner" else offer["expires_at"]
+    if offer["status"] in ("submitted", "awaiting_partner") and time.time() >= deadline:
         offer["status"] = "expired"
         offer["revision"] += 1
         offer["updated_at"] = time.time()
@@ -181,6 +182,8 @@ def transition(store, offer_id, actor, action, revision, partner=None):
     if not target:
         raise PartnerError(409, "This offer cannot perform that action.")
     offer["status"] = target
+    if target == "awaiting_partner":
+        offer["confirmation_due_at"] = min(time.time() + 300, offer["pickup_at"])
     offer["revision"] += 1
     offer["updated_at"] = time.time()
     _log(store, "offer_" + target, actor, offer_id, offer["partner_id"])
@@ -189,9 +192,16 @@ def transition(store, offer_id, actor, action, revision, partner=None):
 
 def list_offers(store, partner=None):
     _, offers, _ = collections(store)
-    return sorted((dict(o) for o in offers.values()
-                   if partner is None or o["partner_id"] == partner["id"]),
-                  key=lambda o: o["created_at"], reverse=True)
+    result = []
+    for offer in offers.values():
+        if partner and offer["partner_id"] != partner["id"]:
+            continue
+        visible = dict(offer)
+        due = visible.get("confirmation_due_at") if visible["status"] == "awaiting_partner" else visible["expires_at"]
+        if visible["status"] in ("submitted", "awaiting_partner") and time.time() >= due:
+            visible["status"] = "expired"
+        result.append(visible)
+    return sorted(result, key=lambda o: o["created_at"], reverse=True)
 
 
 def _admin(handler):
@@ -278,5 +288,10 @@ def api_post(handler, store, lock, save, path, data):
                 return handler.send_json(404, {"error": "not found"})
             save(store)
     except PartnerError as exc:
+        # An attempted late action can mark an offer expired; persist that audit
+        # transition even though its caller receives an HTTP 410.
+        if exc.code == 410:
+            with lock:
+                save(store)
         return handler.send_json(exc.code, {"error": str(exc)})
     return handler.send_json(code, result)
