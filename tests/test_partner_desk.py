@@ -160,11 +160,12 @@ class PartnerDomainTests(unittest.TestCase):
         html = (Path(__file__).resolve().parents[1] / "public" / "hub.html").read_text()
         self.assertIn('href="/partner-desk"', html)
         self.assertIn('href="/affiliate-hub"', html)
-        for user in (None, STAFF, DEMO):
-            h = FakeHandler(user)
-            self.assertFalse(server.Handler.page_access(h, "/partner-desk"))
-        h = FakeHandler(ADMIN)
-        self.assertTrue(server.Handler.page_access(h, "/partner-desk"))
+        for page in ("/partner-desk", "/partner-desk/", "/partner-desk.html"):
+            for user in (None, STAFF, DEMO):
+                h = FakeHandler(user)
+                self.assertFalse(server.Handler.page_access(h, page))
+            h = FakeHandler(ADMIN)
+            self.assertTrue(server.Handler.page_access(h, page))
 
 
 if __name__ == "__main__":
