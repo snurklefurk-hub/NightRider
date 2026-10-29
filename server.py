@@ -1401,6 +1401,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.path = "/partner-desk.html"
         elif path in ("/affiliate-hub", "/affiliate-hub/"):
             self.path = "/affiliate-hub.html"
+        elif path in ("/partner-desk-demo", "/partner-desk-demo/"):
+            # Separate public static sandbox. Real Partner Desk keeps its admin gate.
+            self.path = "/partner-desk.html"
         elif path in ("/rider", "/rider/"):
             self.path = "/index.html"
         if path == "/healthz":
