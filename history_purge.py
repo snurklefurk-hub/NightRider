@@ -10,6 +10,8 @@ import hashlib
 import json
 import time
 
+import demo_chatham_rides
+
 
 KINDS = frozenset(("chat", "rides"))
 
@@ -45,6 +47,7 @@ def snapshot(store, kind, generated_at):
         ride_ids = set(rides)
         common.update({
             "rides": rides,
+            "dispatch_only_fictional_demo_rides": demo_chatham_rides.samples(store),
             "ride_messages_for_deleted_rides": [
                 m for m in store.get("ride_messages", []) if m.get("ride_id") in ride_ids
             ],
@@ -96,6 +99,9 @@ def purge(store, kind):
         raise ValueError("Finish or cancel all active rides before clearing history.")
     ids = set(store.get("rides") or {})
     count = len(ids)
+    preview_count = len(demo_chatham_rides.samples(store))
+    # This flag survives a restart; deleted examples do NOT regenerate.
+    store["demo_chatham_samples_cleared"] = True
     store["rides"] = {}
     store["ride_messages"] = [
         m for m in store.get("ride_messages", []) if m.get("ride_id") not in ids
@@ -104,4 +110,4 @@ def purge(store, kind):
         rider["rides"] = [ride_id for ride_id in rider.get("rides", []) if ride_id not in ids]
         rider["ratings"] = [entry for entry in rider.get("ratings", [])
                             if entry.get("ride") not in ids]
-    return {"rides": count}
+    return {"rides": count, "demo_rides": preview_count}
