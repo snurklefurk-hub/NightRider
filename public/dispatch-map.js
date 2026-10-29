@@ -259,7 +259,9 @@
         (driver.location_accuracy != null ? "<br>Accuracy: about " + Math.round(driver.location_accuracy) + " m" : ""),
         driverLayer, used, stale);
     });
-    visibleRides().forEach(function (ride) {
+    // This pass renders ONLY operational rides. Fixed DEMO positions are
+    // drawn in their separate overlay below, never as live GPS markers.
+    visibleRides().filter(function (r) { return !r.demo_preview; }).forEach(function (ride) {
       var title = "Ride " + ride.id + " · " + (ride.rider_name || "Rider");
       var info = "<strong>" + esc(title) + "</strong><br>" + esc(labels[ride.status] || ride.status) +
         "<br>" + esc(ride.driver || "Unassigned");
