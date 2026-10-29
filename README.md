@@ -138,8 +138,13 @@ Install the dependency with `pip install -r requirements.txt`, then run `NIGHTRI
 
 The frontend is plain HTML, CSS, and JavaScript in `public/`; the Python HTTP server is `server.py`, with account storage in `auth.py`. The Android driver app lives in the separate `nightrider-driver-android` repository.
 
+## Next implementation priorities
+
+See [ROADMAP.md](ROADMAP.md) for the reviewed reliability gaps, acceptance gates,
+and proposed path from this demo to dependable local transportation tools.
+
 ## Checks
 
 The map, Hub, partner-demo and appearance tests run with `node --test tests/*.test.cjs` (the frontend CI also checks its pinned browser assets). For Python dispatch-map, rider-location and fare checks, set `NIGHTRIDER_REQUIRE_DATABASE=false` and run `python -m unittest discover -s tests -p 'test_*.py' -v`. For the Dispatch private-message notification test, run `node tests/client_notify_check.js`.
 
-GitHub Actions runs these backend/Dispatch tests on relevant changes through `.github/workflows/backend-check.yml`, isolated from production and without Render database credentials. The pre-account anonymous-ride API suite was retired when sign-in became mandatory; full authenticated booking-to-completion integration tests are still needed. Successful source checks are not equivalent to testing real rides on devices.
+GitHub Actions runs these backend/Dispatch tests on relevant changes through `.github/workflows/backend-check.yml`, isolated from production and without Render database credentials. The authenticated demo suite covers booking, assignment, messaging and completion using an in-memory account fixture and mocked state persistence. Full browser/Android journeys and real isolated PostgreSQL persistence/recovery tests are still needed. Successful source checks are not equivalent to testing real rides on devices.

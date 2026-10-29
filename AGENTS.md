@@ -93,4 +93,3 @@ Write the PR description using the template at `.github/PULL_REQUEST_TEMPLATE.md
 
 **Do not keep a manually edited “active agents” roster in README:** it goes stale and creates conflicts. The two live PR pages above are the shared status board. Draft PRs are how agents announce work; the bot refreshes summaries and overlap notices. A pull request in progress is not proof of a deployed feature.
 
-As of 2026-10-28, [web PR #21](https://github.com/snurklefurk-hub/NightRider/pull/21) implements Dispatch text shortcuts and persistent rider-account chat, and **was open at the time this file was authored**. Recheck GitHub before acting.
