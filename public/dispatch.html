@@ -133,6 +133,13 @@
       <section class="partner-panel partner-full"><h3>Incoming offers</h3><div id="offerList"></div></section>
       <section class="partner-panel partner-full"><h3>Offer activity</h3><div id="eventList" class="partner-small"></div></section>
     </div>
+    <section class="partner-panel partner-full" id="dispatchSampleOffers" aria-labelledby="dispatchSampleTitle" hidden>
+      <h3 id="dispatchSampleTitle">Partner Hub sample offers</h3>
+      <p class="tiny muted">Review fictitious proposals right here in Dispatch. Accept or decline, then return to Partner Hub to see the partner-side acknowledgment. Changes stay in this browser.</p>
+      <p id="dispatchDemoOfferStatus" role="status" class="partner-message" aria-live="polite"></p>
+      <div class="partner-actions"><button type="button" id="dispatchDemoOfferRefresh">Refresh sample offers</button><button type="button" id="dispatchDemoOfferReset">Reset samples</button></div>
+      <div id="dispatchDemoOfferList"></div>
+    </section>
   </section>
 
 
@@ -1398,6 +1405,8 @@ document.getElementById("signOut").addEventListener("click", function () {
     .finally(function () { location.replace("/account.html"); });
 });
 </script>
+  <script src="/partner-demo.js?v=1" defer></script>
+  <script src="/dispatch-partner-demo.js?v=1" defer></script>
   <script src="/partner-desk.js?v=3" defer></script>
   <script src="/nightrider-motion.js"></script>
 </body>
