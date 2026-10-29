@@ -14,14 +14,16 @@
     .hub-intro { max-width: 680px; margin-bottom: 30px; }
     .hub-intro h1 { margin: 0 0 12px; font-size: clamp(2rem, 5vw, 3rem); }
     .hub-intro p { line-height: 1.55; }
-    .hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 245px), 1fr)); gap: 16px; }
+    .hub-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
     .hub-tile { display: flex; flex-direction: column; gap: 10px; min-height: 174px; padding: 22px; text-decoration: none; border: 1px solid currentColor; border-color: rgba(120,150,150,.18); border-radius: 16px; transition: border-color .12s; }
     .hub-tile:focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
-    .hub-tile:hover { border-color: currentColor; }
+    a.hub-tile:hover { border-color: currentColor; }
     .hub-tile h2 { font-size: 1.22rem; margin: 0; }
     .hub-tile p { line-height: 1.5; margin: 0; }
     .hub-tile .hub-route { margin-top: auto; font-size: .8rem; opacity: .7; overflow-wrap: anywhere; }
     .hub-footer { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 30px; }
+    @media (max-width: 900px) { .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 520px) { .hub-grid { grid-template-columns: 1fr; } }
     @media (prefers-reduced-motion: reduce) { .hub-tile { transition: none; } }
   </style>
 </head>
@@ -38,48 +40,46 @@
     <div class="hub-intro">
       <h1>NightRider Hub</h1>
       <p class="muted">NightRider is a work in progress: software demo only, with no transportation services offered. Only the code is live. Riders, drivers, friends, family, and anyone interested are welcome to explore all the features using test data.</p>
-      <p class="muted">Select a demo tile to enter automatically with its sample account, or explore Partner Desk and Affiliate Hub using entirely fictional browser-only data. No manual demo login required. <a href="/account.html">Existing account sign-in</a> is still available separately. Public rider registration is paused.</p>
+      <p class="muted">Select a demo tile to enter automatically with its sample account. Partner Portal brings together the partner demos and private partner sign-in. <a href="/account.html">Existing account sign-in</a> is still available separately. Public rider registration is paused.</p>
     </div>
     <div class="hub-grid" aria-label="NightRider destinations">
-      <a class="card hub-tile" href="/account.html?demo=rider" data-demo-role="rider" data-demo-target="/rider">
-        <h2>Rider</h2>
-        <p>Simulate a trip, follow its practice progress, and try the messaging tools. No driver will come.</p>
-        <span class="hub-route">Open Rider demo automatically</span>
-      </a>
       <a class="card hub-tile" href="/for-customers.html">
-        <h2>Info for customers</h2>
+        <h2>Info for Riders</h2>
         <p>Explore the ideas behind the software: comfort, clear expectations, safety, and professionalism.</p>
         <span class="hub-route">Future intent · Open to everyone</span>
       </a>
-      <a class="card hub-tile" href="/account.html?demo=dispatch" data-demo-role="dispatch" data-demo-target="/dispatch.html">
-        <h2>Dispatch</h2>
-        <p>Explore simulated trips, demo drivers, and test conversations with limited Dispatch access.</p>
-        <span class="hub-route">Open Dispatch demo automatically</span>
-      </a>
-      <a class="card hub-tile" href="/partner-desk-demo">
-        <h2>Partner Desk</h2>
-        <p>Operator workspace for verified transportation partners, simulated affiliate offers and decisions.</p>
-        <span class="hub-route">Open public Partner Desk sandbox</span>
-      </a>
-      <a class="card hub-tile" href="/affiliate-hub?demo=1">
-        <h2>Affiliate Hub</h2>
-        <p>Invite-only workspace for approved transportation companies to propose and track simulated everyday rides.</p>
-        <span class="hub-route">Open public Affiliate Hub sandbox</span>
-      </a>
       <a class="card hub-tile" href="/for-drivers.html">
-        <h2>Info for drivers</h2>
+        <h2>Info for Drivers</h2>
         <p>Our approach to professionalism, independence, and building a transportation business worth being proud of.</p>
         <span class="hub-route">Our philosophy · Open to everyone</span>
       </a>
-      <a class="card hub-tile" href="/map-lab.html">
-        <h2>Map Lab</h2>
-        <p>Explore map appearance and navigation diagnostics.</p>
-        <span class="hub-route">/map-lab.html · Experimental</span>
+      <div class="card hub-tile">
+        <h2>Affiliates and Partners</h2>
+      </div>
+      <a class="card hub-tile" href="/ethos.html">
+        <h2>Our Ethos</h2>
+        <p>Professionalism, independence, and clear expectations guide what we build.</p>
+        <span class="hub-route">Our shared principles · Open to everyone</span>
+      </a>
+      <a class="card hub-tile" href="/account.html?demo=rider" data-demo-role="rider" data-demo-target="/rider">
+        <h2>Rider Demo</h2>
+        <p>Simulate a trip, follow its practice progress, and try the messaging tools. No driver will come.</p>
+        <span class="hub-route">Open Rider demo automatically</span>
       </a>
       <a class="card hub-tile" href="/account.html?demo=driver" data-demo-role="driver" data-demo-target="/driver.html">
-        <h2>Driver demo</h2>
+        <h2>Driver Demo</h2>
         <p>Try accepting and progressing a simulated trip with the shared Driver test account.</p>
         <span class="hub-route">Open Driver demo automatically</span>
+      </a>
+      <a class="card hub-tile" href="/account.html?demo=dispatch" data-demo-role="dispatch" data-demo-target="/dispatch.html">
+        <h2>Dispatch Demo</h2>
+        <p>Explore simulated trips, demo drivers, and test conversations with limited Dispatch access.</p>
+        <span class="hub-route">Open Dispatch demo automatically</span>
+      </a>
+      <a class="card hub-tile" href="/partner-portal">
+        <h2>Partner Portal</h2>
+        <p>Explore Partner Desk and Affiliate Hub demos, or open your protected partner workspace.</p>
+        <span class="hub-route">Partner demos and private access</span>
       </a>
     </div>
     <div class="hub-footer">

@@ -5,8 +5,8 @@ No affiliate offer creates a ride, reserves a driver, collects payment, or sends
 an external notification. Do not use this workflow for customer commitments.
 
 **Two distinct demonstration experiences**:
-- A PUBLIC SANDBOX for anyone opening the Partner Desk or Affiliate Hub tiles on
-  `/hub`. All partner records and sample offers are fictitious, live **only in
+- A PUBLIC SANDBOX for anyone opening Partner Portal from `/hub` and choosing
+  Partner Desk demo or Affiliate Hub demo. All partner records and sample offers are fictitious, live **only in
   that browser's local storage**, and never touch the server's affiliate database.
 - The original PRIVATE OPERATOR / AFFILIATE preview behind administrator
   sessions and administrator-issued partner keys. These server-backed simulated
@@ -19,6 +19,9 @@ an external notification. Do not use this workflow for customer commitments.
   The Accounts tile is removed; existing account sign-in remains accessible in
   the header and from the introduction.
 - `/partner-desk-demo`: PUBLIC browser-only Partner Desk sandbox, no login.
+- `/partner-portal`: public directory grouping both demos and the separate
+  protected operator and verified affiliate entry points. It never signs in
+  visitors automatically or grants access to private records.
 - `/affiliate-hub?demo=1`: PUBLIC browser-only Affiliate Hub sandbox, no key.
   Select a sample company to simulate different partner views.
 - `/partner-desk`: authenticated **non-demo Dispatch administrator** only.
@@ -30,7 +33,7 @@ show an access-denied state when the current user isn't authorized.
 
 ## Public sandbox walkthrough
 
-1. Open the Hub and click **Partner Desk** or **Affiliate Hub**.
+1. Open **Partner Portal** from the Hub and choose **Partner Desk demo** or **Affiliate Hub demo**.
 2. The operator sandbox can add fictitious sample partners, accept or decline
    sample offers and view sample audit events.
 3. The affiliate sandbox automatically selects a fictitious partner. Submit
@@ -122,7 +125,7 @@ without another implementation/review.** Known next work:
 
 The `backend-check` PR workflow compiles the Python modules, runs
 `unittest discover -s tests -p 'test_*.py'`, and checks both Partner Desk
-JavaScript entrypoints with `node --check`. The web map lab, agent coordination
+JavaScript entrypoints with `node --check`. The frontend, agent coordination
 and commit-value gate workflows also run on pull requests.
 
 Merging this web PR can trigger a Render redeployment. Review it and its checks

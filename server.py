@@ -1482,8 +1482,19 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             return
-        if path in ("/hub", "/hub/"):
+        if path in ("/map-lab", "/map-lab/", "/map-lab.html"):
+            self.send_response(302)
+            self.send_header("Location", "/hub")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return
+        if path == "/map-lab-midnight.js":
+            # Cached Rider/Dispatch pages can still request the former palette URL.
+            self.path = "/map-midnight.js"
+        elif path in ("/hub", "/hub/"):
             self.path = "/hub.html"
+        elif path in ("/partner-portal", "/partner-portal/"):
+            self.path = "/partner-portal.html"
         elif path in ("/partner-desk", "/partner-desk/"):
             self.path = "/partner-desk.html"
         elif path in ("/affiliate-hub", "/affiliate-hub/"):

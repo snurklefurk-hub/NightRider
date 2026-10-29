@@ -12,10 +12,11 @@ is retained separately.
 
 The Hub now opens Rider, Driver and Dispatch demo tiles with automatic shared-demo
 sign-in. The Accounts tile is removed, but existing account sign-in remains in
-the Hub header. Partner Desk and Affiliate Hub tiles open **public browser-only
-sample workspaces** containing fictional records, without touching operational
-partner records. Real operator and verified affiliate access remain private.
-See [PARTNER-DESK.md](PARTNER-DESK.md).
+the Hub header. Partner Portal groups the Partner Desk and Affiliate Hub
+**public browser-only sample workspaces** and their separate protected access
+links. Fictional demo records never touch operational partner records.
+Real operator and verified affiliate access remain private.
+See [HUB.md](HUB.md) and [PARTNER-DESK.md](PARTNER-DESK.md).
 
 ## The NightRider three-test commit rule
 
@@ -91,7 +92,7 @@ Chat-only deletion leaves the sample ride tiles intact.
 ## Light and Dark appearance
 
 A single site-wide **LIGHT / DARK** control appears in Rider, Dispatch, the
-Driver Board, Account and Web Map Lab. **LIGHT** uses the Frutiger Aero-inspired
+Driver Board, Account and public information pages. **LIGHT** uses the Frutiger Aero-inspired
 sky-blue glass UI, a rounded Nunito Sans font (with system fallbacks) and the
 NightRider Midnight vector basemap. **DARK** uses the original NightRider
 Verdant UI and OpenFreeMap Original Dark vector basemap. DARK is the default.
@@ -101,20 +102,21 @@ The choice is saved in the browser under
 On unsupported WebGL devices, the existing raster fallback remains available.
 
 Android Driver exposes LIGHT and DARK under Settings → Appearance. Its
-standalone Map Lab test app uses the same two combined settings. Android
+standalone appearance preview uses the same two combined settings. Android
 preferences are device-local and do not synchronize with browsers.
 
 ## Current pages
 
 - `/` — redirects to the NightRider Hub (`/hub`). The simulated Rider workflow has a direct, stable `/rider` URL; older `/index.html` links still work.
-- `/hub` — public software demo directory linking Rider, limited Dispatch demo, Info for customers, Info for drivers, Driver demo, Map Lab and Accounts. The internal browser Driver board is intentionally not a Hub tile.
+- `/hub` — exactly eight tiles: Info for Riders, Info for Drivers, Affiliates and Partners (empty placeholder), Our Ethos; Rider Demo, Driver Demo, Dispatch Demo, Partner Portal. Desktop shows two rows of four, with the same reading order on smaller screens. Account sign-in remains in the header.
 - `/dispatch.html` — simulated ride board, map, chat, account directories, ride rates, counts and log export. The public demo Dispatch account is restricted; administrator-only functions remain private.
 - `/driver.html` — browser Driver demo for trip management, chat and static LIGHT/DARK navigation screenshots. A Driver account is required.
 - `/account.html` — choose a Rider, Driver or Dispatch demo role and sign in using `DEMO` / `PASSWORD`, or sign in to an existing private account. Public Rider registration is paused.
 - `/for-customers.html` and `/for-drivers.html` — public statements of NightRider's intended service standards and WIP status, not active transportation offerings.
-- `/map-lab.html` — vector-map preview and local Android Field Test CSV review, with GPS quality and motion diagnostics; it does not change simulated trips.
+- `/ethos.html` — the shared principles behind the rider experience and independent driver tools.
+- `/partner-portal` — public directory of Partner Desk and Affiliate Hub demos, plus clearly labeled protected operator and verified affiliate access. Existing partner URLs remain valid.
 
-The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting. Their Leaflet controls and ride markers remain in place, with a raster fallback if vector rendering fails. See [MAP-APPEARANCE.md](MAP-APPEARANCE.md) and [MAP-LAB.md](MAP-LAB.md) for the map setup and preview.
+The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting. Their Leaflet controls and ride markers remain in place, with a raster fallback if vector rendering fails. The standalone web map preview is retired; old bookmarks return to the Hub. See [MAP-APPEARANCE.md](MAP-APPEARANCE.md) for the operational map setup.
 
 ## Messaging
 
@@ -134,6 +136,6 @@ The frontend is plain HTML, CSS, and JavaScript in `public/`; the Python HTTP se
 
 ## Checks
 
-The map, trace-import and appearance tests run with `node --test tests/*.test.cjs` (the map CI also checks its pinned browser assets). For Python dispatch-map, rider-location and fare checks, set `NIGHTRIDER_REQUIRE_DATABASE=false` and run `python -m unittest discover -s tests -p 'test_*.py' -v`. For the Dispatch private-message notification test, run `node tests/client_notify_check.js`.
+The map, Hub, partner-demo and appearance tests run with `node --test tests/*.test.cjs` (the frontend CI also checks its pinned browser assets). For Python dispatch-map, rider-location and fare checks, set `NIGHTRIDER_REQUIRE_DATABASE=false` and run `python -m unittest discover -s tests -p 'test_*.py' -v`. For the Dispatch private-message notification test, run `node tests/client_notify_check.js`.
 
 GitHub Actions runs these backend/Dispatch tests on relevant changes through `.github/workflows/backend-check.yml`, isolated from production and without Render database credentials. The pre-account anonymous-ride API suite was retired when sign-in became mandatory; full authenticated booking-to-completion integration tests are still needed. Successful source checks are not equivalent to testing real rides on devices.

@@ -67,8 +67,8 @@ test("previous Aero preference survives upgrade and DARK restores Classic", () =
   assert.equal(h.documentElement.dataset.nrUi, "classic");
 });
 
-test("All five web entrypoints load the shared appearance and matching LIGHT font", () => {
-  for (const p of ["index", "dispatch", "driver", "account", "map-lab"]) {
+test("Web entrypoints load the shared appearance and matching LIGHT font", () => {
+  for (const p of ["index", "dispatch", "driver", "account", "hub", "ethos", "partner-portal"]) {
     const page = read("public/" + p + ".html");
     assert.ok(page.includes('href="/aero-theme.css?v=3"'), p);
     assert.ok(page.includes('src="/aero-theme.js?v=2"'), p);

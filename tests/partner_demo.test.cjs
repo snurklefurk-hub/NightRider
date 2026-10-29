@@ -51,8 +51,11 @@ test("different sample partners see only their own offers and demo can reset", (
 test("Hub removes Accounts tile and uses one-click shared demo logins", async () => {
   const html = fs.readFileSync(path.join(publicDir, "hub.html"), "utf8");
   assert.doesNotMatch(html, /<h2>Accounts<\/h2>/);
-  assert.match(html, /href="\/partner-desk-demo"/);
-  assert.match(html, /href="\/affiliate-hub\?demo=1"/);
+  assert.match(html, /href="\/partner-portal"/);
+  const portal = fs.readFileSync(path.join(publicDir, "partner-portal.html"), "utf8");
+  for (const destination of ["/partner-desk-demo", "/affiliate-hub?demo=1", "/partner-desk", "/affiliate-hub"]) {
+    assert.ok(portal.includes('href="' + destination + '"'), destination);
+  }
   const code = html.match(/<script>\s*([\s\S]*?)<\/script>/)[1];
   const sent = [], next = [];
   const roles = ["rider", "driver", "dispatch"];

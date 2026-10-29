@@ -1,4 +1,4 @@
-name: Validate isolated Midnight web map lab
+name: Validate NightRider frontend and operational maps
 
 on:
   workflow_dispatch:
@@ -39,8 +39,6 @@ jobs:
         run: |
           set -e
           for url in \
-            "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.mjs" \
-            "https://unpkg.com/maplibre-gl@6.15.0/dist/maplibre-gl.css" \
             "https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.js" \
             "https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.css" \
             "https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"; do
