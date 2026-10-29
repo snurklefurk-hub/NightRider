@@ -49,10 +49,10 @@
         <p>Coordinate trips, drivers, riders, and conversations.</p>
         <span class="hub-route">/dispatch.html · Dispatch account required</span>
       </a>
-      <a class="card hub-tile" href="/driver.html">
-        <h2>Driver board</h2>
-        <p>View available rides and the driver communication tools.</p>
-        <span class="hub-route">/driver.html · Driver account required</span>
+      <a class="card hub-tile" href="/for-drivers.html">
+        <h2>Info for drivers</h2>
+        <p>Our approach to professionalism, independence, and building a transportation business worth being proud of.</p>
+        <span class="hub-route">Our philosophy · Open to everyone</span>
       </a>
       <a class="card hub-tile" href="/map-lab.html">
         <h2>Map Lab</h2>
@@ -82,8 +82,9 @@
             return;
           }
           session.textContent = "Signed in as " + data.user.display_name + " (" + data.user.role + ")";
-          link.textContent = "Open my workspace";
-          link.href = {rider: "/rider", driver: "/driver.html", dispatch: "/dispatch.html"}[data.user.role] || "/account.html";
+          // Keep the public Hub free of the internal Driver board shortcut.
+          link.textContent = data.user.role === "driver" ? "Info for drivers" : "Open my workspace";
+          link.href = {rider: "/rider", driver: "/for-drivers.html", dispatch: "/dispatch.html"}[data.user.role] || "/account.html";
         })
         .catch(function () { session.textContent = "Sign-in status unavailable"; });
     })();
