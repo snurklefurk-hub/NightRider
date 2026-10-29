@@ -363,6 +363,7 @@
         markers[key].layer.removeLayer(markers[key].marker); delete markers[key];
       }
     });
+    Object.keys(demoUsed).forEach(function (key) { used[key] = true; });
     if (localPosition) {
       syncMarker("dispatch", localPosition.coords, "dispatch", "#f2f0df", "Your dispatch location",
         "<strong>Your dispatch location</strong><br>" + esc(new Date(localPosition.at).toLocaleTimeString()) +
