@@ -6,14 +6,18 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Hub replaces Driver board with public Info for drivers", () => {
+test("Hub keeps driver info and offers authenticated Driver demo", () => {
   const hub = read("public/hub.html");
   assert.match(hub, /<h2>Info for drivers<\/h2>/);
   assert.match(hub, /href="\/for-drivers\.html"/);
   assert.doesNotMatch(hub, /<h2>Driver board<\/h2>/);
-  assert.doesNotMatch(hub, /\/driver\.html/);
-  // Rider, Dispatch, Map Lab, and Account destinations remain intact.
-  for (const destination of ["/rider", "/dispatch.html", "/map-lab.html", "/account.html"]) {
+  assert.match(hub, /data-demo-role="driver" data-demo-target="\/driver\.html"/);
+  assert.doesNotMatch(hub, /href="\/driver\.html"/);
+  // Rider and Dispatch open their shared demo account automatically.
+  for (const destination of ["/rider", "/dispatch.html"]) {
+    assert.ok(hub.includes('data-demo-target="' + destination + '"'), destination);
+  }
+  for (const destination of ["/map-lab.html", "/account.html"]) {
     assert.ok(hub.includes('href="' + destination + '"'), destination);
   }
 });
@@ -45,8 +49,11 @@ test("Hub has separate public customer and driver information destinations", () 
   assert.match(hub, /href="\/for-customers\.html"/);
   assert.match(hub, /<h2>Info for drivers<\/h2>/);
   assert.doesNotMatch(hub, /<h2>Driver board<\/h2>/);
-  // Keep direct rider booking and the other ecosystem modules.
-  for (const link of ["/rider", "/dispatch.html", "/map-lab.html", "/account.html"]) {
+  // Keep rider and dispatch demo paths plus separate information pages.
+  for (const link of ["/rider", "/dispatch.html"]) {
+    assert.ok(hub.includes('data-demo-target="' + link + '"'), link);
+  }
+  for (const link of ["/map-lab.html", "/account.html"]) {
     assert.ok(hub.includes('href="' + link + '"'), link);
   }
 });
