@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071b12"><title>NightRider — Affiliate Hub</title>
+<link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/nightrider.css?v=verdant-1"><link rel="stylesheet" href="/aero-theme.css?v=3">
+<link rel="stylesheet" href="/partner-hub.css?v=1"><script src="/aero-theme.js?v=2"></script></head>
+<body><div class="partner-banner" role="note"><strong>WORK IN PROGRESS · SOFTWARE SIMULATION.</strong> No transportation is offered, no actual rides are booked, and no payment is collected.</div>
+<header><a class="brand" href="/hub">Night<span>Rider</span></a><nav aria-label="Section navigation"><a href="/hub">Hub</a><a href="/partner-desk">Partner Desk</a></nav></header>
+<main class="partner-layout"><div class="partner-intro"><h1>Affiliate Hub</h1><p class="muted">Invite-only workspace for verified transportation partners to propose everyday rides and track responses. An affiliate proposal is not an accepted or confirmed ride.</p></div>
+<div class="partner-alert"><strong>One NightRider service.</strong> Professional transportation in a qualifying four-door vehicle for up to four passengers, without sedan/SUV/luxury selection or upgrades. Extra space is not guaranteed. Luggage fit must be checked before any real assignment.</div>
+<p id="affiliateMessage" class="partner-message" role="status" aria-live="polite">Enter the access key issued by NightRider.</p>
+<section class="partner-panel" id="affiliateLogin"><h2>Verified partner access</h2><form id="keyForm"><label for="partnerKey">Private access key</label><input id="partnerKey" type="password" autocomplete="off" required aria-describedby="keyHelp"><p id="keyHelp" class="partner-small">Your key stays in this page's memory and is not saved in the browser. Ask NightRider Dispatch to approve your company and issue a key.</p><button type="submit" class="primary">Open Affiliate Hub</button></form></section>
+<div id="affiliateWorkspace" class="partner-grid partner-hidden">
+<section class="partner-panel"><h2>Propose a trip</h2><p class="partner-small" id="partnerIdentity"></p><form id="offerForm">
+<label for="tripReference">Your reservation reference</label><input id="tripReference" name="reference" maxlength="80" required>
+<label for="pickup">Pickup location</label><input id="pickup" name="pickup" maxlength="180" required>
+<label for="dropoff">Destination</label><input id="dropoff" name="dropoff" maxlength="180" required>
+<label for="pickupAt">Pickup date &amp; time (local)</label><input id="pickupAt" name="pickup_at_local" type="datetime-local" required>
+<label for="passengers">Passengers (1–4)</label><input id="passengers" name="passengers" type="number" min="1" max="4" value="1" required>
+<label for="bags">Checked bags (0–4, fit to be verified)</label><input id="bags" name="bags" type="number" min="0" max="4" value="0" required>
+<label for="payout">Proposed affiliate compensation (USD)</label><input id="payout" name="payout" type="number" step="0.01" min="0.01" max="10000" required>
+<label for="notes">Pickup instructions (no sensitive passenger details)</label><textarea id="notes" name="notes" maxlength="800"></textarea>
+<label class="partner-check" for="authorized"><input id="authorized" type="checkbox" required> My organization has authority to request this transportation on behalf of the passenger.</label>
+<button class="primary" type="submit">Submit simulated offer</button></form></section>
+<section class="partner-panel"><h2>Your offers</h2><div class="partner-actions"><button type="button" id="refreshAffiliate">Refresh statuses</button><button type="button" id="affiliateLogout">Leave workspace</button></div><div id="affiliateOffers"></div></section>
+</div></main><script src="/affiliate-hub.js?v=1" defer></script><script src="/nightrider-motion.js" defer></script></body></html>
