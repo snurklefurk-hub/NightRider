@@ -1363,7 +1363,7 @@ class Handler(SimpleHTTPRequestHandler):
             # data through the in-memory long-poll event replay buffer.
             with EVENT_COND:
                 EVENTS.clear()
-        record_event("history_purged", kind=kind)
+        record_event("history_purged", history_kind=kind)
         return self.send_json(200, {"ok": True, "kind": kind,
                                     "archive_sha256": digest, "deleted": counts})
 
