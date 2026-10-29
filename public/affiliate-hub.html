@@ -5,10 +5,11 @@
 <link rel="stylesheet" href="/nightrider.css?v=verdant-1"><link rel="stylesheet" href="/aero-theme.css?v=3">
 <link rel="stylesheet" href="/partner-hub.css?v=1"><script src="/aero-theme.js?v=2"></script></head>
 <body><aside class="nr-demo-notice" aria-label="Software demo notice"><strong>WIP · Software demo only.</strong> No transportation services are offered. All trips and payments are simulated. <a href="/hub">NightRider Hub</a>.</aside>
-<header><a class="brand" href="/hub">Night<span>Rider</span></a><nav aria-label="Section navigation"><a href="/hub">Hub</a><a href="/partner-desk">Partner Desk</a></nav></header>
+<header><a class="brand" href="/hub">Night<span>Rider</span></a><nav aria-label="Section navigation"><a href="/hub">Hub</a><a href="/partner-desk-demo">Partner Desk demo</a></nav></header>
 <main class="partner-layout"><div class="partner-intro"><h1>Affiliate Hub</h1><p class="muted">Invite-only workspace for verified transportation partners to propose everyday rides and track responses. An affiliate proposal is not an accepted or confirmed ride.</p></div>
 <div class="partner-alert"><strong>One NightRider service.</strong> Professional transportation in a qualifying four-door vehicle for up to four passengers, without sedan/SUV/luxury selection or upgrades. Extra space is not guaranteed. Luggage fit must be checked before any real assignment.</div>
 <p id="affiliateMessage" class="partner-message" role="status" aria-live="polite">Enter the access key issued by NightRider.</p>
+<section class="partner-panel partner-hidden" id="affiliateDemoControls"><h2>Public demo · simulated partner</h2><p>Browse fictional affiliate requests and try the full workflow. These changes stay in your browser, not NightRider's operational database.</p><label for="demoPartnerPick">Sample transportation company</label><select id="demoPartnerPick"></select><div class="partner-actions"><button type="button" id="affiliateResetDemo">Reset sample data</button><a class="partner-action" href="/partner-desk-demo">Open Partner Desk demo</a><a class="partner-action" href="/affiliate-hub">Verified affiliate sign-in</a></div></section>
 <section class="partner-panel" id="affiliateLogin"><h2>Verified partner access</h2><form id="keyForm"><label for="partnerKey">Private access key</label><input id="partnerKey" type="password" autocomplete="off" required aria-describedby="keyHelp"><p id="keyHelp" class="partner-small">Your key stays in this page's memory and is not saved in the browser. Ask NightRider Dispatch to approve your company and issue a key.</p><button type="submit" class="primary">Open Affiliate Hub</button></form></section>
 <div id="affiliateWorkspace" class="partner-grid partner-hidden">
 <section class="partner-panel"><h2>Propose a trip</h2><p class="partner-small" id="partnerIdentity"></p><form id="offerForm">
@@ -23,4 +24,4 @@
 <label class="partner-check" for="authorized"><input id="authorized" type="checkbox" required> My organization has authority to request this transportation on behalf of the passenger.</label>
 <button class="primary" type="submit">Submit simulated offer</button></form></section>
 <section class="partner-panel"><h2>Your offers</h2><div class="partner-actions"><button type="button" id="refreshAffiliate">Refresh statuses</button><button type="button" id="affiliateLogout">Leave workspace</button></div><div id="affiliateOffers"></div></section>
-</div></main><script src="/affiliate-hub.js?v=1" defer></script><script src="/nightrider-motion.js" defer></script></body></html>
+</div></main><script src="/partner-demo.js?v=1" defer></script><script src="/affiliate-hub.js?v=2" defer></script><script src="/nightrider-motion.js" defer></script></body></html>
