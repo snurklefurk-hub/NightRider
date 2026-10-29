@@ -6,7 +6,7 @@ from unittest.mock import patch
 import server
 
 
-class FakePage:
+class FakePage(server.Handler):
     def __init__(self, url, user=None):
         self.path = url
         self.actor = user
