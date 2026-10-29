@@ -96,6 +96,13 @@
   <div class="card" id="rideBoard">
     <h2>Recent rides</h2>
     <div id="rows" class="ridecards"></div>
+    <section id="demoRideSection" aria-label="Chatham County fictional demo rides" hidden>
+      <h3>Chatham County demo rides</h3>
+      <p class="tiny muted">Fictional passengers and fares, public pickup/drop-off addresses.
+        3 incoming, 5 completed, 2 cancelled. Read-only examples — not real bookings,
+        not driver assignments, and no payments.</p>
+      <div id="demoRideRows" class="ridecards"></div>
+    </section>
     <div class="row">
       <button type="button" class="alt" id="clearRideHistory" hidden>Export &amp; delete ride history</button>
     </div>
@@ -374,6 +381,7 @@
       var all = d.rides || [];
       nrDispatchChat.setRides(all);
       renderRows(all.slice(0, 10));
+      renderDemoRows(d.demo_rides || []);
       renderCounts(all);
       renderRiders();
       $("msg").textContent = "";
@@ -495,7 +503,7 @@
 
   function renderRows(rides) {
     var body = $("rows"); body.innerHTML = "";
-    if (!rides.length) { body.innerHTML = '<p class="muted">No rides yet.</p>'; return; }
+    if (!rides.length) { body.innerHTML = '<p class="muted">No actual simulation rides yet. Fictional examples appear below.</p>'; return; }
     rides.forEach(function (r) {
       var card = document.createElement("details");
       card.className = "ridecard";
@@ -572,6 +580,43 @@
         b.addEventListener("click", function () { cancel(r.id); });
         detail.appendChild(b);
       }
+      card.appendChild(detail);
+      body.appendChild(card);
+    });
+  }
+
+  // Dispatch-only, inert showroom tiles. These are deliberately NOT
+  // passed to Chat, the assignment controls, maps, rider records or drivers.
+  function renderDemoRows(rides) {
+    var section = $("demoRideSection"), body = $("demoRideRows");
+    var examples = (rides || []).filter(function (ride) { return ride.demo_preview === true; });
+    section.hidden = !examples.length;
+    body.replaceChildren();
+    examples.forEach(function (r) {
+      var card = document.createElement("details");
+      card.className = "ridecard";
+      var summary = document.createElement("summary");
+      summary.className = "ride-summary";
+      summary.innerHTML =
+        '<div class="ride-summary-head"><strong class="rid">' + esc(r.id) + '</strong>' +
+        '<span class="status">DEMO · ' + esc(statusWord(r.status)) + '</span>' +
+        '<span class="ride-expand-label">View details</span></div>' +
+        '<div class="ride-summary-meta"><strong>' + esc(r.rider_name) + '</strong>' +
+        '<span>Read-only</span><span>' + money(r.fare) + '</span></div>' +
+        '<div class="ride-summary-route" title="' + esc(r.pickup + " → " + r.dropoff) + '">' +
+        esc(r.pickup) + ' <span aria-hidden="true">→</span> ' + esc(r.dropoff) + '</div>';
+      card.appendChild(summary);
+      var detail = document.createElement("div");
+      detail.className = "ride-detail";
+      detail.innerHTML =
+        '<p class="tiny muted">Fictional demonstration only — no actual passenger,' +
+        ' no dispatch assignment, no alerts, and no payment.</p>' +
+        '<p class="routeline"><span class="muted">From</span> ' + esc(r.pickup) +
+        '<br><span class="muted">To</span> ' + esc(r.dropoff) + '</p>' +
+        '<div class="metaline"><span>' + esc(r.distance_mi) + ' sample mi</span>' +
+        '<span>Fictional fare: ' + money(r.fare) + '</span></div>';
+      var stages = stageBlock(r);
+      if (stages) detail.appendChild(stages);
       card.appendChild(detail);
       body.appendChild(card);
     });

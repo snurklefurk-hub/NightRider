@@ -51,6 +51,27 @@ This uses the browser **File System Access API** (desktop Chromium/Chrome/Edge o
 
 The backend blocks the old direct Driver delete endpoint and accepts deletion only with an administrator-scoped, single-use, short-lived archive grant and a matching history checksum. If a trip is unfinished, history changed, or the token expired, deletion is blocked and the archive must be saved again. Deletion removes the selected **login and its sessions**, not the retained trip ledger; previously pruned/expired records cannot be exported. This does not constitute a broad personal-data erasure request or a substitute for legal retention/compliance handling.
 
+## Chatham County Dispatch showroom rides (software demo only)
+
+Dispatch's **Recent rides** panel includes a separate, read-only set of ten
+fictional Chatham County examples: **three incoming/requested**, **five
+completed**, and **two cancelled**. Passenger names, travel distances, fares,
+and timelines are invented; pickup and drop-off addresses are public venues
+in Savannah, Pooler, Garden City/Tybee Island and remain inside Chatham County.
+
+These examples are *not* ride requests submitted by riders and **are not**
+inserted into the canonical rides collection. They cannot be assigned to a
+driver, texted, cancelled or charged, do not appear in the Android/Driver or
+Rider queues, and do not send new-ride events. Dispatch's normal operational
+counts and map continue to represent only the canonical simulation rides.
+
+The owner-admin's existing **Export & delete ride history** action includes
+these fictitious examples in its local JSON archive and sets a persisted
+cleared marker on successful deletion. They do not return on reload or
+restart. Read-only requested examples are not active trips and do not block
+clearing; real unfinished ride records retain their normal deletion lock.
+Chat-only deletion leaves the sample ride tiles intact.
+
 ## Light and Dark appearance
 
 A single site-wide **LIGHT / DARK** control appears in Rider, Dispatch, the
