@@ -11,7 +11,8 @@ change passwords, delete records, or change shared pricing. Existing administrat
 is retained separately.
 
 The Hub opens Rider, Driver and Dispatch demo tiles with automatic shared-demo
-sign-in. Its single Partner Hub tile leads to a public landing page with
+sign-in. The Affiliates and Partners tile describes future hospitality and
+referral plans; the Partner Hub tile opens the unified landing page with
 account-request and existing-login choices. Account requests are deliberately
 not accepted or provisioned in this demo. Partner offers remain simulations and
 NightRider-side review happens in Dispatch.

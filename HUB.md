@@ -7,8 +7,8 @@ On desktop, show exactly two rows of four tiles in this reading order:
 
 | First row | | | |
 | --- | --- | --- | --- |
-| Info for Riders | Info for Drivers | Partner Hub | Our Ethos |
-| Rider Demo | Driver Demo | Dispatch Demo | Account Sign-in |
+| Info for Riders | Info for Drivers | Affiliates and Partners | Our Ethos |
+| Rider Demo | Driver Demo | Dispatch Demo | Partner Hub |
 
 Keep the same source and keyboard order as the grid becomes two columns or one
 column on smaller screens. Affiliates and Partners now links to a **public
@@ -16,9 +16,10 @@ future-plans information page** at `/for-affiliates.html`. It describes intended
 hospitality/referral and third-party booking capabilities, but offers no active
 transportation or payment services. Account sign-in remains in the header.
 
-Partner Hub is the sole Hub entry for partner visitors. It gives a clear,
-truthful account-request and existing-login choice, but does not accept,
-transmit, or provision account requests. NightRider-side offer work belongs on
+The Affiliates and Partners tile retains its public future-plans information
+page. The separate Partner Hub tile is the single entry point for account-request
+and existing-login choices, but it does not accept, transmit, or provision
+account requests. NightRider-side offer work belongs on
 Dispatch, not on a separate Partner Desk page.
 
 Retire the standalone map preview and its public links. Preserve Rider and

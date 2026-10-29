@@ -6,17 +6,33 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Hub has one Partner Hub tile and keeps its eight destination layout", () => {
+test("Hub preserves approved information copy and the unified Partner Hub destination", () => {
   const hub = read("public/hub.html");
   const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
   assert.deepEqual(tiles.map(tile => tile[3]), [
-    "Info for Riders", "Info for Drivers", "Partner Hub", "Our Ethos",
-    "Rider Demo", "Driver Demo", "Dispatch Demo", "Account Sign-in"
+    "Info for Riders", "Info for Drivers", "Affiliates and Partners", "Our Ethos",
+    "Rider Demo", "Driver Demo", "Dispatch Demo", "Partner Hub"
   ]);
   assert.equal(tiles[2][1], "a");
-  assert.match(tiles[2][2], /href="\/partner-portal"/);
+  assert.match(tiles[2][2], /href="\/for-affiliates\.html"/);
+  assert.match(tiles[2][4], /Plans for hotels and venues: concierge bookings, flexible referral pricing, and a real local dispatcher\./);
+  assert.match(tiles[7][2], /href="\/partner-portal"/);
   assert.equal((hub.match(/href="\/partner-portal"/g) || []).length, 1);
-  assert.match(tiles[7][2], /href="\/account\.html"/);
+  assert.equal((hub.match(/href="\/for-affiliates\.html"/g) || []).length, 1);
+  assert.doesNotMatch(hub, /<h2>Account Sign-in<\/h2>/);
+  assert.match(hub, /<a href="\/account\.html">Account<\/a>/);
+  for (const copy of [
+    "The rider experience we're designing: browser-based booking, clear fares, professional driving, and familiar faces.",
+    "Driver standards, independence, direct customer relationships, and the business behind professional rides.",
+    "Plans for hotels and venues: concierge bookings, flexible referral pricing, and a real local dispatcher.",
+    "Our principles for safer professional rides, rider trust, and a better local transportation industry.",
+    "Create a practice booking, review the fare, and follow trip updates and messages from your browser.",
+    "Explore the Driver board, progress practice rides, and preview the LIGHT and DARK navigation designs.",
+    "See active and past sample rides, driver locations, the Dispatch map, and test conversations."
+  ]) {
+    assert.ok(hub.includes(copy), "Approved Hub copy changed: " + copy);
+  }
+  assert.match(tiles[7][4], /Learn about the future partner workflow, request account consideration, or use an existing partner login/);
   assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(hub, /max-width: 900px/);
   assert.match(hub, /max-width: 520px/);
@@ -40,6 +56,7 @@ test("Partner landing offers non-provisioning request and existing-login flows",
   const hub = read("public/hub.html");
   const portal = read("public/partner-portal.html");
   assert.match(hub, /<h2>Partner Hub<\/h2>/);
+  assert.match(hub, /<h2>Affiliates and Partners<\/h2>/);
   assert.match(portal, /Request account creation/);
   assert.match(portal, /Account requests are not being accepted/);
   assert.match(portal, /href="\/affiliate-hub">Partner login<\/a>/);
@@ -126,7 +143,7 @@ test("Hub previews destinations without repeating the sitewide demo notice", () 
   for (const phrase of [
     "browser-based booking, clear fares",
     "direct customer relationships",
-    "request account consideration, or use an existing partner login",
+    "concierge bookings, flexible referral pricing, and a real local dispatcher",
     "safer professional rides, rider trust, and a better local transportation industry",
     "follow trip updates and messages",
     "preview the LIGHT and DARK navigation designs",
