@@ -1346,8 +1346,9 @@ class Handler(SimpleHTTPRequestHandler):
             before = copy.deepcopy(STORE)
             try:
                 counts = history_purge.purge(STORE, kind)
-                if kind == "chat":
-                    STORE["chat_epoch"] = int(STORE.get("chat_epoch") or 0) + 1
+                # A ride purge also removes ride-linked chat; invalidate cached
+                # messages in every connected browser in either case.
+                STORE["chat_epoch"] = int(STORE.get("chat_epoch") or 0) + 1
                 save(STORE)
             except Exception:
                 STORE.clear()
