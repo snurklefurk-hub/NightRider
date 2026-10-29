@@ -26,33 +26,35 @@
   </style>
 </head>
 <body>
+<aside class="nr-demo-notice" aria-label="Software demo notice"><strong>WIP · Software demo only.</strong> No transportation services are offered. All trips and payments are simulated. <a href="/account.html?demo=rider">Try a test account</a>.</aside>
   <header>
     <a class="brand" href="/hub" aria-current="page">Night<span>Rider</span></a>
     <nav aria-label="Hub navigation">
-      <a href="/rider">Book a ride</a>
+      <a href="/rider">Rider demo</a>
       <a href="/account.html">Account</a>
     </nav>
   </header>
   <main class="hub-main">
     <div class="hub-intro">
       <h1>NightRider Hub</h1>
-      <p class="muted">One front door to the NightRider ecosystem. Choose a destination below. Staff tools require the appropriate account.</p>
+      <p class="muted">NightRider is a work in progress: software demo only, with no transportation services offered. Only the code is live. Riders, drivers, friends, family, and anyone interested are welcome to explore all the features using test data.</p>
+      <p class="muted">Choose Rider, Driver, or Dispatch on the <a href="/account.html">demo sign-in page</a>. Each role uses username <strong>DEMO</strong> and password <strong>PASSWORD</strong>. Public rider account creation is paused.</p>
     </div>
     <div class="hub-grid" aria-label="NightRider destinations">
       <a class="card hub-tile" href="/rider">
         <h2>Rider</h2>
-        <p>Request a trip, see ride progress, and message NightRider.</p>
+        <p>Simulate a trip, follow its practice progress, and try the messaging tools. No driver will come.</p>
         <span class="hub-route">/rider</span>
       </a>
       <a class="card hub-tile" href="/for-customers.html">
         <h2>Info for customers</h2>
-        <p>What a NightRider ride should feel like: comfort, clear expectations, safety, and service worth choosing again.</p>
-        <span class="hub-route">Our promise · Open to everyone</span>
+        <p>Explore the ideas behind the software: comfort, clear expectations, safety, and professionalism.</p>
+        <span class="hub-route">Future intent · Open to everyone</span>
       </a>
       <a class="card hub-tile" href="/dispatch.html">
         <h2>Dispatch</h2>
-        <p>Coordinate trips, drivers, riders, and conversations.</p>
-        <span class="hub-route">/dispatch.html · Dispatch account required</span>
+        <p>Explore simulated trips, demo drivers, and test conversations with limited Dispatch access.</p>
+        <span class="hub-route">/dispatch.html · Demo sign-in available</span>
       </a>
       <a class="card hub-tile" href="/for-drivers.html">
         <h2>Info for drivers</h2>
@@ -64,9 +66,14 @@
         <p>Explore map appearance and navigation diagnostics.</p>
         <span class="hub-route">/map-lab.html · Experimental</span>
       </a>
+      <a class="card hub-tile" href="/account.html?demo=driver">
+        <h2>Driver demo</h2>
+        <p>Try accepting and progressing a simulated trip with the shared Driver test account.</p>
+        <span class="hub-route">DEMO / PASSWORD · Simulation only</span>
+      </a>
       <a class="card hub-tile" href="/account.html">
         <h2>Accounts</h2>
-        <p>Sign in, register as a rider, or manage your password.</p>
+        <p>Choose a demo role and sign in with DEMO / PASSWORD. Public rider registration is paused.</p>
         <span class="hub-route">/account.html</span>
       </a>
     </div>

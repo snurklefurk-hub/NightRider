@@ -7,7 +7,8 @@
 <title>NightRider account</title>
 <link rel="stylesheet" href="nightrider.css?v=verdant-1">
 <style>
-  body { min-height:100vh; display:grid; place-items:center; padding:24px; }
+  body { min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:0; }
+  .account { margin:24px auto; padding:0 18px; }
   .account { width:min(100%,440px); }
   .account .brand { display:block; text-align:center; margin-bottom:22px; font-size:1.45rem; }
   .account .card { padding:24px; }
@@ -24,16 +25,22 @@
   <script src="/aero-theme.js?v=2"></script>
 </head>
 <body>
+<aside class="nr-demo-notice" aria-label="Software demo notice"><strong>WIP · Software demo only.</strong> No transportation services are offered. All trips and payments are simulated. <a href="/account.html?demo=rider">Try a test account</a>.</aside>
 <main class="account">
   <a class="brand" href="/">Night<span>Rider</span></a>
   <section class="card">
     <h1 id="title">Welcome back</h1>
-    <p id="intro" class="muted">Sign in to request or manage NightRider rides.</p>
+    <p id="intro" class="muted">Explore the software with test data only. Public rider registration is paused.</p>
     <div class="tabs" id="tabs">
       <button type="button" id="showLogin">Sign in</button>
-      <button type="button" class="alt" id="showRegister">Create rider account</button>
+      <button type="button" class="alt" id="showDemo">Try demo accounts</button>
     </div>
     <form id="form" autocomplete="on">
+      <div id="demoRow">
+        <label for="demoRole">Demo role</label>
+        <select id="demoRole"><option value="rider">Rider</option><option value="driver">Driver</option><option value="dispatch">Dispatch</option></select>
+        <p class="fine muted">For each role, use username <strong>DEMO</strong> and password <strong>PASSWORD</strong>. Shared test data is visible to other visitors; use fictional details only.</p>
+      </div>
       <div id="displayRow" hidden>
         <label for="displayName">Your name</label>
         <input id="displayName" autocomplete="name" maxlength="60">
@@ -49,7 +56,7 @@
       <button type="submit" id="submit" class="cta">Sign in</button>
       <p class="msg" id="msg" role="status" aria-live="polite"></p>
     </form>
-    <p class="fine muted">NightRider accounts are managed by NightRider. Use at least 8 characters for your password.</p>
+    <p class="fine muted">Demo Dispatch can explore trips and messages, but cannot manage accounts, passwords, deletions, or shared pricing. Existing private accounts can still sign in below.</p>
   </section>
 </main>
 <script>
@@ -60,36 +67,40 @@
   var next = params.get("next");
   if (["/rider", "/index.html", "/driver.html", "/dispatch.html", "/hub"].indexOf(next) < 0) next = "";
   var setupMode = params.get("setup") === "1";
+  var demoRole = params.get("demo") || ({"/driver.html":"driver", "/dispatch.html":"dispatch"}[next]) || "rider";
+  if (["rider", "driver", "dispatch"].indexOf(demoRole) < 0) demoRole = "rider";
+  $("demoRole").value = demoRole;
   var mode = setupMode ? "setup" : "login";
   function go(user) {
-    var dest = next || ({ rider: "/rider", driver: "/driver.html", dispatch: "/dispatch.html" }[user.role] || "/");
+    var roleDestination = { rider: "/rider", driver: "/driver.html", dispatch: "/dispatch.html" }[user.role] || "/";
+    var dest = user.is_demo ? roleDestination : next || roleDestination;
     location.replace(dest);
   }
   function setMode(value) {
     mode = value;
-    var registering = mode === "register" || mode === "setup";
+    var registering = mode === "setup";
     $("displayRow").hidden = !registering;
     $("setupRow").hidden = mode !== "setup";
     $("tabs").hidden = mode === "setup";
-    $("title").textContent = mode === "setup" ? "Set up dispatch" : registering ? "Create your account" : "Welcome back";
+    $("demoRow").hidden = mode === "setup";
+    $("title").textContent = mode === "setup" ? "Set up dispatch" : "Explore NightRider";
     $("intro").textContent = mode === "setup" ? "Create the first dispatch account for this NightRider service." :
-      registering ? "Create a NightRider rider account to request and track rides." : "Sign in to request or manage NightRider rides.";
+      "Sign in to explore simulated trips. No transportation is offered. Public rider registration is paused.";
     $("submit").textContent = mode === "setup" ? "Create dispatch account" : registering ? "Create account" : "Sign in";
     $("password").autocomplete = registering ? "new-password" : "current-password";
     $("msg").textContent = "";
   }
   $("showLogin").addEventListener("click", function () { setMode("login"); });
-  $("showRegister").addEventListener("click", function () { setMode("register"); });
+  function fillDemo() { $("username").value = "DEMO"; $("password").value = "PASSWORD"; setMode("login"); }
+  $("showDemo").addEventListener("click", fillDemo);
   $("form").addEventListener("submit", function (event) {
     event.preventDefault();
     $("submit").disabled = true;
     $("msg").textContent = "Please wait…";
     var body = { username: $("username").value.trim(), password: $("password").value };
+    if (body.username.toUpperCase() === "DEMO") body.demo_role = $("demoRole").value;
     var path = "/api/auth/login";
-    if (mode === "register") {
-      path = "/api/auth/register";
-      body.display_name = $("displayName").value.trim();
-    } else if (mode === "setup") {
+    if (mode === "setup") {
       path = "/api/auth/setup-dispatch";
       body.display_name = $("displayName").value.trim();
       body.setup_token = $("setupToken").value;
@@ -106,8 +117,9 @@
       .finally(function () { $("submit").disabled = false; });
   });
   fetch("/api/auth/me", { cache:"no-store" }).then(function (r) { return r.json(); })
-    .then(function (data) { if (data.user) go(data.user); }).catch(function () {});
+    .then(function (data) { if (data.user && !params.has("demo")) go(data.user); }).catch(function () {});
   setMode(mode);
+  if (!setupMode) fillDemo();
 })();
 </script>
   <script src="/welcome.js?v=4"></script>

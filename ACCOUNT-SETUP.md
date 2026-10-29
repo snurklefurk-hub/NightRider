@@ -3,6 +3,21 @@
 NightRider provides its own sign-in. It does not use Google, Apple, Facebook,
 or another identity provider.
 
+## Current software demo access
+
+No transportation service is offered. On `/account.html`, choose Rider, Driver,
+or Dispatch and use the intentionally public username `DEMO` and password
+`PASSWORD`. These resolve to separate internal accounts in the existing database.
+Startup adds the `is_demo` account flag and seeds those accounts without adopting
+or overwriting any existing account. Demo Dispatch is never the owner/admin,
+including on an empty database. Demo accounts cannot change passwords or manage
+accounts, shared pricing, archives, or deletions. All new trips are simulated,
+including those from existing private accounts.
+
+Public Rider registration is paused server-side and removed from the UI.
+The Android client's existing sign-in request maps `DEMO` to the Driver demo.
+Use fictional details only: friends and family share the same test data.
+
 ## Before deploying
 
 The account system requires PostgreSQL. The Blueprint adds a free Render
@@ -39,8 +54,8 @@ After the database and account-enabled service are running:
 4. From the Dispatch page, create a username, display name, and initial
    password for each driver. Give each driver their details privately.
 
-The initial dispatcher setup is disabled once a dispatch account exists.
-Riders create their own accounts from the sign-in page. Driver accounts are
+The initial dispatcher setup is disabled once a non-demo dispatch account exists.
+Public Rider registration is paused during this software demo. Driver accounts are
 created by dispatch. Dispatch can disable driver accounts and reset passwords.
 If a rider forgets a password, dispatch can reset it after confirming the
 rider's identity separately.

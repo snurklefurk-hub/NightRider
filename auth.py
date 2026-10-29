@@ -8,6 +8,11 @@ import uuid
 
 SESSION_DAYS = 14
 PASSWORD_MIN = 8
+DEMO_PASSWORD = "PASSWORD"  # Intentionally public credentials for the software preview.
+DEMO_ACCOUNTS = {
+    role: {"username": "nightrider-demo-" + role, "display_name": "Demo " + role.title()}
+    for role in ("rider", "driver", "dispatch")
+}
 
 
 def _database_url():
@@ -42,6 +47,7 @@ def initialize():
                 created_at DOUBLE PRECISION NOT NULL
             )
         """)
+        conn.execute("ALTER TABLE nr_users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT FALSE")
         conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS nr_driver_name_unique "
                       "ON nr_users (lower(display_name)) WHERE role='driver'")
         conn.execute("""
@@ -64,8 +70,38 @@ def initialize():
 
 def has_dispatch_user():
     with _connect() as conn:
-        row = conn.execute("SELECT 1 FROM nr_users WHERE role='dispatch' AND enabled=TRUE LIMIT 1").fetchone()
+        row = conn.execute("SELECT 1 FROM nr_users WHERE role='dispatch' AND is_demo=FALSE AND enabled=TRUE LIMIT 1").fetchone()
     return bool(row)
+
+
+def ensure_demo_users():
+    """Seed role-specific preview accounts in the existing account database.
+
+    A conflicting non-demo account is never adopted or overwritten. Marking
+    preview identities in storage keeps their limited permissions intact across
+    restarts, password authentication, and session restoration.
+    """
+    with _connect() as conn:
+        for role, account in DEMO_ACCOUNTS.items():
+            conn.execute(
+                "INSERT INTO nr_users (id,username,display_name,role,password_hash,is_demo,created_at) "
+                "VALUES (%s,%s,%s,%s,%s,TRUE,%s) ON CONFLICT(username) DO NOTHING",
+                (uuid.uuid4().hex, account["username"], account["display_name"], role,
+                 _password_hash(DEMO_PASSWORD), time.time()),
+            )
+            row = conn.execute("SELECT role,is_demo FROM nr_users WHERE username=%s",
+                               (account["username"],)).fetchone()
+            if not row or row[0] != role or not row[1]:
+                raise RuntimeError("Reserved demo username conflicts with an existing account; no account was overwritten")
+
+
+def authenticate_demo(role, password):
+    role = str(role or "").strip().lower()
+    account = DEMO_ACCOUNTS.get(role)
+    if not account:
+        return None
+    user = authenticate(account["username"], password)
+    return user if user and user.get("is_demo") and user["role"] == role else None
 
 
 def _password_hash(password):
@@ -135,14 +171,15 @@ def authenticate(username, password):
     with _connect() as conn:
         row = conn.execute(
             "SELECT id, username, display_name, role, password_hash, "
-            "id=(SELECT id FROM nr_users WHERE role='dispatch' ORDER BY created_at,id LIMIT 1) "
-            "AS dispatch_admin FROM nr_users "
+            "id=(SELECT id FROM nr_users WHERE role='dispatch' AND is_demo=FALSE ORDER BY created_at,id LIMIT 1) "
+            "AS dispatch_admin,is_demo FROM nr_users "
             "WHERE username=%s AND enabled=TRUE", (username,),
         ).fetchone()
     if not row or not _password_matches(str(password or ""), row[4]):
         return None
     return {"id": row[0], "username": row[1], "display_name": row[2],
-            "role": row[3], "dispatch_admin": bool(row[5]) and row[3] == "dispatch"}
+            "role": row[3], "dispatch_admin": bool(row[5]) and row[3] == "dispatch" and not row[6],
+            "is_demo": bool(row[6])}
 
 
 def _token_hash(token):
@@ -165,7 +202,7 @@ def get_session(token):
     with _connect() as conn:
         row = conn.execute(
             "SELECT u.id,u.username,u.display_name,u.role, "
-            "u.id=(SELECT id FROM nr_users WHERE role='dispatch' ORDER BY created_at,id LIMIT 1) "
+            "u.id=(SELECT id FROM nr_users WHERE role='dispatch' AND is_demo=FALSE ORDER BY created_at,id LIMIT 1),u.is_demo "
             "FROM nr_sessions s "
             "JOIN nr_users u ON u.id=s.user_id WHERE s.token_hash=%s "
             "AND s.expires_at>%s AND u.enabled=TRUE", (_token_hash(token), time.time()),
@@ -173,7 +210,8 @@ def get_session(token):
     if not row:
         return None
     return {"id": row[0], "username": row[1], "display_name": row[2],
-            "role": row[3], "dispatch_admin": bool(row[4]) and row[3] == "dispatch"}
+            "role": row[3], "dispatch_admin": bool(row[4]) and row[3] == "dispatch" and not row[5],
+            "is_demo": bool(row[5])}
 
 
 def delete_session(token):
@@ -186,8 +224,10 @@ def change_password(user_id, password):
     if len(str(password or "")) < PASSWORD_MIN or len(str(password)) > 256:
         return False
     with _connect() as conn:
-        conn.execute("UPDATE nr_users SET password_hash=%s WHERE id=%s",
-                     (_password_hash(str(password)), user_id))
+        row = conn.execute("UPDATE nr_users SET password_hash=%s WHERE id=%s AND is_demo=FALSE RETURNING id",
+                           (_password_hash(str(password)), user_id)).fetchone()
+        if not row:
+            return False
         conn.execute("DELETE FROM nr_sessions WHERE user_id=%s", (user_id,))
     return True
 
@@ -198,7 +238,7 @@ def reset_password(user_id, password):
         return False
     with _connect() as conn:
         row = conn.execute(
-            "UPDATE nr_users SET password_hash=%s WHERE id=%s AND role='driver' RETURNING id",
+            "UPDATE nr_users SET password_hash=%s WHERE id=%s AND role='driver' AND is_demo=FALSE RETURNING id",
             (_password_hash(str(password)), user_id)
         ).fetchone()
         if not row:
@@ -217,8 +257,8 @@ def manage_dispatch_staff(user_id, action, value=None):
             return False
     with _connect() as conn:
         row = conn.execute(
-            "SELECT id FROM nr_users WHERE id=%s AND role='dispatch' "
-            "AND id<>(SELECT id FROM nr_users WHERE role='dispatch' "
+            "SELECT id FROM nr_users WHERE id=%s AND role='dispatch' AND is_demo=FALSE "
+            "AND id<>(SELECT id FROM nr_users WHERE role='dispatch' AND is_demo=FALSE "
             "ORDER BY created_at,id LIMIT 1) FOR UPDATE", (user_id,)
         ).fetchone()
         if not row:
@@ -236,7 +276,7 @@ def manage_dispatch_staff(user_id, action, value=None):
 
 
 def list_users(role=None):
-    query = "SELECT id,username,display_name,role,enabled,created_at FROM nr_users"
+    query = "SELECT id,username,display_name,role,enabled,created_at,is_demo FROM nr_users"
     params = ()
     if role:
         query += " WHERE role=%s"
@@ -245,14 +285,14 @@ def list_users(role=None):
     with _connect() as conn:
         rows = conn.execute(query, params).fetchall()
     return [{"id": r[0], "username": r[1], "display_name": r[2],
-             "role": r[3], "enabled": r[4], "created_at": r[5]} for r in rows]
+             "role": r[3], "enabled": r[4], "created_at": r[5], "is_demo": bool(r[6])} for r in rows]
 
 
 def set_user_enabled(user_id, enabled):
     """Legacy driver-account switch: never disable Dispatch or Rider accounts."""
     with _connect() as conn:
         row = conn.execute(
-            "UPDATE nr_users SET enabled=%s WHERE id=%s AND role='driver' RETURNING id",
+            "UPDATE nr_users SET enabled=%s WHERE id=%s AND role='driver' AND is_demo=FALSE RETURNING id",
             (bool(enabled), user_id)
         ).fetchone()
         if not row:
@@ -280,7 +320,7 @@ def delete_rider_user(user_id):
     """Remove Rider login and revoke sessions; historical ride ledger stays."""
     with _connect() as conn:
         row = conn.execute(
-            "DELETE FROM nr_users WHERE id=%s AND role='rider' RETURNING id",
+            "DELETE FROM nr_users WHERE id=%s AND role='rider' AND is_demo=FALSE RETURNING id",
             (user_id,)
         ).fetchone()
     return bool(row)
@@ -290,7 +330,7 @@ def delete_driver_user(user_id):
     """Permanently remove a driver's login and sessions, preserving ride/chat history."""
     with _connect() as conn:
         row = conn.execute(
-            "DELETE FROM nr_users WHERE id=%s AND role='driver' RETURNING id",
+            "DELETE FROM nr_users WHERE id=%s AND role='driver' AND is_demo=FALSE RETURNING id",
             (user_id,),
         ).fetchone()
     return bool(row)

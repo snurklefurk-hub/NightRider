@@ -3,7 +3,7 @@
   var params = new URLSearchParams(location.search);
   var next = params.get("next");
   if (location.pathname.endsWith("/account.html") && (params.get("setup") === "1" || next === "/driver.html" || next === "/dispatch.html")) return;
-  var key = "nightrider.welcome.seen.v1";
+  var key = "nightrider.welcome.seen.demo.v2";
   var seen = false;
   try { seen = !!localStorage.getItem(key); } catch (error) { /* Show once per page when storage is unavailable. */ }
 
@@ -28,17 +28,17 @@
   dialog.setAttribute("aria-labelledby", "nrWelcomeTitle");
   dialog.setAttribute("aria-describedby", "nrWelcomeIntro");
   dialog.innerHTML = `<div class="nr-welcome-inner">
-    <p class="nr-welcome-kicker">A different kind of ride</p>
-    <h2 id="nrWelcomeTitle">Welcome to NightRider</h2>
-    <p class="nr-welcome-intro" id="nrWelcomeIntro">An alternative to the big guys. No surging, no surprises, no downloads, no Indians.</p>
+    <p class="nr-welcome-kicker">Work in progress · Software demo only</p>
+    <h2 id="nrWelcomeTitle">Explore NightRider</h2>
+    <p class="nr-welcome-intro" id="nrWelcomeIntro">NightRider offers no transportation services. Nothing is live except the code, and every trip is simulated.</p>
     <ul class="nr-welcome-list">
-      <li><strong>Real dispatch, real support</strong>With a dispatcher always on duty and always just a text away.</li>
-      <li><strong>Safety during the ride</strong>We don't do calls, at all. Less distractions, less confusion. Text your driver and dispatch through the website.</li>
-      <li><strong>Your data, not ours</strong>Nothing is saved on our servers except a name and ride history. All payments handled on your favorite platform or cash in person</li>
-      <li><strong>Make pickup easier</strong>Search nearby places, drop a pin, or use your location. You can control location sharing.</li>
+      <li><strong>Try all three roles</strong>Select Rider, Driver, or Dispatch on the demo sign-in page. Each uses username DEMO and password PASSWORD.</li>
+      <li><strong>Use test data only</strong>Practice trips and messages are shared test activity. No driver will arrive and no payment is collected.</li>
+      <li><strong>Explore the software</strong>Try maps, trip stages, and messaging with the test accounts. Public rider account creation is paused.</li>
+      <li><strong>Everyone is welcome to explore</strong>Drivers, riders, friends, family, and anyone interested can check out the features.</li>
     </ul>
-    <p class="nr-welcome-pilot">NightRider is currently being tested; ride availability and payment options are not yet final.</p>
-    <button class="cta nr-welcome-button" type="button" id="nrWelcomeContinue">Let’s ride</button>
+    <p class="nr-welcome-pilot">WIP software only. No services are currently offered. <a href="/account.html">Open demo sign-in</a></p>
+    <button class="cta nr-welcome-button" type="button" id="nrWelcomeContinue">Explore the demo</button>
   </div>`;
   document.body.appendChild(dialog);
   function remember() { try { localStorage.setItem(key, "1"); } catch (error) {} }
