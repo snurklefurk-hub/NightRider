@@ -11,10 +11,13 @@ On desktop, show exactly two rows of four tiles in this reading order:
 | Rider Demo | Driver Demo | Dispatch Demo | Partner Portal |
 
 Keep the same source and keyboard order as the grid becomes two columns or one
-column on smaller screens. Affiliates and Partners is an empty, non-interactive
-placeholder; never give it a fake link. Account sign-in remains in the header.
+column on smaller screens. Affiliates and Partners now links to a **public
+future-plans information page** at `/for-affiliates.html`. It describes intended
+hospitality/referral and third-party booking capabilities, but offers no active
+transportation or payment services. Account sign-in remains in the header.
 
-Partner Portal groups the existing public Partner Desk and Affiliate Hub demos
+The Affiliates and Partners information page is **not** Partner Portal. The
+separate Partner Portal groups the existing public Partner Desk and Affiliate Hub demos
 and clearly labels the separate protected administrator and verified affiliate
 entry points. It does not authenticate visitors or grant partner privileges.
 
@@ -38,7 +41,8 @@ feature. The portal consolidates existing access rather than duplicating it.
 ## Acceptance and release
 
 Verify the exact tile order, four desktop columns, smaller-screen reading order,
-LIGHT/DARK and keyboard focus. Check all public links, legacy information links,
+LIGHT/DARK and keyboard focus. Verify the Affiliates and Partners page and its
+working Partner Portal / Hub links, future-only wording, and honest ADA goals. Check all public links, legacy information links,
 demo session preservation and protected partner access with isolated fixtures.
 Run the existing frontend and backend suites and inspect GitHub checks before
 merging. A web merge can redeploy Render; verify the deployed commit, health and

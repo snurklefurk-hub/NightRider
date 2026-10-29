@@ -6,16 +6,17 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Hub has the eight requested destinations and an empty non-interactive partner placeholder", () => {
+test("Hub keeps the eight requested destinations with a public affiliate-info link", () => {
   const hub = read("public/hub.html");
   const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
   assert.deepEqual(tiles.map(tile => tile[3]), [
     "Info for Riders", "Info for Drivers", "Affiliates and Partners", "Our Ethos",
     "Rider Demo", "Driver Demo", "Dispatch Demo", "Partner Portal"
   ]);
-  assert.equal(tiles[2][1], "div");
-  assert.equal(tiles[2][2], "");
-  assert.equal(tiles[2][4].trim(), "");
+  assert.equal(tiles[2][1], "a");
+  assert.match(tiles[2][2], /href="\/for-affiliates\.html"/);
+  assert.match(tiles[2][4], /Future plans for hospitality referrals/);
+  assert.match(hub, /<a class="card hub-tile" href="\/partner-portal">\s*<h2>Partner Portal<\/h2>/);
   assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(hub, /max-width: 900px/);
   assert.match(hub, /max-width: 520px/);
@@ -33,6 +34,43 @@ test("public pages have no retired preview mentions or links, and all local page
       assert.ok(fs.existsSync(path.join(root, "public", target)), name + ": " + pathname);
     }
   }
+});
+
+test("Affiliates and Partners page describes future workflows honestly and retains portal links", () => {
+  const hub = read("public/hub.html");
+  const page = read("public/for-affiliates.html");
+  assert.match(hub, /href="\/for-affiliates\.html"[^>]*>\s*<h2>Affiliates and Partners<\/h2>/);
+  for (const phrase of [
+    "We're looking forward to working with other companies in the future.",
+    "Hotels, resorts, bars, clubs, restaurants",
+    "A third-party portal built for your clientele",
+    "upfront pricing and availability",
+    "SMS message",
+    "one-click account setup or sign-in",
+    "appropriate customer consent",
+    "Concierge fees and flexible pricing",
+    "concierge/front desk fee",
+    "transparent or opaque pricing",
+    "required fare disclosures to riders",
+    "integrate seamlessly into the NightRider ecosystem",
+    "non-emergency medical transportation (NEMT)",
+    "ADA accessibility and nondiscrimination requirements for regular rides.",
+    "Software demo only",
+    "does not currently provide transportation",
+    "create client accounts for partners",
+    "capabilities described here are future design goals"
+  ]) {
+    assert.ok(page.includes(phrase), phrase);
+  }
+  assert.match(page, /href="\/partner-portal"[^>]*>Explore the Partner Portal demos<\/a>/);
+  assert.match(page, /href="\/hub"[^>]*>Back to the Hub<\/a>/);
+  assert.match(page, /aria-current="page"/);
+  assert.match(page, /href="\/aero-theme\.css\?v=3"/);
+  assert.match(page, /src="\/aero-theme\.js\?v=2"/);
+  assert.doesNotMatch(page, /ADA complaint|we are ADA compliant|NEMT is an ADA exemption/i);
+  const portal = read("public/partner-portal.html");
+  assert.match(portal, /href="\/partner-desk-demo"/);
+  assert.match(portal, /href="\/affiliate-hub\?demo=1"/);
 });
 
 test("Hub keeps driver info and offers authenticated Driver demo", () => {
