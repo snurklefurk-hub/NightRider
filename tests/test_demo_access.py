@@ -186,6 +186,26 @@ class DemoAccessTests(unittest.TestCase):
         self.assertEqual(ride["status"], "completed")
         self.assertTrue(ride["simulated"])
 
+    def test_chatham_showroom_is_visible_only_to_dispatch_not_driver_queue(self):
+        self.login("dispatch")
+        code, data = self.call("/api/dispatch/rides")
+        self.assertEqual(code, 200)
+        self.assertEqual(len(data["demo_rides"]), 10)
+        self.assertEqual(len(data["rides"]), 0)
+        self.assertEqual(sum(r["status"] == "requested" for r in data["demo_rides"]), 3)
+        self.login("driver")
+        driver_code, driver_data = self.call("/api/rides")
+        self.assertEqual(driver_code, 200)
+        self.assertEqual(driver_data["rides"], [])
+        self.assertEqual(self.call("/api/rides/NR-DEMO-001/accept", {})[0], 404)
+        self.assertEqual(self.call("/api/dispatch/rides")[0], 403)
+        self.login("rider")
+        rider_code, rider_data = self.call("/api/rides")
+        self.assertEqual(rider_code, 200)
+        self.assertEqual(rider_data["rides"], [])
+        self.assertEqual(self.call("/api/dispatch/rides")[0], 403)
+        self.save.assert_not_called()
+
     def test_existing_rider_bookings_are_also_simulated_and_health_is_public(self):
         auth.create_user("existing-rider", "Existing", "existing-password", "rider")
         self.assertEqual(self.call("/api/auth/login", {"username": "existing-rider", "password": "existing-password"})[0], 200)
