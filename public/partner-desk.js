@@ -4,7 +4,7 @@
   const $ = (id) => document.getElementById(id);
   const message = $("deskMessage");
   const workspace = $("deskWorkspace");
-  const date = (value) => value ? new Date(value * 1000).toLocaleString() : "—";
+  const date = (value) => value ? new Date(value * 1000).toLocaleString() : "-";
   const text = (tag, value, className) => {
     const el = document.createElement(tag);
     el.textContent = String(value == null ? "" : value);

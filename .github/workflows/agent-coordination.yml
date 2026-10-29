@@ -88,11 +88,11 @@ jobs:
               }
               if (matches.length) overlapsExist = true;
               const report = [
-                tag, "## NightRider agent coordination — automated",
+                tag, "## NightRider agent coordination: automated",
                 "Current PR: [#" + pr.number + " " + title(pr) +
                   "](https://github.com/" + owner + "/" + repo + "/pull/" + pr.number + ")",
                 "",
-                matches.length ? "**Overlapping code paths — coordinate before merging!**" :
+                matches.length ? "**Overlapping code paths: coordinate before merging!**" :
                   "**No overlapping non-documentation filenames found in this repository.**",
                 ...matches.map(m => "- PR [#" + m.number + "](https://github.com/" + owner +
                   "/" + repo + "/pull/" + m.number + ") also changes " +
@@ -198,11 +198,11 @@ jobs:
               }
               if (matches.length) overlapsExist = true;
               const report = [
-                tag, "## NightRider agent coordination — automated",
+                tag, "## NightRider agent coordination: automated",
                 "Current PR: [#" + pr.number + " " + title(pr) +
                   "](https://github.com/" + owner + "/" + repo + "/pull/" + pr.number + ")",
                 "",
-                matches.length ? "**Overlapping code paths — coordinate before merging!**" :
+                matches.length ? "**Overlapping code paths: coordinate before merging!**" :
                   "**No overlapping non-documentation filenames found in this repository.**",
                 ...matches.map(m => "- PR [#" + m.number + "](https://github.com/" + owner +
                   "/" + repo + "/pull/" + m.number + ") also changes " +

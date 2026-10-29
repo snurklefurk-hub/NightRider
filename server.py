@@ -1716,7 +1716,7 @@ class Handler(SimpleHTTPRequestHandler):
                 "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
                 "fare_rates": fare_rates,
                 "fare": fare(miles, approach, fare_rates), "status": "requested",
-                "payment_method": "Simulation only — no payment collected",
+                "payment_method": "Simulation only: no payment collected",
                 "simulated": True, "transportation_service": False,
                 "rider_account_id": user["id"] if user else None,
                 "driver": None, "created": time.time(),

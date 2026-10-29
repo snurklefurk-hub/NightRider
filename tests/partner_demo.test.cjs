@@ -48,6 +48,25 @@ test("different sample partners see only their own offers and demo can reset", (
   assert.equal(demo.api("/api/partner-desk").partners.length, 1);
 });
 
+test("Partner Hub demo and Dispatch sample review use the local sandbox only", () => {
+  const portal = fs.readFileSync(path.join(publicDir, "partner-portal.html"), "utf8");
+  const dispatch = fs.readFileSync(path.join(publicDir, "dispatch.html"), "utf8");
+  const script = fs.readFileSync(path.join(publicDir, "dispatch-partner-demo.js"), "utf8");
+  assert.match(portal, /href="\/partner-portal\?demo=1#partner-demo"/);
+  assert.match(portal, /id="partner-demo"[^>]*hidden/);
+  assert.match(portal, /id="offerForm"/);
+  assert.match(portal, /id="affiliateOffers"/);
+  assert.match(portal, /src="\/partner-demo\.js\?v=1"/);
+  assert.match(portal, /src="\/affiliate-hub\.js\?v=3"/);
+  assert.match(dispatch, /id="dispatchSampleOffers"[^>]*hidden/);
+  assert.match(dispatch, /id="dispatchDemoOfferList"/);
+  assert.match(dispatch, /src="\/dispatch-partner-demo\.js\?v=1"/);
+  assert.match(script, /data\.user\.is_demo !== true/);
+  assert.match(script, /demo\.api\("\/api\/partner-desk\/offers\/"/);
+  assert.doesNotMatch(script, /fetch\("\/api\/partner-desk/);
+  assert.match(script, /fetch\("\/api\/auth\/me"/);
+});
+
 test("Hub uses one Partner Hub tile and one-click shared demo logins", async () => {
   const html = fs.readFileSync(path.join(publicDir, "hub.html"), "utf8");
   assert.doesNotMatch(html, /<h2>Accounts<\/h2>/);

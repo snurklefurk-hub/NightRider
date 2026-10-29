@@ -171,7 +171,7 @@ class DemoAccessTests(unittest.TestCase):
         self.assertEqual(code, 201)
         self.assertTrue(ride["simulated"])
         self.assertFalse(ride["transportation_service"])
-        self.assertEqual(ride["payment_method"], "Simulation only — no payment collected")
+        self.assertEqual(ride["payment_method"], "Simulation only: no payment collected")
         ride_id = ride["id"]
         driver = auth.authenticate_demo("driver", "PASSWORD")
         self.login("dispatch")

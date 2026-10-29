@@ -228,7 +228,7 @@
           if (full && next) render(true, false); // Preserve position on history merge.
           status.textContent = "";
         }).catch(function () {
-          status.textContent = "Messages offline — drafts stay here. Retry when connected.";
+          status.textContent = "Messages offline: drafts stay here. Retry when connected.";
         }).then(function () {
           fetching = false;
           if (needHistory) { needHistory = false; refresh(true); }
@@ -285,7 +285,7 @@
         }
         refresh();
       }).catch(function (error) {
-        status.textContent = error.message + " — message not cleared; try Send again.";
+        status.textContent = error.message + ": message not cleared; try Send again.";
       }).then(function () {
         sending = false;
         send.disabled = (active === "rider" && !selectedRide) || (active === "driver" && !selectedDriver);

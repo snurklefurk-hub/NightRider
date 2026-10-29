@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NightRider — Rider software demo</title>
+<title>NightRider | Rider software demo</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.css">
 <link rel="stylesheet" href="/map-theme.css?v=2">
@@ -60,11 +60,11 @@
   <!-- STEP 2: choose ride -->
   <div id="stepOptions" hidden>
     <div class="tripbar">
-      <span class="muted" id="routeLabel">—</span>
-      <span class="num" id="routeStats">—</span>
+      <span class="muted" id="routeLabel">-</span>
+      <span class="num" id="routeStats">-</span>
     </div>
     <div class="farebox">
-      <div class="farerow total"><span>Practice fare — never charged</span><span class="num" id="fareTotal">—</span></div>
+      <div class="farerow total"><span>Practice fare: never charged</span><span class="num" id="fareTotal">-</span></div>
     </div>
     <p class="tiny muted">This creates a simulated trip for testing only. No driver will arrive and no charge will occur. Use fictional trip details.</p>
     <div class="row">
@@ -107,8 +107,8 @@
   <!-- STEP 4: driver on the way / trip -->
   <div id="stepTrip" hidden>
     <div class="tripbar">
-      <span class="muted" id="tripStatus">—</span>
-      <span class="num" id="tripFare">—</span>
+      <span class="muted" id="tripStatus">-</span>
+      <span class="num" id="tripFare">-</span>
     </div>
     <p id="tripCancelledNotice" class="msg" role="alert" hidden></p>
     <p class="tiny muted" id="tripAck"></p>
@@ -116,7 +116,7 @@
     <div class="driverline">
       <div class="avatar" id="driverInitial">?</div>
       <div>
-        <span class="option" style="all:unset"><span class="name" id="driverName" style="display:block;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan)">—</span></span>
+        <span class="option" style="all:unset"><span class="name" id="driverName" style="display:block;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--cyan)">-</span></span>
         <span class="muted" id="driverCar">NightRider vehicle</span>
       </div>
     </div>

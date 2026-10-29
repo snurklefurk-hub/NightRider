@@ -1,4 +1,4 @@
-# Partner offers — software demo
+# Partner offers: software demo
 
 NightRider does not currently provision partner accounts or offer real
 transportation services. The public **Partner Hub** (`/partner-portal`) has a

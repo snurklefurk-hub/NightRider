@@ -1,4 +1,4 @@
-# NightRider messaging — recipients and driver safety
+# NightRider messaging: recipients and driver safety
 
 This document is the shared contract for the website, Dispatch, browser Driver and Android Driver.
 
@@ -6,8 +6,8 @@ This document is the shared contract for the website, Dispatch, browser Driver a
 
 | Sender | Recipient tab | Who can read the message |
 | --- | --- | --- |
-| Rider | Ride messages — Driver + Dispatch | Rider, Dispatch and the currently assigned driver; future assigned drivers inherit shared ride history |
-| Rider | Account messages — Dispatch | The rider account and Dispatch only, including between rides |
+| Rider | Ride messages: Driver + Dispatch | Rider, Dispatch and the currently assigned driver; future assigned drivers inherit shared ride history |
+| Rider | Account messages: Dispatch | The rider account and Dispatch only, including between rides |
 | Driver | Rider | Rider, Dispatch, current driver; future assigned drivers inherit shared ride history |
 | Driver | Dispatch | That driver and Dispatch only, not the rider or other drivers |
 | Driver | Team | Dispatch and all drivers, not riders |
