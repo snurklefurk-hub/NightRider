@@ -1,6 +1,14 @@
 # NightRider
 
-NightRider is a pilot ride dispatch service. Riders request trips on the website, dispatch assigns them, and drivers use either the driver webpage or the separate Android app. All three roles sign in with NightRider accounts.
+NightRider is a work-in-progress software demo. No transportation services are offered,
+and no real rides or payments are available. Friends, family, drivers, riders, and anyone
+interested can explore the simulated workflows using the public test accounts.
+
+Choose Rider, Driver, or Dispatch on `/account.html` and sign in as `DEMO` with password
+`PASSWORD`. Each role maps to its own internal account in the existing application and
+database. Public Rider account creation is paused. Demo Dispatch cannot manage accounts,
+change passwords, delete records, or change shared pricing. Existing administrator access
+is retained separately.
 
 ## The NightRider three-test commit rule
 
