@@ -1,0 +1,3 @@
+/* The Map Lab has its own skin; share the demo notice without importing the app layout. */
+.nr-demo-notice{position:relative;z-index:30;flex:0 0 auto;width:100%;box-sizing:border-box;padding:.55rem 1rem;background:var(--sheet,#0d2025);color:var(--ice,#f3fdfb);border-bottom:2px solid var(--lamp,#ffc36b);text-align:center;font:500 .8rem/1.4 system-ui,sans-serif}
+.nr-demo-notice strong{color:var(--lamp,#ffc36b)}.nr-demo-notice a{color:var(--cyan,#2fe9ff);text-decoration:underline}

@@ -200,7 +200,7 @@
       if (!used.has(key)) { entry.marker.remove(); markers.delete(key); }
     });
     const active = (snapshot.drivers || []).filter(d => d.active).length;
-    summary.textContent = (liveMode ? "LIVE DISPATCH · READ-ONLY" : "DEMO DATA · NO REAL RIDES") +
+    summary.textContent = (liveMode ? "SHARED SIMULATION · READ-ONLY" : "DEMO DATA · NO REAL RIDES") +
       " · " + active + " active driver(s) · " + (snapshot.rides || []).length +
       " ride(s)" + (liveMode && lastLiveSnapshotAt ?
         " · updated " + new Date(lastLiveSnapshotAt).toLocaleTimeString() : "");

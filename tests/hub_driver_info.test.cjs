@@ -18,16 +18,17 @@ test("Hub replaces Driver board with public Info for drivers", () => {
   }
 });
 
-test("Driver info page expresses standards, economics and realistic project maturity", () => {
+test("Driver info page expresses future standards and a software-only preview", () => {
   const page = read("public/for-drivers.html");
   for (const phrase of [
     "A professional ride should feel professional.",
     "The standard comes first.",
     "No race to the bottom.",
     "Your business. Your reputation. Your customers.",
-    "How we intend to grow",
+    "What you can explore today",
     "appropriate licensing and insurance",
-    "Broader driver deployment and regional partnerships are goals"
+    "No transportation services are offered",
+    "all trips are simulated"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -50,17 +51,18 @@ test("Hub has separate public customer and driver information destinations", () 
   }
 });
 
-test("Customer page explains NightRider standards without promising guaranteed coverage", () => {
+test("Customer page explains design aspirations and simulated use without offering service", () => {
   const page = read("public/for-customers.html");
   for (const phrase of [
-    "A ride you can feel good about booking.",
+    "The idea: a ride you could feel good about booking.",
     "Clean, comfortable, and calm.",
     "Know what to expect.",
     "Clarity beats gimmicks.",
     "A familiar driver beats another mystery ride.",
     "No separate customer app to download.",
-    "A request isn't a guaranteed ride",
-    "not a nationwide fleet or an always-available on-demand network"
+    "No transportation services are offered",
+    "all trips are simulated",
+    "Nothing is live except the code"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
@@ -70,4 +72,20 @@ test("Customer page explains NightRider standards without promising guaranteed c
   assert.match(page, /href="\/aero-theme\.css\?v=3"/);
   assert.match(page, /src="\/aero-theme\.js\?v=2"/);
   assert.ok(page.includes('name="viewport"'));
+});
+
+test("Public demo entry points publish all three roles without active-service or signup claims", () => {
+  const hub = read("public/hub.html");
+  const customers = read("public/for-customers.html");
+  const drivers = read("public/for-drivers.html");
+  const welcome = read("public/welcome.js");
+  assert.ok(hub.includes('/account.html?demo=driver'));
+  assert.ok(customers.includes('/account.html?demo=rider'));
+  assert.ok(drivers.includes('/account.html?demo=driver'));
+  for (const source of [hub, customers, drivers, welcome]) {
+    assert.match(source, /DEMO/);
+    assert.match(source, /PASSWORD/);
+    assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
+    assert.doesNotMatch(source, /We're growing carefully|evolving pilot|always on duty|register as a rider|no Indians/i);
+  }
 });

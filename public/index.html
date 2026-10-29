@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NightRider — Request a ride</title>
+<title>NightRider — Rider software demo</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.17.0/dist/maplibre-gl.css">
 <link rel="stylesheet" href="/map-theme.css?v=2">
@@ -14,6 +14,7 @@
 <script src="/nr-chat.js"></script>
 </head>
 <body class="rider">
+<aside class="nr-demo-notice" aria-label="Software demo notice"><strong>WIP · Software demo only.</strong> No transportation services are offered. All trips and payments are simulated. <a href="/account.html?demo=rider">Try a test account</a>.</aside>
 <header>
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
@@ -63,11 +64,11 @@
       <span class="num" id="routeStats">—</span>
     </div>
     <div class="farebox">
-      <div class="farerow total"><span>Estimated total</span><span class="num" id="fareTotal">—</span></div>
+      <div class="farerow total"><span>Practice fare — never charged</span><span class="num" id="fareTotal">—</span></div>
     </div>
-    <p class="tiny muted">Please request rides you intend to take. Repeated rider cancellations may lead to account suspension or required prepayment for future rides.</p>
+    <p class="tiny muted">This creates a simulated trip for testing only. No driver will arrive and no charge will occur. Use fictional trip details.</p>
     <div class="row">
-      <button type="button" class="cta" id="requestBtn" disabled>Request NightRide</button>
+      <button type="button" class="cta" id="requestBtn" disabled>Simulate NightRide</button>
       <button type="button" class="alt" id="backBtn" style="flex:0 0 auto;margin-left:0">Edit trip</button>
     </div>
     <p class="msg" id="optMsg"></p>
@@ -76,18 +77,18 @@
   <!-- Payment picker: shown before a ride request is actually sent -->
   <div id="payModal" class="modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="payTitle">
-      <p class="prompt" id="payTitle">Choose how you'll pay</p>
-      <p class="muted">Pick a payment method before sending your ride request.</p>
+      <p class="prompt" id="payTitle">Practice payment method</p>
+      <p class="muted">Simulation only. No payment details are collected, no charge occurs, and no transportation is requested.</p>
       <div class="paylist" id="payList">
         <button type="button" class="payopt" data-method="Cash App"><span class="payname">Cash App</span><span class="tiny muted">Placeholder</span></button>
         <button type="button" class="payopt" data-method="PayPal"><span class="payname">PayPal</span><span class="tiny muted">Placeholder</span></button>
         <button type="button" class="payopt" data-method="Zelle"><span class="payname">Zelle</span><span class="tiny muted">Placeholder</span></button>
         <button type="button" class="payopt" data-method="Venmo"><span class="payname">Venmo</span><span class="tiny muted">Placeholder</span></button>
-        <button type="button" class="payopt" data-method="Cash"><span class="payname">Cash</span><span class="tiny muted">Pay the driver directly</span></button>
+        <button type="button" class="payopt" data-method="Cash"><span class="payname">Cash</span><span class="tiny muted">Simulated only</span></button>
       </div>
       <p class="msg" id="payMsg"></p>
       <div class="row">
-        <button type="button" class="cta" id="payConfirm" disabled>Send request</button>
+        <button type="button" class="cta" id="payConfirm" disabled>Start simulation</button>
         <button type="button" class="alt" id="payCancel" style="flex:0 0 auto;margin-left:0">Back</button>
       </div>
     </div>
@@ -95,8 +96,8 @@
 
   <!-- STEP 3: matching -->
   <div id="stepMatching" hidden>
-    <p class="prompt"><span class="pulse" aria-hidden="true"></span>Finding your driver</p>
-    <p class="muted">Matching you with a nearby NightRider. Keep this page open.</p>
+    <p class="prompt"><span class="pulse" aria-hidden="true"></span>Simulation in progress</p>
+    <p class="muted">Explore assignment and trip progress with the Driver and Dispatch demo accounts. No driver will arrive.</p>
     <p class="tiny muted" id="ackMsg">Sending your request to dispatch…</p>
     <div class="row">
       <button type="button" class="alt" id="cancelMatch" style="margin-left:0">Cancel request</button>
@@ -130,7 +131,7 @@
     </ul>
     <div class="row">
       <button type="button" class="alt" id="cancelTrip" style="margin-left:0">Cancel ride</button>
-      <button type="button" id="newRide" hidden>Book another</button>
+      <button type="button" id="newRide" hidden>Simulate another</button>
     </div>
     <p class="msg" id="tripMsg"></p>
     <div id="riderRatingCard" class="farebox" hidden>
@@ -629,8 +630,7 @@
       cancelledNotice.textContent = "";
     }
     $("tripAck").textContent = ackLine(ride);
-    $("tripBreakdown").textContent = "Total fare " + money(ride.fare) +
-      (ride.payment_method ? "  \u00b7  Pay by " + ride.payment_method : "");
+    $("tripBreakdown").textContent = "Simulated fare " + money(ride.fare) + " · No payment collected";
     $("driverName").textContent = ride.driver || "Pending";
     $("driverInitial").textContent = (ride.driver || "?").charAt(0).toUpperCase();
     $("driverCar").textContent = (ride.status === "completed" || ride.status === "cancelled") ? "Trip closed" : "NightRider vehicle \u00b7 " + ride.distance_mi + " mi";
@@ -722,7 +722,7 @@
 
   function cancelRide() {
     if (!state.rideId) { return; }
-    if (!window.confirm("Cancel this ride? Repeated rider cancellations may lead to account suspension or required prepayment for future rides.")) { return; }
+    if (!window.confirm("Cancel this simulated trip? No transportation or payment is involved.")) { return; }
     fetch("/api/rides/" + state.rideId + "/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" })
       .then(function () { stopLive(); resetAll(); });
   }

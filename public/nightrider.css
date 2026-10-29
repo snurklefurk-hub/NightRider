@@ -17,6 +17,10 @@
   --block-lift:0 12px 30px rgba(0,0,0,.34);
 }
 *{box-sizing:border-box}
+.nr-demo-notice{position:relative;z-index:30;flex:0 0 auto;width:100%;padding:.55rem 1rem;background:var(--sheet);color:var(--ice);border-bottom:2px solid var(--lamp);text-align:center;font:500 .8rem/1.4 system-ui,sans-serif}
+.nr-demo-notice strong{color:var(--lamp)}.nr-demo-notice a{color:var(--cyan);text-decoration:underline}
+/* Keep the map usable when the persistent demo notice wraps on a small screen. */
+body.rider #map{min-height:140px}body.rider .sheet{flex-shrink:1;min-height:0}
 html,body{height:100%}
 body{margin:0;min-height:100vh;color:var(--ice);
   background:linear-gradient(180deg,#071b12 0%,#0b2419 55%,#0e2b1e 100%);

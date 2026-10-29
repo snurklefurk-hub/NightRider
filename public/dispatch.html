@@ -15,6 +15,7 @@
 <script src="/nr-chat.js"></script>
 </head>
 <body class="dispatch">
+<aside class="nr-demo-notice" aria-label="Software demo notice"><strong>WIP · Software demo only.</strong> No transportation services are offered. All trips and payments are simulated. <a href="/account.html?demo=dispatch">Try a test account</a>.</aside>
 <header>
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
@@ -24,10 +25,10 @@
   </nav>
 </header>
 <main class="dispatch-main">
-  <h1>Dispatch</h1>
+  <h1>Dispatch software demo</h1>
 
   <div class="card" id="dispatchStatus">
-    <p class="muted">Live board. Dispatch holds a connection open and is woken the instant a rider
+    <p class="muted">Software demonstration board. Dispatch holds a connection open and is woken the instant a test rider
       requests a ride — no polling every few seconds. Each incoming request is acknowledged back to
       the rider as a handshake, so nothing is silently dropped.</p>
     <div class="dispatch-refresh-row">
@@ -39,7 +40,7 @@
 
   <section class="card dispatch-map-card" id="dispatchMapCard" aria-labelledby="dispatchMapTitle">
     <div class="dispatch-map-heading">
-      <h2 id="dispatchMapTitle">Live map</h2>
+      <h2 id="dispatchMapTitle">Simulation map</h2>
       <div class="dispatch-map-actions">
         <button type="button" class="alt" id="mapFitAll">Fit all</button>
         <button type="button" class="alt" id="mapDispatchLocation" aria-pressed="false">Show my location</button>
@@ -56,7 +57,7 @@
       <label class="map-layer-toggle"><input type="checkbox" id="mapShowDispatch" checked> Dispatch</label>
       <label class="map-layer-toggle"><input type="checkbox" id="mapShowRoutes" checked> Routes</label>
     </div>
-    <div id="dispatchMap" class="dispatch-map-canvas" role="region" aria-label="Live dispatch map showing drivers, ride endpoints, routes and shared rider locations"></div>
+    <div id="dispatchMap" class="dispatch-map-canvas" role="region" aria-label="Simulation map showing test drivers, ride endpoints, routes and shared rider locations"></div>
     <div id="dispatchMapCredit" class="nr-map-credit nr-map-credit-dispatch" aria-label="Map data attribution">
       <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
       · <a href="https://openmaptiles.org/" target="_blank" rel="noopener noreferrer">© OpenMapTiles</a>
@@ -175,7 +176,7 @@
           <input id="priceMultiplier" type="number" min="0.01" max="100" step="0.01" required>
         </label>
       </div>
-      <button type="submit" id="pricingSave">Save prices</button>
+      <button type="submit" id="pricingSave" hidden>Save prices</button>
       <p id="pricingMsg" class="msg" role="status" aria-live="polite"></p>
     </form>
   </div>
@@ -213,7 +214,7 @@
     </div>
       <div class="card" id="driverAdmin">
     <h2>Driver accounts</h2>
-    <form id="driverAccountForm">
+    <form id="driverAccountForm" hidden>
       <div class="row">
         <label>Driver name<input id="newDriverName" autocomplete="name" maxlength="60" required></label>
         <label>Username<input id="newDriverUser" autocomplete="off" minlength="3" maxlength="120" required></label>
@@ -270,6 +271,7 @@
     "at_dropoff", "completed", "cancelled"];
   var CFG = { statusLabels: {} };
   var canDeleteAccounts = false;
+  var canManageAccounts = false;
   function statusWord(s) { return CFG.statusLabels[s] || s; }
   var cursor = 0;          /* last event seq we have seen */
   var expandedRideIds = {};
@@ -726,13 +728,13 @@
               method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({enabled:!u.enabled})
             }).then(refreshDriverAccounts).catch(function () {});
           });
-          row.appendChild(button);
+          if (canManageAccounts) row.appendChild(button);
           var reset = document.createElement("button");
           reset.type = "button";
           reset.className = "alt";
           reset.textContent = "Reset password";
           reset.addEventListener("click", function () { resetAccountPassword(u); });
-          row.appendChild(reset);
+          if (canManageAccounts) row.appendChild(reset);
           if (canDeleteAccounts) {
             var remove = document.createElement("button");
             remove.type = "button";
@@ -803,7 +805,7 @@
         var reset = document.createElement("button"); reset.type = "button"; reset.className = "alt";
         reset.textContent = "Reset password";
         reset.addEventListener("click", function () { resetAccountPassword(user); });
-        actionCell.appendChild(reset);
+        if (canManageAccounts) actionCell.appendChild(reset);
         if (canDeleteAccounts) {
           var remove = document.createElement("button");
           remove.type = "button"; remove.className = "alt";
@@ -1166,8 +1168,14 @@
 
   api("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); })
     .then(function (data) {
-      canDeleteAccounts = Boolean(data.user && data.user.role === "dispatch" && data.user.dispatch_admin === true);
-      if (canDeleteAccounts) {
+      canManageAccounts = Boolean(data.user && !data.user.is_demo);
+      canDeleteAccounts = Boolean(canManageAccounts && data.user.role === "dispatch" && data.user.dispatch_admin === true);
+      $("driverAccountForm").hidden = !canManageAccounts;
+      $("pricingSave").hidden = !canManageAccounts;
+      ["priceFlagDrop", "priceApproach", "priceTrip", "priceMultiplier"].forEach(function (id) {
+        $(id).readOnly = !canManageAccounts;
+      });
+      if (data.user) {
         refreshDriverAccounts();
         refreshRiderAccounts();
       }
@@ -1190,7 +1198,7 @@
 <script>
 fetch("/api/auth/me", {cache:"no-store"}).then(function (r) { return r.json(); }).then(function (d) {
   if (d.user) document.getElementById("sessionName").textContent = d.user.display_name;
-  if (d.user && d.user.role === "dispatch" && d.user.dispatch_admin === true) {
+  if (d.user && !d.user.is_demo && d.user.role === "dispatch" && d.user.dispatch_admin === true) {
     document.getElementById("dispatchStaffOpen").hidden = false;
   }
 }).catch(function () {});

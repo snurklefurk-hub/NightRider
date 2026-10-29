@@ -1,6 +1,6 @@
 # NightRider deployment
 
-The live website is served by Render from this GitHub repository. Review
+The software demo is served by the existing Render service from this GitHub repository. No transportation services are offered. Review
 **ACCOUNT-SETUP.md** before deploying the account-enabled revision.
 
 ## Render Blueprint resources
@@ -34,7 +34,7 @@ dispatch account; remove it from Render after setup.
 4. Remove the setup token from Render and save the environment change.
 5. On the Dispatch page, create driver accounts and give each driver their
    username and initial password privately.
-6. Riders use **Create rider account** on the sign-in page.
+6. Visitors choose Rider, Driver, or Dispatch on the sign-in page and use the public `DEMO` / `PASSWORD` credentials. Rider registration is paused and trips are always simulated. The startup migration adds `nr_users.is_demo` and seeds three demo accounts; it does not replace private accounts or create a separate service/database.
 
 See **ACCOUNT-SETUP.md** for role behavior, account recovery, and the one-time
 ride-data migration details.

@@ -123,6 +123,7 @@ if os.environ.get("NIGHTRIDER_REQUIRE_DATABASE", "true").lower() == "true" and n
     raise RuntimeError("DATABASE_URL is required; set it in the Render environment before deploying")
 if os.environ.get("DATABASE_URL", "").strip():
     auth.initialize()
+    auth.ensure_demo_users()
 STORE = ensure_store(load())
 
 DRIVER_CHAT_COLORS = [
@@ -877,28 +878,7 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/auth/me":
             return self.send_json(200, {"user": self.user()})
         if path == "/api/auth/register":
-            now = time.time()
-            ip = self.client_address[0]
-            recent = [stamp for stamp in SIGNUP_ATTEMPTS.get(ip, []) if now - stamp < 3600]
-            if len(recent) >= 10:
-                SIGNUP_ATTEMPTS[ip] = recent
-                return self.send_json(429, {"error": "Too many accounts created from this connection. Try again later."})
-            recent.append(now)
-            SIGNUP_ATTEMPTS[ip] = recent
-            user, error = auth.create_user(data.get("username"), data.get("display_name"),
-                                           data.get("password"), "rider")
-            if error:
-                return self.send_json(400, {"error": error})
-            token = auth.create_session(user["id"])
-            self.send_response(201)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Cache-Control", "no-store")
-            self.set_session_cookie(token)
-            body = json.dumps({"user": user}).encode()
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-            return
+            return self.send_json(403, {"error": "Public Rider account creation is paused. Use the demo account to explore this software preview."})
         if path == "/api/auth/login":
             key = (self.client_address[0], auth.normalize_username(data.get("username")))
             now = time.time()
@@ -907,7 +887,13 @@ class Handler(SimpleHTTPRequestHandler):
                 LOGIN_FAILURES[key] = failures
                 if len(failures) >= 8:
                     return self.send_json(429, {"error": "Too many sign-in attempts. Wait 15 minutes and try again."})
-            user = auth.authenticate(data.get("username"), data.get("password"))
+            if auth.normalize_username(data.get("username")) == "demo":
+                demo_role = data.get("demo_role")
+                if not demo_role and self.headers.get("X-NightRider-Client") == "android":
+                    demo_role = "driver"
+                user = auth.authenticate_demo(demo_role, data.get("password"))
+            else:
+                user = auth.authenticate(data.get("username"), data.get("password"))
             if not user:
                 with LOGIN_FAILURES_LOCK:
                     LOGIN_FAILURES.setdefault(key, []).append(now)
@@ -949,6 +935,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
             return
         if path == "/api/auth/setup-dispatch":
+            actor = self.user()
+            if actor and actor.get("is_demo"):
+                return self.send_json(403, {"error": "Demo accounts cannot manage accounts or initial setup."})
             setup = os.environ.get("NIGHTRIDER_SETUP_TOKEN", "")
             if not setup or auth.has_dispatch_user() or not self.secrets_compare(data.get("setup_token"), setup):
                 return self.send_json(403, {"error": "Initial setup is unavailable."})
@@ -970,6 +959,8 @@ class Handler(SimpleHTTPRequestHandler):
             user = self.require_role("rider", "driver", "dispatch")
             if not user:
                 return
+            if user.get("is_demo"):
+                return self.send_json(403, {"error": "Demo accounts cannot change passwords."})
             if not auth.authenticate(user["username"], data.get("current_password")):
                 return self.send_json(401, {"error": "Current password is incorrect."})
             if not auth.change_password(user["id"], data.get("new_password")):
@@ -1219,7 +1210,7 @@ class Handler(SimpleHTTPRequestHandler):
     def prepare_account_archive(self, qs):
         """Issue an expiring export token. Never delete before a local save."""
         actor = self.user()
-        if not actor or actor["role"] != "dispatch" or not actor.get("dispatch_admin"):
+        if not actor or actor.get("is_demo") or actor["role"] != "dispatch" or not actor.get("dispatch_admin"):
             return self.send_json(403, {"error": "Dispatch administrator required."})
         role = _first(qs, "role")
         account_id = _first(qs, "id")
@@ -1252,7 +1243,7 @@ class Handler(SimpleHTTPRequestHandler):
     def delete_account_after_archive(self, data):
         """Reject destructive calls lacking a freshly validated archive grant."""
         actor = self.user()
-        if not actor or actor["role"] != "dispatch" or not actor.get("dispatch_admin"):
+        if not actor or actor.get("is_demo") or actor["role"] != "dispatch" or not actor.get("dispatch_admin"):
             return self.send_json(403, {"error": "Dispatch administrator required."})
         if not isinstance(data, dict):
             return self.send_json(400, {"error": "Invalid deletion request."})
@@ -1305,11 +1296,12 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(200, {"users": auth.list_users("driver")})
         if path == "/api/dispatch/staff":
             actor = self.user()
-            if not actor or not actor.get("dispatch_admin"):
+            if not actor or actor.get("is_demo") or not actor.get("dispatch_admin"):
                 return self.send_json(403, {"error": "Dispatch administrator required."})
             users = auth.list_users("dispatch")
-            if users:
-                owner_id = min(users, key=lambda item: (item["created_at"], item["id"]))["id"]
+            admins = [item for item in users if not item.get("is_demo")]
+            if admins:
+                owner_id = min(admins, key=lambda item: (item["created_at"], item["id"]))["id"]
                 for staff in users:
                     staff["dispatch_admin"] = staff["id"] == owner_id
             return self.send_json(200, {"users": users})
@@ -1428,6 +1420,9 @@ class Handler(SimpleHTTPRequestHandler):
                 # without a code change); otherwise use the built-in key.
                 key = os.environ.get("CARTO_API_KEY", DEFAULT_CARTO_KEY).strip()
                 return self.send_json(200, {
+                    "softwareDemo": True,
+                    "transportationServicesOffered": False,
+                    "riderRegistrationOpen": False,
                     "cartoKey": key,
                     "geoapifyKey": os.environ.get("GEOAPIFY_BROWSER_KEY", "").strip(),
                     # Country filter for address lookup, so results stay local.
@@ -1573,9 +1568,8 @@ class Handler(SimpleHTTPRequestHandler):
             pickup = clean_text(data.get("pickup"))
             dropoff = clean_text(data.get("dropoff"))
             name = user["display_name"] if user else clean_text(data.get("rider_name"), 60)
-            # The rider picks a payment method in the popup before the request
-            # is sent; store it with the ride so dispatch and the driver see it.
-            payment = clean_text(data.get("payment_method"), 30) or "Unspecified"
+            # The preview cannot create a real transportation or payment order,
+            # regardless of which account or client submits the request.
             try:
                 miles = float(data.get("distance_mi", 0))
             except (TypeError, ValueError):
@@ -1604,7 +1598,9 @@ class Handler(SimpleHTTPRequestHandler):
                 "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
                 "fare_rates": fare_rates,
                 "fare": fare(miles, approach, fare_rates), "status": "requested",
-                "payment_method": payment, "rider_account_id": user["id"] if user else None,
+                "payment_method": "Simulation only — no payment collected",
+                "simulated": True, "transportation_service": False,
+                "rider_account_id": user["id"] if user else None,
                 "driver": None, "created": time.time(),
                 "status_log": [{"status": "requested", "at": time.time()}],
             }
@@ -1657,6 +1653,14 @@ class Handler(SimpleHTTPRequestHandler):
             user = self.require_role("dispatch")
             if os.environ.get("DATABASE_URL", "").strip() and not user:
                 return
+            if user and user.get("is_demo"):
+                # Default-deny all administrative mutations. Only the existing
+                # simulated ride and messaging workflow is available publicly.
+                allowed = ((len(parts) == 3 and parts[2] == "message") or
+                           (len(parts) == 5 and parts[2] == "rides" and parts[4] in ("assign", "ack")) or
+                           (len(parts) == 5 and parts[2] == "drivers" and parts[4] == "message"))
+                if not allowed:
+                    return self.send_json(403, {"error": "Demo Dispatch cannot manage accounts, passwords, pricing, or destructive operations."})
             if len(parts) == 3 and parts[2] == "account-deletion":
                 return self.delete_account_after_archive(data)
             if len(parts) == 3 and parts[2] == "pricing":
