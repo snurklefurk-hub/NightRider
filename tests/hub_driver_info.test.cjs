@@ -53,6 +53,11 @@ test("Affiliates and Partners page describes future workflows honestly and retai
     "transparent or opaque pricing",
     "required fare disclosures to riders",
     "integrate seamlessly into the NightRider ecosystem",
+    "A real local company. A real dispatcher.",
+    "You're not just sending a ride request out into the aether",
+    "real local transportation company",
+    "live dispatcher always on duty while we're accepting bookings",
+    "Your request won't just disappear into an algorithm.",
     "non-emergency medical transportation (NEMT)",
     "ADA accessibility and nondiscrimination requirements for regular rides.",
     "Software demo only",
@@ -68,6 +73,12 @@ test("Affiliates and Partners page describes future workflows honestly and retai
   assert.match(page, /href="\/aero-theme\.css\?v=3"/);
   assert.match(page, /src="\/aero-theme\.js\?v=2"/);
   assert.doesNotMatch(page, /ADA complaint|we are ADA compliant|NEMT is an ADA exemption/i);
+  const localSection = page.indexOf('id="affiliate-local-dispatch"');
+  assert.ok(localSection > page.indexOf('id="affiliate-pricing"'));
+  assert.ok(localSection < page.indexOf('id="affiliate-accessibility"'));
+  assert.match(page, /<strong>live dispatcher always on duty while we're accepting bookings<\/strong>/);
+  assert.ok(page.includes("When NightRider begins offering transportation"));
+  assert.doesNotMatch(page, /our dispatcher is on duty now|book a real ride today|24\/7 dispatch available now/i);
   const portal = read("public/partner-portal.html");
   assert.match(portal, /href="\/partner-desk-demo"/);
   assert.match(portal, /href="\/affiliate-hub\?demo=1"/);
