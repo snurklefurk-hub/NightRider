@@ -25,6 +25,15 @@
 .nr-map-pin{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:2px solid #f2f0df;border-radius:8px;background:#071b12;color:var(--pin-color);font-size:12px;font-weight:900;font-family:system-ui,sans-serif;box-shadow:0 2px 8px #0009,0 0 0 3px color-mix(in srgb,var(--pin-color) 35%,transparent)}
 .nr-map-pin.pickup,.nr-map-pin.rider{border-radius:50%}.nr-map-pin.dispatch{border-radius:50%;background:#f2f0df;color:#071b12}
 .nr-map-pin.pickup{background:#0e3a29}.nr-map-pin.dropoff{background:#3a1b18}.nr-map-pin.rider{background:#3b3016}
+.nr-map-pin.pair{width:38px;height:38px;border-radius:50%;background:#40341b;color:#fff0bc;font-size:11px;letter-spacing:-.03em;border:3px solid #f4b860;box-shadow:0 0 0 4px rgba(244,184,96,.34),0 4px 10px #000a}
+.nr-map-marker.is-demo .nr-map-pin{border-style:dashed;box-shadow:0 0 0 2px rgba(139,188,255,.35),0 2px 8px #0009}
+.nr-map-marker.is-demo .nr-map-pin.pair{border-style:solid;box-shadow:0 0 0 4px rgba(139,188,255,.38),0 4px 10px #000a}
+.legend-dot.demo{background:#8bbcff;border-style:dashed}
+.legend-dot.pair{background:#f4b860;width:17px;height:17px;display:inline-flex;align-items:center;justify-content:center}
+#liveDispatchBoard{min-width:0}
+#liveDispatchBoard h2,#rideBoard h2{margin-top:0}
+#liveDispatchBoard h3,#demoRideSection h3{font-size:.88rem;margin:1rem 0 .35rem}
+#liveDispatchBoard .ridecards,#rideBoard .ridecards{margin:.4rem 0}
 .nr-map-marker.is-stale{opacity:.45;filter:grayscale(.6)}
 #dispatchMap .leaflet-popup-content-wrapper,#dispatchMap .leaflet-popup-tip{background:#173a29;color:#f2f0df}
 #dispatchMap .leaflet-popup-content{font-family:system-ui,sans-serif;font-size:12px;line-height:1.65}
@@ -34,7 +43,7 @@
 .dispatch-map-card:fullscreen{height:100vh!important;width:100vw!important;padding:1rem;background:#071b12!important;border-radius:0;border:0}
 .dispatch-map-card:fullscreen .dispatch-map-canvas{flex:1;height:auto}
 @media(min-width:1100px){
-  .dispatch-main{grid-template-columns:minmax(0,1.85fr) minmax(360px,.85fr);grid-template-areas:"title title" "status status" "map side" "rides rides" "export export"}
+  .dispatch-main{grid-template-columns:minmax(0,1.85fr) minmax(360px,.85fr);grid-template-areas:"title title" "status status" "live live" "map side" "rides rides" "export export"}
   #dispatchMapCard{grid-area:map;height:clamp(480px,58vh,660px);padding:.8rem;margin:0}
   #dispatchStatus{display:flex;align-items:center;gap:.7rem;padding:.35rem .8rem}
   #dispatchStatus>.dispatch-refresh-row{order:3;flex:0 0 auto;width:auto;margin:0 0 0 auto}
@@ -53,6 +62,7 @@
   .dispatch-side #chatCard .chatrow{margin:0}
   .dispatch-side #chatCard .chatrow input{padding:.55rem .6rem;font-size:.8rem}
   .dispatch-side #chatCard .chatrow button{padding:.55rem .8rem;font-size:.7rem;min-width:4.5rem}
+  #liveDispatchBoard{grid-area:live}
   #rideBoard{grid-area:rides}
 }
 @media(min-width:760px) and (max-width:1099px){#dispatchMapCard,.dispatch-side{grid-column:1/-1}}
