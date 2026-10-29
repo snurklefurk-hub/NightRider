@@ -4,6 +4,21 @@
   const $ = (id) => document.getElementById(id);
   const message = $("affiliateMessage");
   let partnerKey = "";
+  const demoMode = new URLSearchParams(window.location.search).get("demo") === "1";
+  let demoPartnerId = null;
+  function selectDemoPartner() {
+    const partners = window.NightRiderPartnerDemo.partners();
+    const picker = $("demoPartnerPick");
+    if (!partners.some(p => p.id === demoPartnerId)) demoPartnerId = partners[0] && partners[0].id;
+    picker.replaceChildren();
+    partners.forEach(p => {
+      const option = document.createElement("option");
+      option.value = p.id;
+      option.textContent = p.name;
+      picker.appendChild(option);
+    });
+    if (demoPartnerId) picker.value = demoPartnerId;
+  }
   const date = (value) => value ? new Date(value * 1000).toLocaleString() : "—";
   const text = (tag, value, className) => {
     const el = document.createElement(tag);
@@ -19,6 +34,7 @@
     return el;
   };
   async function request(path, body) {
+    if (demoMode) return window.NightRiderPartnerDemo.api(path, body, demoPartnerId);
     const result = await fetch(path, {
       method: body === undefined ? "GET" : "POST",
       cache: "no-store", credentials: "omit",
@@ -31,8 +47,9 @@
   }
   function error(e) { message.textContent = e.message || "Request failed."; }
   async function refresh() {
+    if (demoMode) selectDemoPartner();
     const data = await request("/api/affiliate-hub");
-    $("partnerIdentity").textContent = "Signed in as " + data.partner.name;
+    $("partnerIdentity").textContent = (demoMode ? "Simulating " : "Signed in as ") + data.partner.name;
     const list = $("affiliateOffers");
     list.replaceChildren();
     if (!data.offers.length) line(list, "p", "No offers yet. Submit an authorized simulation to begin.", "partner-muted");
@@ -101,10 +118,31 @@
     try { await refresh(); message.textContent = "Statuses refreshed."; } catch (e) { error(e); }
   });
   $("affiliateLogout").addEventListener("click", () => {
+    if (demoMode) return;
     partnerKey = "";
     $("partnerKey").value = "";
     $("affiliateWorkspace").classList.add("partner-hidden");
     $("affiliateLogin").classList.remove("partner-hidden");
     message.textContent = "Access closed for this tab.";
   });
+  if (demoMode) {
+    $("affiliateLogin").classList.add("partner-hidden");
+    $("affiliateDemoControls").classList.remove("partner-hidden");
+    $("affiliateLogout").classList.add("partner-hidden");
+    $("demoPartnerPick").addEventListener("change", async () => {
+      demoPartnerId = $("demoPartnerPick").value;
+      try { await refresh(); message.textContent = "Viewing sample affiliate. No real bookings or accounts."; }
+      catch (e) { error(e); }
+    });
+    $("affiliateResetDemo").addEventListener("click", async () => {
+      if (!confirm("Reset all local sample partners and offers?")) return;
+      window.NightRiderPartnerDemo.reset();
+      demoPartnerId = null;
+      try { await refresh(); message.textContent = "Sample data reset. No real records affected."; }
+      catch (e) { error(e); }
+    });
+    refresh().then(() => {
+      message.textContent = "Public Affiliate Hub demo ready. Sample partner selected automatically.";
+    }).catch(error);
+  }
 })();
