@@ -24,6 +24,9 @@ class FakeHandler:
     def end_headers(self):
         pass
 
+    def user(self):
+        return self._user
+
     def require_role(self, *roles):
         if not self._user or self._user.get("role") not in roles:
             self.send_json(401 if not self._user else 403, {"error": "not allowed"})
@@ -54,11 +57,13 @@ class PartnerDomainTests(unittest.TestCase):
 
     def post(self, path, data, user=None, token=""):
         h = FakeHandler(user, token)
-        return desk.api_post(h, self.store, self.lock, self.save, path, data)
+        desk.api_post(h, self.store, self.lock, self.save, path, data)
+        return h.result
 
     def get(self, path, user=None, token=""):
         h = FakeHandler(user, token)
-        return desk.api_get(h, self.store, self.lock, path)
+        desk.api_get(h, self.store, self.lock, path)
+        return h.result
 
     def partner(self, name="Coastal Transport"):
         status, data = self.post("/api/partner-desk/partners",
