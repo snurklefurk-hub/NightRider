@@ -28,7 +28,7 @@
       <div class="partner-grid">
         <article class="partner-panel">
           <h3>Request account consideration</h3>
-          <p>Tell us that your organization is interested. This form does not create an account or send information; it records nothing in this demo.</p>
+          <p>Preview an account request using fictional information. Account requests are not being accepted yet, and nothing you enter is sent or saved.</p>
           <form id="partnerRequestForm">
             <label for="partnerOrganization">Organization name</label>
             <input id="partnerOrganization" name="organization" maxlength="120" autocomplete="organization" required>
@@ -80,8 +80,9 @@
     }
     document.getElementById("partnerRequestForm").addEventListener("submit", function (event) {
       event.preventDefault();
+      const organization = document.getElementById("partnerOrganization").value.trim();
       event.currentTarget.reset();
-      document.getElementById("partnerRequestMessage").textContent = "Account requests are not being accepted in this software demo. No account was created and no details were sent.";
+      document.getElementById("partnerRequestMessage").textContent = "Sample request previewed for " + organization + ". Nothing was sent or saved, and no account was created.";
     });
   </script>
   <script src="/partner-demo.js?v=1" defer></script>
