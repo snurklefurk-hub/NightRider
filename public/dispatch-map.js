@@ -13,6 +13,8 @@
   var driverLayer = L.layerGroup().addTo(map), rideLayer = L.layerGroup().addTo(map);
   var riderLayer = L.layerGroup().addTo(map), dispatchLayer = L.layerGroup().addTo(map);
   var routeLayer = L.layerGroup().addTo(map);
+  var pairLayer = L.layerGroup().addTo(map);
+  var demoLayer = L.layerGroup().addTo(map), demoLines = {};
   // The individual layer checkboxes live next to Show offline drivers.
   // Avoid Leaflet's Layers button overlapping the Light / Dark control.
   var overlays = {
@@ -20,7 +22,8 @@
     mapShowRidePins: rideLayer,
     mapShowRiders: riderLayer,
     mapShowDispatch: dispatchLayer,
-    mapShowRoutes: routeLayer
+    mapShowRoutes: routeLayer,
+    mapShowDemo: demoLayer
   };
   Object.keys(overlays).forEach(function (id) {
     var input = $(id), layer = overlays[id];
@@ -34,7 +37,7 @@
   });
   L.control.scale({ imperial: true, metric: false }).addTo(map);
   var markers = {}, routes = {}, routeCache = {}, routeQueue = [], routeRequests = 0, nextRouteAt = 0;
-  var snapshot = { drivers: [], rides: [], now: Date.now() / 1000 };
+  var snapshot = { drivers: [], rides: [], demo_drivers: [], demo_rides: [], now: Date.now() / 1000 };
   var snapshotReceived = Date.now(), selectedId = "", fitted = false;
   var loading = false, refreshQueued = false, localPosition = null, localWatch = null;
   var baseLayer = null, tileErrors = 0, usingFallback = false, mapError = "";
@@ -67,8 +70,17 @@
   function driverFor(ride) {
     return snapshot.drivers.find(function (driver) { return driver.name === ride.driver; });
   }
+  function allMapRides() {
+    return snapshot.rides.concat(map.hasLayer(demoLayer) ? snapshot.demo_rides || [] : []);
+  }
   function visibleRides() {
-    return selectedId ? snapshot.rides.filter(function (ride) { return ride.id === selectedId; }) : snapshot.rides;
+    return selectedId ? allMapRides().filter(function (ride) { return ride.id === selectedId; }) : allMapRides();
+  }
+  // Keep the original geographic coordinates. Do not shift a driver's pin
+  // merely to expose an overlapping rider pin: a joint pin represents both.
+  function coLocated(a, b) {
+    var first = point(a), second = point(b);
+    return !!first && !!second && first[0] === second[0] && first[1] === second[1];
   }
   function mapTileLayer(fallback, key) {
     // Vector basemap runs within the existing Leaflet map. Dispatch overlay
@@ -106,29 +118,32 @@
     .then(function (cfg) { mapTileLayer(false, cfg.cartoKey); })
     .catch(function () { mapTileLayer(true); });
 
-  function markerIcon(kind, color, stale) {
+  function markerIcon(kind, color, stale, demo) {
     color = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#5ae6a5";
-    var glyph = { driver: "D", pickup: "P", dropoff: "X", rider: "R", dispatch: "S" }[kind];
+    var glyph = { driver: "D", pickup: "P", dropoff: "X", rider: "R",
+                  dispatch: "S", pair: "D+R" }[kind];
+    var size = kind === "pair" ? 40 : 30;
     return L.divIcon({
-      className: "nr-map-marker" + (stale ? " is-stale" : ""),
+      className: "nr-map-marker" + (stale ? " is-stale" : "") +
+        (demo ? " is-demo" : ""),
       html: '<span class="nr-map-pin ' + kind + '" style="--pin-color:' + color + '">' + glyph + "</span>",
-      iconSize: [30, 30], iconAnchor: [15, 15]
+      iconSize: [size, size], iconAnchor: [size / 2, size / 2]
     });
   }
-  function syncMarker(key, coords, kind, color, title, html, layer, used, stale) {
+  function syncMarker(key, coords, kind, color, title, html, layer, used, stale, demo) {
     if (!point(coords)) { return; }
     used[key] = true;
-    var item = markers[key], signature = kind + color + !!stale;
+    var item = markers[key], signature = kind + color + !!stale + !!demo;
     if (!item) {
-      var marker = L.marker(coords, { icon: markerIcon(kind, color, stale), title: title, keyboard: true,
-        zIndexOffset: { rider: 500, dispatch: 400, driver: 300 }[kind] || 0 });
+      var marker = L.marker(coords, { icon: markerIcon(kind, color, stale, demo), title: title, keyboard: true,
+        zIndexOffset: { pair: 800, rider: 500, dispatch: 400, driver: 300 }[kind] || 0 });
       marker.bindPopup(html);
       marker.bindTooltip(document.createTextNode(title), { direction: "top", offset: [0, -12] });
       marker.addTo(layer);
       item = markers[key] = { marker: marker, layer: layer, signature: signature };
     } else {
       item.marker.setLatLng(coords).setPopupContent(html);
-      if (signature !== item.signature) { item.marker.setIcon(markerIcon(kind, color, stale)); item.signature = signature; }
+      if (signature !== item.signature) { item.marker.setIcon(markerIcon(kind, color, stale, demo)); item.signature = signature; }
       item.marker.setTooltipContent(document.createTextNode(title));
     }
     item.marker.options.title = title;
@@ -207,6 +222,7 @@
   function renderRoutes() {
     var used = {};
     visibleRides().forEach(function (ride) {
+      if (ride.demo_preview) return; // DEMO routes are illustrative lines, not OSRM results.
       var pickup = point(ride.pickup_coords), dropoff = point(ride.dropoff_coords);
       if (pickup && dropoff) { syncRoute("trip:" + ride.id, requestRoute(pickup, dropoff, false), false, used); }
       var driver = driverFor(ride);
@@ -223,7 +239,17 @@
   }
   function render() {
     var used = {}, showOffline = $("mapShowOffline").checked;
+    var showDrivers = map.hasLayer(driverLayer), showRiders = map.hasLayer(riderLayer);
+    // A shared GPS coordinate is represented by one D+R marker instead of
+    // hiding the driver beneath the higher-z-index passenger marker.
+    var realPairs = {};
+    if (showDrivers && showRiders) snapshot.rides.forEach(function (ride) {
+      var driver = driverFor(ride), fix = ride.rider_location;
+      if (driver && driver.location_fresh && riderIsLive(fix) &&
+          coLocated(driver.coords, fix.coords)) realPairs[driver.name] = ride;
+    });
     snapshot.drivers.forEach(function (driver) {
+      if (realPairs[driver.name]) return;
       if ((!driver.active && !showOffline) || !driver.location_at) { return; }
       var stale = !driver.active || now() - driver.location_at > 120;
       syncMarker("driver:" + driver.name, driver.coords, "driver", driver.color,
@@ -243,6 +269,17 @@
         info + "<br><b>Drop-off:</b> " + esc(ride.dropoff), rideLayer, used, false);
       if (ride.rider_location) {
         var fix = ride.rider_location;
+        var driver = driverFor(ride);
+        var paired = !!driver && realPairs[driver.name] === ride;
+        if (paired) {
+          syncMarker("pair:" + ride.id, fix.coords, "pair", "#f4b860",
+            "Driver + rider at same coordinate · " + title,
+            info + "<br><b>Driver:</b> " + esc(driver.name) +
+            "<br><b>Rider:</b> " + esc(ride.rider_name) +
+            "<br>Both at the same reported coordinate (real shared locations).",
+            pairLayer, used, false);
+          return;
+        }
         var live = riderIsLive(fix);
         var locationLabel = live ? "Live rider" : "Last known rider";
         var sharingLabel = live ? "Live location shared with Dispatch" :
@@ -250,6 +287,80 @@
         syncMarker("rider:" + ride.id, fix.coords, "rider", "#f4b860", locationLabel + " · " + title,
           info + "<br>" + sharingLabel + "<br>Recorded " + esc(new Date(fix.at * 1000).toLocaleString()) + " · " + esc(age(fix.at)) +
           (fix.accuracy != null ? "<br>Accuracy: about " + Math.round(fix.accuracy) + " m" : ""), riderLayer, used, !live);
+      }
+    });
+    // DEMO fixtures never enter operational driver/rider collections, GPS
+    // freshness indicators, or the driver application. This is a map overlay.
+    var demoUsed = {}, demoRouteUsed = {};
+    if (map.hasLayer(demoLayer)) {
+      var demoRides = visibleRides().filter(function (ride) { return ride.demo_preview; });
+      var demoDrivers = snapshot.demo_drivers || [];
+      var pairedDemoDrivers = {};
+      demoRides.forEach(function (ride) {
+        var driver = demoDrivers.find(function (d) { return d.ride_id === ride.id; });
+        var riderCoords = ride.rider_location && ride.rider_location.coords;
+        if (showDrivers && showRiders && driver &&
+            coLocated(driver.coords, riderCoords)) pairedDemoDrivers[driver.id] = ride;
+      });
+      if (showDrivers) demoDrivers.forEach(function (driver) {
+        if (pairedDemoDrivers[driver.id]) return;
+        if (selectedId && driver.ride_id && driver.ride_id !== selectedId) return;
+        if (selectedId && !driver.ride_id) return;
+        syncMarker("demo:driver:" + (driver.ride_id || driver.id), driver.coords,
+          "driver", "#8bbcff", "DEMO driver · " + driver.name,
+          "<strong>DEMO driver: " + esc(driver.name) + "</strong><br>" +
+          esc(labels[driver.status] || driver.status) +
+          "<br>Fixed fictional placement, not live GPS.",
+          demoLayer, demoUsed, false, true);
+      });
+      demoRides.forEach(function (ride) {
+        var driver = demoDrivers.find(function (d) { return d.ride_id === ride.id; });
+        var riderCoords = ride.rider_location && ride.rider_location.coords;
+        var label = "DEMO ride " + ride.id + " · " + ride.rider_name;
+        syncMarker("demo:pickup:" + ride.id, ride.pickup_coords, "pickup",
+          "#19d47b", "DEMO pickup · " + label,
+          "<strong>" + esc(label) + "</strong><br>Fixed example pickup: " +
+          esc(ride.pickup), demoLayer, demoUsed, false, true);
+        syncMarker("demo:dropoff:" + ride.id, ride.dropoff_coords, "dropoff",
+          "#d95c4f", "DEMO drop-off · " + label,
+          "<strong>" + esc(label) + "</strong><br>Fixed example destination: " +
+          esc(ride.dropoff), demoLayer, demoUsed, false, true);
+        if (showDrivers && showRiders && driver &&
+            pairedDemoDrivers[driver.id] === ride) {
+          syncMarker("demo:pair:" + ride.id, riderCoords, "pair",
+            "#f4b860", "DEMO driver + rider together · " + label,
+            "<strong>DEMO · driver and passenger together</strong><br>" +
+            "Driver: " + esc(driver.name) + "<br>Rider: " + esc(ride.rider_name) +
+            "<br>Status: " + esc(labels[ride.status] || ride.status) +
+            "<br>One fixed shared coordinate, not two live GPS fixes.",
+            demoLayer, demoUsed, false, true);
+        } else if (showRiders) {
+          syncMarker("demo:rider:" + ride.id, riderCoords, "rider",
+            "#f4b860", "DEMO rider · " + label,
+            "<strong>DEMO rider: " + esc(ride.rider_name) +
+            "</strong><br>Fixed example coordinate, not live GPS.",
+            demoLayer, demoUsed, false, true);
+        }
+        // Fixed straight-line *illustration*, NOT live traffic or road routing.
+        if (map.hasLayer(routeLayer) && point(ride.pickup_coords) && point(ride.dropoff_coords)) {
+          var id = "demo:route:" + ride.id;
+          var points = [ride.pickup_coords, ride.dropoff_coords];
+          demoRouteUsed[id] = true;
+          if (!demoLines[id]) {
+            demoLines[id] = L.polyline(points, {color:"#8bbcff", weight:3,
+              dashArray:"4 9", opacity:0.7}).addTo(demoLayer);
+            demoLines[id].bindTooltip(document.createTextNode(
+              "DEMO straight-line route · illustrative only, no ETA"));
+          } else demoLines[id].setLatLngs(points);
+        }
+      });
+    }
+    Object.keys(demoLines).forEach(function (key) {
+      if (!demoRouteUsed[key]) { demoLayer.removeLayer(demoLines[key]); delete demoLines[key]; }
+    });
+    Object.keys(markers).forEach(function (key) {
+      if (key.indexOf("demo:") === 0 && !demoUsed[key]) {
+        markers[key].layer.removeLayer(markers[key].marker); delete markers[key];
       }
     });
     if (localPosition) {
@@ -282,26 +393,31 @@
   }
   function updateSelector() {
     var previous = selectedId;
-    if (selectedId && !snapshot.rides.some(function (r) { return r.id === selectedId; })) { selectedId = ""; }
-    var signature = snapshot.rides.map(function (r) { return r.id + r.status + r.driver + r.rider_name; }).join("|");
+    if (selectedId && !allMapRides().some(function (r) { return r.id === selectedId; })) { selectedId = ""; }
+    var choices = allMapRides();
+    var signature = choices.map(function (r) { return r.id + r.status + r.driver + r.rider_name; }).join("|");
     if (selector.dataset.signature !== signature) {
       selector.innerHTML = '<option value="">All active rides</option>';
-      snapshot.rides.forEach(function (ride) {
+      choices.forEach(function (ride) {
         var option = document.createElement("option"); option.value = ride.id;
-        option.textContent = ride.id + " · " + (ride.rider_name || "Rider") + " · " + (labels[ride.status] || ride.status);
+        option.textContent = (ride.demo_preview ? "DEMO · " : "") + ride.id +
+          " · " + (ride.rider_name || "Rider") + " · " + (labels[ride.status] || ride.status);
         selector.appendChild(option);
       });
       selector.dataset.signature = signature;
     }
     selector.value = selectedId;
-    if (previous && !selectedId) { $("mapRouteInfo").textContent = "That ride has ended. Showing current active rides."; }
+    if (previous && !selectedId) { $("mapRouteInfo").textContent = "That ride ended or its DEMO layer was hidden. Showing active rides."; }
   }
   function updateStatus() {
     var active = snapshot.drivers.filter(function (d) { return d.active; });
     var positioned = active.filter(function (d) { return point(d.coords) && d.location_at; });
     var unavailable = active.length - positioned.length;
     status.textContent = mapError || positioned.length + " of " + active.length + " online drivers located · " +
-      snapshot.rides.length + " active rides · updated " + new Date(snapshot.now * 1000).toLocaleTimeString() +
+      snapshot.rides.length + " active rides · " +
+      (map.hasLayer(demoLayer) ? (snapshot.demo_rides || []).length + " DEMO rides / " +
+        (snapshot.demo_drivers || []).length + " fictional drivers · " : "") +
+      "updated " + new Date(snapshot.now * 1000).toLocaleTimeString() +
       (unavailable ? " · " + unavailable + " driver location" + (unavailable === 1 ? "" : "s") + " unavailable" : "");
   }
   function updateSelection() {
@@ -314,6 +430,13 @@
     }
     var ride = rides[0];
     if (!ride) { return; }
+    if (ride.demo_preview) {
+      out.textContent = "DEMO ONLY · " + ride.rider_name + " · " +
+        (ride.driver || "Unassigned") + " · " + (labels[ride.status] || ride.status) +
+        ". Fixed illustrative map positions, not live GPS. D+R denotes driver and passenger " +
+        "sharing one point. Dashed routes are straight-line examples without road routing or ETA.";
+      return;
+    }
     var pickup = point(ride.pickup_coords), dropoff = point(ride.dropoff_coords);
     var text = ride.rider_name + " · " + (ride.driver || "Unassigned") + " · " + (labels[ride.status] || ride.status) + ". ";
     if (pickup && dropoff) {
@@ -345,7 +468,7 @@
       if (!r.ok) { throw new Error(r.status === 401 || r.status === 403 ? "Sign in to Dispatch to view live locations." : "Map updates are unavailable. Retrying…"); }
       return r.json();
     }).then(function (data) {
-      snapshot = data; snapshotReceived = Date.now();
+      snapshot = Object.assign({rides:[],drivers:[],demo_rides:[],demo_drivers:[]}, data); snapshotReceived = Date.now();
       updateSelector(); render();
     }).catch(function (error) {
       render();
@@ -357,7 +480,7 @@
     });
   }
   function focusRide(id) {
-    if (!snapshot.rides.some(function (r) { return r.id === id; })) { refresh(); return; }
+    if (!allMapRides().some(function (r) { return r.id === id; })) { refresh(); return; }
     selectedId = id; selector.value = id; render(); fitView(true);
     $("dispatchMapCard").scrollIntoView({ behavior: "smooth", block: "center" });
   }
