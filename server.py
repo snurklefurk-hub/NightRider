@@ -984,7 +984,8 @@ class Handler(SimpleHTTPRequestHandler):
             return True
         roles = {"/rider": ("rider",), "/rider/": ("rider",), "/index.html": ("rider",),
                  "/driver.html": ("driver",), "/dispatch.html": ("dispatch",),
-                 "/partner-desk": ("dispatch",), "/partner-desk.html": ("dispatch",)}
+                 "/partner-desk": ("dispatch",), "/partner-desk/": ("dispatch",),
+                 "/partner-desk.html": ("dispatch",)}
         allowed = roles.get(path)
         if not allowed:
             return True
@@ -994,7 +995,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Location", "/account.html?next=" + urllib.parse.quote(path, safe="/"))
             self.end_headers()
             return False
-        if path in ("/partner-desk", "/partner-desk.html") and not user.get("dispatch_admin"):
+        if path in ("/partner-desk", "/partner-desk/", "/partner-desk.html") and not user.get("dispatch_admin"):
             self.send_json(403, {"error": "Dispatch administrator required."})
             return False
         if user["role"] not in allowed:
