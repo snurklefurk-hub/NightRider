@@ -82,8 +82,9 @@
             return;
           }
           session.textContent = "Signed in as " + data.user.display_name + " (" + data.user.role + ")";
-          link.textContent = "Open my workspace";
-          link.href = {rider: "/rider", driver: "/driver.html", dispatch: "/dispatch.html"}[data.user.role] || "/account.html";
+          // Keep the public Hub free of the internal Driver board shortcut.
+          link.textContent = data.user.role === "driver" ? "Info for drivers" : "Open my workspace";
+          link.href = {rider: "/rider", driver: "/for-drivers.html", dispatch: "/dispatch.html"}[data.user.role] || "/account.html";
         })
         .catch(function () { session.textContent = "Sign-in status unavailable"; });
     })();
