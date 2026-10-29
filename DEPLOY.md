@@ -22,10 +22,14 @@ No coding is needed. You will copy the files to GitHub, then connect GitHub to R
 4. Click **Apply** (or **Deploy Blueprint**). Wait 2 to 5 minutes until the status says **Live**.
 5. Click the link at the top of the page (it looks like `https://nightrider-xxxx.onrender.com`). That is your live site.
 
-Your pages:
-- `/` is the rider page (map, address search, one total fare, payment popup, live status).
-- `/driver.html` is the driver page. It checks in as "active" and has a **Text dispatch** box.
-- `/dispatch.html` is the dispatch page — live board, the list of active drivers with a **Text** button each, hidden rider IDs, ratings/issues, and the ride-log export.
+Your pages are a closed software demo, not a transportation service. Each page displays this
+notice and uses the shared test credentials `DEMO` / `PASSWORD`:
+- `/` is the Rider simulation.
+- `/driver.html` is the Driver simulation.
+- `/dispatch.html` is the limited Dispatch simulation.
+
+No public account creation exists. All trips are simulated and no payment information is collected
+or charged.
 
 ## If Render shows "Failed to launch" or a Python error
 
@@ -39,11 +43,11 @@ Upload the newest `render.yaml` (from the newest nightrider.zip) to GitHub, repl
 - **Map key — works out of the box.** The map uses CARTO's dark "Dark Matter" tiles. A working basemap key is already built into the code, so you do **not** need to do anything: deploy and the map works. It is a public client-side basemap key (it is visible in any tile request the browser makes), not an account secret.
 - **Optional: set the address country.** Address lookup is filtered to one country so results stay local. To change it from the default `us`, open your Render service → **Environment** → **Add Environment Variable** → name `ADDRESS_COUNTRY`, value = a two-letter country code (e.g. `ca`) → save.
 - **Optional: rotate the key.** If you ever get a new key and want to use it without editing code, open your Render service → **Environment** → **Add Environment Variable** → name `CARTO_API_KEY`, value = your new key → save. Render redeploys automatically and the server hands the new key to the page. If an old copy of your site ever asks for a Google key, that page is out of date — re-upload the current files from `nightrider.zip` and redeploy.
-- **No login yet.** There is no dispatch key and no accounts — anyone with the link can open any page. That is fine for testing; add real sign-in before real riders use it.
+- **Demo sign-in only.** `DEMO` / `PASSWORD` selects the Rider, Driver, or Dispatch demo experience from the page you open. Those visible credentials map to separate internal accounts, and Dispatch has no account-management or deletion capability.
 - **Active drivers.** A driver page checks in every 30 seconds; drivers seen in the last 90 seconds show as **active** on the dispatch board, with a **Text** button that opens a message thread with that driver.
-- **Payment is a placeholder.** Before a rider can send a request, a popup asks how they will pay (Cash App, PayPal, Zelle, Venmo, or Cash). No money moves yet — the choice is just recorded on the ride.
+- **Payments are simulated.** A rider can choose a practice payment label only; no payment information is collected and no money moves.
 - **Live updates, no polling.** Dispatch and rider screens hold a connection open and update the moment something changes. Nothing to configure.
-- **Not for real riders yet.** There is no login and payments are placeholders. Anyone with the link can see the rider, driver, and dispatch pages.
+- **Not for real transportation.** This is WIP software only. Do not use it to request, offer, or dispatch transportation.
 
 ## Running it on your own computer (optional)
 
