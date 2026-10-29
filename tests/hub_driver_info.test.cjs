@@ -152,7 +152,7 @@ test("Hub previews destinations without repeating the sitewide demo notice", () 
     "browser-based booking, clear fares",
     "direct customer relationships",
     "concierge bookings, flexible referral pricing, and a real local dispatcher",
-    "professional drivers, human dispatch, and real accountability",
+    "safer professional rides, rider trust, and a better local transportation industry",
     "follow trip updates and messages",
     "preview the LIGHT and DARK navigation designs",
     "the Dispatch map, and test conversations",
@@ -189,15 +189,16 @@ test("Our Ethos sets out the modern local transportation company direction", () 
     "Technology should help, then get out of the way.",
     "Be part of the community, not above it.",
     "Does it make delivering a professional ride easier or safer?",
-    "Does it help a driver build a worthwhile business?",
-    "Does it make the rider's experience more dependable, transparent, or trustworthy?"
+    "Does it make the rider's experience more dependable, transparent, or trustworthy?",
+    "Does it make the industry better?"
   ]) {
     assert.ok(page.includes(phrase), phrase);
   }
-  assert.match(hub, /<h2>Our Ethos<\/h2>\s*<p>Our vision for the modern local taxi:/);
+  assert.match(hub, /<h2>Our Ethos<\/h2>\s*<p>Our principles for safer professional rides/);
   for (const link of ["/for-customers.html", "/for-drivers.html", "/for-affiliates.html", "/hub"]) {
     assert.ok(page.includes('href="' + link + '"'), link);
   }
+  assert.match(page, /<ol class="ethos-questions">[\s\S]*?<\/ol>/);
   assert.equal((page.match(/class="nr-demo-notice"/g) || []).length, 1);
   assert.equal((page.match(/No transportation services are offered\./g) || []).length, 1);
   assert.equal((page.match(/All trips and payments are simulated\./g) || []).length, 1);

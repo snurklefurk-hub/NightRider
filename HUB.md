@@ -30,10 +30,10 @@ return visitors to the Hub. Existing rider information bookmarks remain valid.
 
 1. Professional ride safety: preserve operational map behavior and access gates;
    this navigation change does not claim a new driving-safety capability.
-2. Driver business: the driver information page stays directly discoverable;
-   this change does not claim increased earnings.
-3. Customer trust (primary): distinguish information, fictional demos and private
+2. Rider trust (primary): distinguish information, fictional demos and private
    partner access, with working destinations and no misleading placeholder link.
+3. Industry improvement: preserve direct access to driver information and partner
+   plans that support professional local operators without claiming active service.
 
 This replaces the existing directory structure instead of adding an unrelated
 feature. The portal consolidates existing access rather than duplicating it.

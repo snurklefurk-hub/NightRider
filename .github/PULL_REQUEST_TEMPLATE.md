@@ -3,11 +3,11 @@
 **Before each commit, ask all three questions and answer at least one concretely:**
 
 1. Does it make delivering a professional ride easier or safer?
-2. Does it improve the driver's profitability, independence, or ability to retain customers?
-3. Does it make a customer's experience more dependable, transparent, or trustworthy?
+2. Does it make the rider's experience more dependable, transparent, or trustworthy?
+3. Does it make the industry better?
 
 - **Primary test passed (1 / 2 / 3):**
-- **Specific outcome for professional rides, drivers, or customers:**
+- **Specific outcome for ride safety, rider trust, or a better transportation industry:**
 - **Why this is worth maintaining rather than feature bloat:**
 - **Every commit includes an `NR-Value:` justification or an owner-approved `NR-Override: MAKE IT SO` declaration:** yes / no
 - **Would anything be better if we did NOT ship this?** explain
