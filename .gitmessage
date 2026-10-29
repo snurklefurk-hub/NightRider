@@ -1,17 +1,17 @@
 # NightRider: Stop and check all three questions BEFORE committing:
 # 1. Does it make delivering a professional ride easier or safer?
-# 2. Does it improve the driver's profitability, independence, or ability to retain customers?
-# 3. Does it make a customer's experience more dependable, transparent, or trustworthy?
+# 2. Does it make the rider's experience more dependable, transparent, or trustworthy?
+# 3. Does it make the industry better?
 #
 # If the answer is NO to all three: DO NOT COMMIT unless the product owner
 # explicitly authorized THIS change by saying MAKE IT SO.
 #
 # Replace the placeholder below with a specific measurable or observable benefit.
-# Valid categories: safety / driver-business / customer-trust.
+# Valid categories: safety / customer-trust / industry.
 #
 # Your concise commit subject goes above, then include the trailer BELOW:
 #
-NR-Value: CATEGORY - Describe the specific benefit for drivers or customers.
+NR-Value: CATEGORY - Describe the concrete benefit to rides, riders, or the industry.
 
 # OWNER-ONLY EXCEPTION (only if the product owner explicitly approved this change):
 # NR-Override: MAKE IT SO - Describe the specific authorized change here.

@@ -23,14 +23,16 @@ See [HUB.md](HUB.md) and [PARTNER-DESK.md](PARTNER-DESK.md).
 **Before EVERY commit, ask all three questions:**
 
 1. **Does it make delivering a professional ride easier or safer?**
-2. **Does it improve the driver's profitability, independence, or ability to retain customers?**
-3. **Does it make a customer's experience more dependable, transparent, or trustworthy?**
+2. **Does it make the rider's experience more dependable, transparent, or trustworthy?**
+3. **Does it make the industry better?**
+
+Improving the industry can include practical advances for drivers, local transportation companies, accessibility, fair competition, and service standards; vague claims are not enough.
 
 If a change does not pass at least one of these, **do not commit it**, unless the product owner explicitly approves that specific change with **MAKE IT SO**. This applies to every agent and every subsystem, including infrastructure and maintenance. See [AGENTS.md](AGENTS.md) for the full decision rule.
 
 **Owner-only override:** The product owner can say **MAKE IT SO** for one specific change, even if it fails all three value tests. Record the authorization and exact scope in the PR; use a commit footer like `NR-Override: MAKE IT SO - Implement the specifically requested experiment.` The exception does **not** waive security, privacy, driver safety, testing, or merge/release controls. The CI validates the footer's syntax, while the integration owner verifies that authorization came from the product owner. See [AGENTS.md](AGENTS.md).
 
-Every standard commit needs a real `NR-Value:` trailer, such as `NR-Value: safety - Prevents unreliable GPS fixes from moving the navigation marker.` The `NightRider commit value gate` workflow checks every commit message in new PRs; it cannot judge whether the claimed benefit is true, so the integration owner must still review it. To enable the automatic *local, before-commit* question prompt in a Git clone, run `python3 scripts/setup_commit_gate.py` once. GitHub API commits bypass local hooks and must apply the questions before writing.
+Use `safety`, `customer-trust`, or `industry` as the commit benefit category, aligned to the three questions. Every standard commit needs a real `NR-Value:` trailer, such as `NR-Value: safety - Prevents unreliable GPS fixes from moving the navigation marker.` The `NightRider commit value gate` workflow checks every commit message in new PRs; it cannot judge whether the claimed benefit is true, so the integration owner must still review it. To enable the automatic *local, before-commit* question prompt in a Git clone, run `python3 scripts/setup_commit_gate.py` once. GitHub API commits bypass local hooks and must apply the questions before writing.
 
 **Important:** The CI check reports violations, but it only becomes a mandatory GitHub merge blocker when branch protection/rulesets require `Require concrete benefit on every commit`. The repository's GitHub branch protection is not confirmed by this documentation.
 
