@@ -62,6 +62,7 @@ test("live demo cards can select map, but never dispatch, cancel or chat", () =>
     money:x=>"$"+Number(x).toFixed(2),
     statusWord:x=>x,
     stageBlock:()=>null,
+    isTerminalRide:r=>["completed","cancelled"].includes(r.status),
     window:{NightRiderDispatchMap:{focusRide(id){focused.push(id);}}}
   };
   const state=vm.createContext(ctx);
