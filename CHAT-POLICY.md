@@ -36,6 +36,41 @@ Backend authorization, not the selected tab label, decides which messages may be
 6. Do not interrupt navigation with chat alerts. Voice or driver-safe notification design requires separate testing and explicit opt-in.
 7. Keep the established NightRider dark and Aero themes; avoid a new visual language.
 
+## Operator history deletion (software demo)
+
+A **non-demo Dispatch administrator only** can use the buttons at the bottom of
+the **Messages** and **Recent rides** cards. The controls are never shown to
+shared DEMO Dispatch logins or ordinary Dispatch staff. The server enforces
+the same restrictions; UI visibility is not authorization.
+
+- **Export & delete all chat logs:** archives and clears all currently retained
+  team/driver private messages, ride chat, and private rider-account/Dispatch
+  conversations. Rider/driver account logins and ride records are preserved.
+- **Export & delete ride history:** archives and clears *all* currently
+  retained completed/cancelled rides, their associated ride messages, and
+  references/ratings held in rider history. Account conversations, team chat,
+  and user login accounts are preserved.
+- **Fail closed:** both actions are blocked while **any** ride is still active
+  or requested. The admin must close or cancel every trip first.
+- Each deletion requires the desktop browser File System Access Save As picker,
+  server archive content and SHA-256 verification, successful local file
+  write/close, a separate irreversible-action confirmation, and an expiring,
+  one-time server grant. If data changes between export and deletion, the
+  backend rejects deletion and requires a fresh archive.
+- The backend cannot inspect a user's disk. It can validate a grant and
+  unchanged snapshot, but only the web client can attest successful local save.
+  There is deliberately no silent/download-only destructive fallback.
+- The archive contains sensitive data from multiple participants. Store it
+  securely. These features are for **simulated records only** until legal
+  retention, litigation hold, audit and transport-data requirements are
+  explicitly evaluated for a future licensed transportation operation.
+- The current JSONB app-state implementation has a **per-process** lock and
+  ephemeral grants. Do not enable production deletion across multiple workers
+  without transactional database protection.
+- After clearing chat or rides, the chat history epoch invalidates cached
+  message bubbles in other connected web clients. No focus/scroll/tab change
+  is triggered in the driver UI.
+
 ## Testing before publishing
 
 - Run the isolated Python suite, including `tests/test_chat.py`.

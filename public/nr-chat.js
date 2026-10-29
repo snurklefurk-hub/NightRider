@@ -11,7 +11,7 @@
     var labels = { rider: role === "rider" ? "Driver + Dispatch" : "Rider",
       account: "Dispatch", driver: "Driver", dispatch: "Dispatch", team: "Team" };
     var active = tabs[0], rides = [], drivers = [], riderAccounts = [], selectedRide = "", selectedDriver = "";
-    var messages = new Map(), loaded = false, seenAt = 0, fetching = false, sending = false, needHistory = false;
+    var messages = new Map(), loaded = false, seenAt = 0, fetching = false, sending = false, needHistory = false, chatEpoch = null;
     var unread = { rider: 0, driver: 0, dispatch: 0, team: 0, account: 0 };
     var rendered = new Set(), pendingId = "", pendingSignature = "";
     host.innerHTML =
@@ -210,6 +210,20 @@
             return data;
           });
         }).then(function (data) {
+          // Purged history must disappear from every connected rider/driver/
+          // Dispatch view, not just the administrator's reloaded browser.
+          if (typeof data.chat_epoch === "number") {
+            if (chatEpoch !== null && data.chat_epoch !== chatEpoch) {
+              messages.clear();
+              rendered.clear();
+              log.replaceChildren();
+              seenAt = 0;
+              Object.keys(unread).forEach(function (tab) { unread[tab] = 0; });
+              counts();
+              needHistory = true; // Fetch any messages newer than the old cursor.
+            }
+            chatEpoch = data.chat_epoch;
+          }
           var next = accept(data.messages || []);
           if (full && next) render(true, false); // Preserve position on history merge.
           status.textContent = "";

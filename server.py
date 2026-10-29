@@ -1,7 +1,8 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
-import datetime, hmac, json, math, os, random, secrets, threading, time, urllib.parse, uuid
+import copy, datetime, hmac, json, math, os, random, secrets, threading, time, urllib.parse, uuid
 import auth
 import account_archive
+import history_purge
 import partner_desk
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
@@ -29,6 +30,8 @@ LOCK = threading.Lock()
 # Ephemeral one-time archive grants: never grant deletion from the legacy API.
 ACCOUNT_ARCHIVE_GRANTS = {}
 ACCOUNT_ARCHIVE_TTL = 600
+HISTORY_PURGE_GRANTS = {}
+HISTORY_PURGE_TTL = 600
 STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
             "at_dropoff", "completed", "cancelled"]
 DEFAULT_PRICING = {
@@ -102,6 +105,7 @@ def ensure_store(store):
     store.setdefault("messages", [])
     store.setdefault("ride_messages", [])
     store.setdefault("account_messages", {})
+    store.setdefault("chat_epoch", 0)
     partner_desk.collections(store)
     store.setdefault("driver_colors", {})
     store["pricing"] = normalize_pricing(store.get("pricing"))
@@ -1290,7 +1294,82 @@ class Handler(SimpleHTTPRequestHandler):
         return self.send_json(200, {"ok": True, "role": role, "account_id": account_id,
                                     "archive_sha256": digest})
 
+    def prepare_history_archive(self, qs):
+        """Create a bound, expiring export grant for private Dispatch history."""
+        actor = self.user()
+        if not actor or actor.get("role") != "dispatch" or actor.get("is_demo") or not actor.get("dispatch_admin"):
+            return self.send_json(403, {"error": "Non-demo Dispatch administrator required."})
+        kind = _first(qs, "kind")
+        if kind not in history_purge.KINDS:
+            return self.send_json(400, {"error": "Choose chat or rides history."})
+        with LOCK:
+            if history_purge.any_open_rides(STORE):
+                return self.send_json(409, {"error": "Finish or cancel all active rides before archiving and clearing history."})
+            now = time.time()
+            content = history_purge.serialise(history_purge.snapshot(STORE, kind, now))
+            digest = history_purge.sha256(content)
+            token = secrets.token_urlsafe(32)
+            for key, grant in list(HISTORY_PURGE_GRANTS.items()):
+                if grant["expires"] < now:
+                    HISTORY_PURGE_GRANTS.pop(key, None)
+            HISTORY_PURGE_GRANTS[token] = {
+                "actor": actor["id"], "kind": kind,
+                "sha256": digest, "generated": now, "expires": now + HISTORY_PURGE_TTL
+            }
+        return self.send_json(200, {
+            "filename": history_purge.filename(kind, now), "content": content,
+            "sha256": digest, "token": token, "expires_at_unix": now + HISTORY_PURGE_TTL
+        })
+
+    def clear_history_after_archive(self, data):
+        """Reject mutations unless a fresh, matching exported snapshot exists."""
+        actor = self.user()
+        if not actor or actor.get("role") != "dispatch" or actor.get("is_demo") or not actor.get("dispatch_admin"):
+            return self.send_json(403, {"error": "Non-demo Dispatch administrator required."})
+        if not isinstance(data, dict) or data.get("kind") not in history_purge.KINDS:
+            return self.send_json(400, {"error": "Choose chat or rides history."})
+        kind, token, digest = data["kind"], data.get("token"), data.get("sha256")
+        if not isinstance(token, str) or not isinstance(digest, str):
+            return self.send_json(409, {"error": "Save a local history archive before deletion."})
+        with LOCK:
+            grant = HISTORY_PURGE_GRANTS.get(token)
+            if (not grant or grant["expires"] < time.time() or
+                    grant["actor"] != actor["id"] or grant["kind"] != kind or
+                    not hmac.compare_digest(grant["sha256"], digest)):
+                return self.send_json(409, {"error": "History archive grant missing, expired, or mismatched. Export again."})
+            if history_purge.any_open_rides(STORE):
+                return self.send_json(409, {"error": "An active ride exists. Finish it before deleting history."})
+            latest = history_purge.serialise(history_purge.snapshot(STORE, kind, grant["generated"]))
+            if not hmac.compare_digest(history_purge.sha256(latest), grant["sha256"]):
+                HISTORY_PURGE_GRANTS.pop(token, None)
+                return self.send_json(409, {"error": "History changed after export. Save a new archive before deleting."})
+            before = copy.deepcopy(STORE)
+            try:
+                counts = history_purge.purge(STORE, kind)
+                # A ride purge also removes ride-linked chat; invalidate cached
+                # messages in every connected browser in either case.
+                STORE["chat_epoch"] = int(STORE.get("chat_epoch") or 0) + 1
+                save(STORE)
+            except Exception:
+                STORE.clear()
+                STORE.update(before)
+                raise
+            # Another export is necessary for every destructive action.
+            HISTORY_PURGE_GRANTS.clear()
+            if kind == "rides":
+                for ride_id in before.get("rides", {}):
+                    RIDER_LOCATIONS.pop(ride_id, None)
+            # Prevent newly connected clients receiving deleted chat or ride
+            # data through the in-memory long-poll event replay buffer.
+            with EVENT_COND:
+                EVENTS.clear()
+        record_event("history_purged", history_kind=kind)
+        return self.send_json(200, {"ok": True, "kind": kind,
+                                    "archive_sha256": digest, "deleted": counts})
+
     def dispatch_get(self, path, qs):
+        if path == "/api/dispatch/history-archive":
+            return self.prepare_history_archive(qs)
         if path == "/api/dispatch/account-archive":
             return self.prepare_account_archive(qs)
         if path == "/api/dispatch/map":
@@ -1424,7 +1503,7 @@ class Handler(SimpleHTTPRequestHandler):
                 user = self.require_role("rider", "driver", "dispatch")
                 if not user:
                     return
-                return self.send_json(200, {"messages": unified_chat_messages(user, _num(qs, "since", 0)), "now": time.time()})
+                return self.send_json(200, {"messages": unified_chat_messages(user, _num(qs, "since", 0)), "now": time.time(), "chat_epoch": STORE.get("chat_epoch", 0)})
             if path == "/api/dispatch/":
                 return self.send_json(404, {"error": "not found"})
             if path.startswith("/api/dispatch/"):
@@ -1679,6 +1758,8 @@ class Handler(SimpleHTTPRequestHandler):
                            (len(parts) == 5 and parts[2] == "drivers" and parts[4] == "message"))
                 if not allowed:
                     return self.send_json(403, {"error": "Demo Dispatch cannot manage accounts, passwords, pricing, or destructive operations."})
+            if len(parts) == 3 and parts[2] == "history-deletion":
+                return self.clear_history_after_archive(data)
             if len(parts) == 3 and parts[2] == "account-deletion":
                 return self.delete_account_after_archive(data)
             if len(parts) == 3 and parts[2] == "pricing":
