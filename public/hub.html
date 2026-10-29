@@ -98,8 +98,21 @@
           event.preventDefault();
           if (tile.dataset.loading === "1") return;
           tile.dataset.loading = "1";
-          session.textContent = "Opening " + tile.dataset.demoRole + " demo…";
+          session.textContent = "Checking " + tile.dataset.demoRole + " sign-in…";
           try {
+            // The Hub's public DEMO shortcut must not silently overwrite a real
+            // account's session. Preserve the logged-in workspace for this role.
+            var currentResponse = await fetch("/api/auth/me", {
+              credentials: "same-origin", cache: "no-store"
+            });
+            if (!currentResponse.ok) throw new Error("Could not verify your current login.");
+            var current = await currentResponse.json();
+            if (current.user && current.user.role === tile.dataset.demoRole && !current.user.is_demo) {
+              session.textContent = "Opening your existing " + tile.dataset.demoRole + " workspace…";
+              window.location.assign(tile.dataset.demoTarget);
+              return;
+            }
+            session.textContent = "Opening " + tile.dataset.demoRole + " demo…";
             var response = await fetch("/api/auth/login", {
               method: "POST", credentials: "same-origin", cache: "no-store",
               headers: {"Content-Type": "application/json"},
