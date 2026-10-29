@@ -13,9 +13,11 @@ is retained separately.
 The Hub opens Rider, Driver and Dispatch demo tiles with automatic shared-demo
 sign-in. The Affiliates and Partners tile describes future hospitality and
 referral plans; the Partner Hub tile opens the unified landing page with
-account-request and existing-login choices. Account requests are deliberately
-not accepted or provisioned in this demo. Partner offers remain simulations and
-NightRider-side review happens in Dispatch.
+account-request preview, existing-login path, and an interactive browser-local
+offer demonstration. Account requests are not accepted or provisioned. Partners
+can try sample offer submissions in Partner Hub and review them through the
+shared DEMO Dispatch board, without creating real rides. Existing partner offer
+review remains restricted to authorized Dispatch administrators.
 See [HUB.md](HUB.md) and [PARTNER-DESK.md](PARTNER-DESK.md).
 
 ## The NightRider three-test commit rule

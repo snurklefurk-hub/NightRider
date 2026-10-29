@@ -18,9 +18,10 @@ transportation or payment services. Account sign-in remains in the header.
 
 The Affiliates and Partners tile retains its public future-plans information
 page. The separate Partner Hub tile is the single entry point for account-request
-and existing-login choices, but it does not accept, transmit, or provision
-account requests. NightRider-side offer work belongs on
-Dispatch, not on a separate Partner Desk page.
+preview, an existing-login path, and an interactive browser-local sample offer
+workspace. It does not accept, transmit, or provision account requests.
+NightRider-side offer decisions happen on Dispatch, including the browser-only
+sample offer workflow for the shared DEMO Dispatch role.
 
 Retire the standalone map preview and its public links. Preserve Rider and
 Dispatch maps, their shared Midnight palette, LIGHT/DARK behavior, ride markers,
