@@ -13,6 +13,16 @@ class FakeHandler:
         self._user = user
         self.headers = {"X-NR-Partner-Token": token}
         self.result = None
+        self.headers_sent = []
+
+    def send_response(self, code):
+        self.result = (code, {})
+
+    def send_header(self, key, value):
+        self.headers_sent.append((key, value))
+
+    def end_headers(self):
+        pass
 
     def require_role(self, *roles):
         if not self._user or self._user.get("role") not in roles:
