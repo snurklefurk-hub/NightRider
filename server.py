@@ -2,6 +2,7 @@
 import datetime, hmac, json, math, os, random, secrets, threading, time, urllib.parse, uuid
 import auth
 import account_archive
+import partner_desk
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
 # driver -> pickup leg of the fare can be exercised without a real driver.
@@ -101,6 +102,7 @@ def ensure_store(store):
     store.setdefault("messages", [])
     store.setdefault("ride_messages", [])
     store.setdefault("account_messages", {})
+    partner_desk.collections(store)
     store.setdefault("driver_colors", {})
     store["pricing"] = normalize_pricing(store.get("pricing"))
     for ride in (store.get("rides") or {}).values():
@@ -981,7 +983,9 @@ class Handler(SimpleHTTPRequestHandler):
         if not os.environ.get("DATABASE_URL", "").strip():
             return True
         roles = {"/rider": ("rider",), "/rider/": ("rider",), "/index.html": ("rider",),
-                 "/driver.html": ("driver",), "/dispatch.html": ("dispatch",)}
+                 "/driver.html": ("driver",), "/dispatch.html": ("dispatch",),
+                 "/partner-desk": ("dispatch",), "/partner-desk/": ("dispatch",),
+                 "/partner-desk.html": ("dispatch",)}
         allowed = roles.get(path)
         if not allowed:
             return True
@@ -990,6 +994,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", "/account.html?next=" + urllib.parse.quote(path, safe="/"))
             self.end_headers()
+            return False
+        if path in ("/partner-desk", "/partner-desk/", "/partner-desk.html") and not user.get("dispatch_admin"):
+            self.send_json(403, {"error": "Dispatch administrator required."})
             return False
         if user["role"] not in allowed:
             destinations = {"rider": "/rider", "driver": "/driver.html", "dispatch": "/dispatch.html"}
@@ -1390,6 +1397,10 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if path in ("/hub", "/hub/"):
             self.path = "/hub.html"
+        elif path in ("/partner-desk", "/partner-desk/"):
+            self.path = "/partner-desk.html"
+        elif path in ("/affiliate-hub", "/affiliate-hub/"):
+            self.path = "/affiliate-hub.html"
         elif path in ("/rider", "/rider/"):
             self.path = "/index.html"
         if path == "/healthz":
@@ -1402,6 +1413,8 @@ class Handler(SimpleHTTPRequestHandler):
         if not self.page_access(path):
             return
         if path.startswith("/api/"):
+            if path in ("/api/partner-desk", "/api/affiliate-hub"):
+                return partner_desk.api_get(self, STORE, LOCK, path)
             if path == "/api/auth/me":
                 return self.account_endpoint(path)
             if path == "/api/chat/messages":
@@ -1522,6 +1535,8 @@ class Handler(SimpleHTTPRequestHandler):
 
         if path.startswith("/api/auth/"):
             return self.account_endpoint(path, data)
+        if path.startswith("/api/partner-desk/") or path.startswith("/api/affiliate-hub/"):
+            return partner_desk.api_post(self, STORE, LOCK, save, path, data)
         if path == "/api/chat/messages":
             user = self.require_role("rider", "driver", "dispatch")
             if not user:
