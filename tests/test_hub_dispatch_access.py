@@ -71,6 +71,25 @@ class HubAccessTests(unittest.TestCase):
             self.assertEqual(h.path, "/index.html")
             self.assertEqual(base.call_count, 1)
 
+    def test_portal_is_public_and_old_palette_url_still_serves_the_palette(self):
+        with patch.dict(os.environ, {"DATABASE_URL": "isolated-fixture"}), \
+                patch.object(server.SimpleHTTPRequestHandler, "do_GET") as base:
+            for route, target in (("/partner-portal", "/partner-portal.html"),
+                                  ("/partner-portal/", "/partner-portal.html"),
+                                  ("/map-lab-midnight.js?v=1", "/map-midnight.js")):
+                h = handler(route)
+                server.Handler.do_GET(h)
+                self.assertEqual(h.path, target)
+                self.assertTrue(server.Handler.page_access(h, route))
+            self.assertEqual(base.call_count, 3)
+
+    def test_retired_preview_bookmarks_return_to_hub(self):
+        for route in ("/map-lab", "/map-lab/", "/map-lab.html?demo=1"):
+            h = handler(route)
+            server.Handler.do_GET(h)
+            self.assertIn(("status", 302), h.sent)
+            self.assertIn(("Location", "/hub"), h.sent)
+
 
 class StaffAccessTests(unittest.TestCase):
     def test_non_admin_cannot_list_staff_accounts(self):

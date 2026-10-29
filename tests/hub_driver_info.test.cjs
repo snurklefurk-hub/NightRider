@@ -6,9 +6,38 @@ const path = require("node:path");
 const root = path.resolve(__dirname, "..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
+test("Hub has the eight requested destinations and an empty non-interactive partner placeholder", () => {
+  const hub = read("public/hub.html");
+  const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
+  assert.deepEqual(tiles.map(tile => tile[3]), [
+    "Info for Riders", "Info for Drivers", "Affiliates and Partners", "Our Ethos",
+    "Rider Demo", "Driver Demo", "Dispatch Demo", "Partner Portal"
+  ]);
+  assert.equal(tiles[2][1], "div");
+  assert.equal(tiles[2][2], "");
+  assert.equal(tiles[2][4].trim(), "");
+  assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
+  assert.match(hub, /max-width: 900px/);
+  assert.match(hub, /max-width: 520px/);
+});
+
+test("public pages have no retired preview mentions or links, and all local page links resolve", () => {
+  const shortRoutes = {"/hub":"hub.html", "/rider":"index.html", "/partner-portal":"partner-portal.html",
+    "/partner-desk":"partner-desk.html", "/partner-desk-demo":"partner-desk.html", "/affiliate-hub":"affiliate-hub.html"};
+  for (const name of fs.readdirSync(path.join(root, "public")).filter(name => name.endsWith(".html"))) {
+    const html = read("public/" + name);
+    assert.doesNotMatch(html, /map[ -]?lab/i, name);
+    for (const match of html.matchAll(/href="(\/[^"#]*)"/g)) {
+      const pathname = new URL(match[1], "http://local.test").pathname;
+      const target = shortRoutes[pathname] || pathname.slice(1);
+      assert.ok(fs.existsSync(path.join(root, "public", target)), name + ": " + pathname);
+    }
+  }
+});
+
 test("Hub keeps driver info and offers authenticated Driver demo", () => {
   const hub = read("public/hub.html");
-  assert.match(hub, /<h2>Info for drivers<\/h2>/);
+  assert.match(hub, /<h2>Info for Drivers<\/h2>/);
   assert.match(hub, /href="\/for-drivers\.html"/);
   assert.doesNotMatch(hub, /<h2>Driver board<\/h2>/);
   assert.match(hub, /data-demo-role="driver" data-demo-target="\/driver\.html"/);
@@ -17,7 +46,7 @@ test("Hub keeps driver info and offers authenticated Driver demo", () => {
   for (const destination of ["/rider", "/dispatch.html"]) {
     assert.ok(hub.includes('data-demo-target="' + destination + '"'), destination);
   }
-  for (const destination of ["/map-lab.html", "/account.html"]) {
+  for (const destination of ["/partner-portal", "/account.html"]) {
     assert.ok(hub.includes('href="' + destination + '"'), destination);
   }
 });
@@ -43,17 +72,17 @@ test("Driver info page expresses future standards and a software-only preview", 
   assert.ok(page.includes("prefers-reduced-motion") || page.includes("nightrider-motion.js"));
 });
 
-test("Hub has separate public customer and driver information destinations", () => {
+test("Hub has separate public rider and driver information destinations", () => {
   const hub = read("public/hub.html");
-  assert.match(hub, /<h2>Info for customers<\/h2>/);
+  assert.match(hub, /<h2>Info for Riders<\/h2>/);
   assert.match(hub, /href="\/for-customers\.html"/);
-  assert.match(hub, /<h2>Info for drivers<\/h2>/);
+  assert.match(hub, /<h2>Info for Drivers<\/h2>/);
   assert.doesNotMatch(hub, /<h2>Driver board<\/h2>/);
   // Keep rider and dispatch demo paths plus separate information pages.
   for (const link of ["/rider", "/dispatch.html"]) {
     assert.ok(hub.includes('data-demo-target="' + link + '"'), link);
   }
-  for (const link of ["/map-lab.html", "/account.html"]) {
+  for (const link of ["/partner-portal", "/account.html"]) {
     assert.ok(hub.includes('href="' + link + '"'), link);
   }
 });

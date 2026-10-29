@@ -1,5 +1,5 @@
 /* NightRider Midnight paint palette, transcribed from the approved Android
- * Map Lab applyMidnightPalette() implementation (not a new source/style).
+ * Android applyMidnightPalette() implementation (not a new source/style).
  * Both clients load the OpenFreeMap Fiord vector style and recolor its
  * existing layers. Changes here should be reflected in Android together.
  * No raster basemap tiles, routing backend, or API key is introduced.
