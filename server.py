@@ -23,6 +23,16 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 PUBLIC = os.path.join(BASE, "public")
 DATA_FILE = os.path.join(BASE, "rides.json")
 LOCK = threading.Lock()
+# This is deliberately a closed, software-only preview.  The three visible
+# DEMO logins resolve to different internal identities so the username remains
+# globally unique without exposing three different credentials to visitors.
+DEMO_ACCOUNTS = {
+    "rider": {"username": "demo-rider", "label": "Demo Rider"},
+    "driver": {"username": "demo-driver", "label": "Demo Driver"},
+    "dispatch": {"username": "demo-dispatch", "label": "Demo Dispatch"},
+}
+SESSIONS = {}
+SESSION_TTL = 8 * 60 * 60
 STATUSES = ["requested", "accepted", "to_pickup", "at_pickup", "to_dropoff",
             "at_dropoff", "completed", "cancelled"]
 # The driver's ride workflow: each press moves the ride to the next stage.
@@ -43,14 +53,14 @@ STAGE_ACTION = {
 }
 # Human labels for every status, shared by the driver and dispatch boards.
 STATUS_LABELS = {
-    "requested": "Requested",
-    "accepted": "Assigned",
-    "to_pickup": "Heading to pickup",
-    "at_pickup": "At pickup",
-    "to_dropoff": "Heading to destination",
-    "at_dropoff": "At destination",
-    "completed": "Completed",
-    "cancelled": "Cancelled",
+    "requested": "Simulation requested",
+    "accepted": "Demo driver assigned",
+    "to_pickup": "Simulating drive to pickup",
+    "at_pickup": "Simulated pickup",
+    "to_dropoff": "Simulating trip",
+    "at_dropoff": "Simulated arrival",
+    "completed": "Simulation completed",
+    "cancelled": "Simulation cancelled",
 }
 
 
@@ -499,6 +509,49 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def session(self):
+        """Return the current short-lived demo session, if any."""
+        cookies = self.headers.get("Cookie", "")
+        token = ""
+        for item in cookies.split(";"):
+            key, _, value = item.strip().partition("=")
+            if key == "nr_demo_session":
+                token = value
+                break
+        rec = SESSIONS.get(token)
+        if not rec or rec["expires"] < time.time():
+            if token:
+                SESSIONS.pop(token, None)
+            return None
+        return rec
+
+    def require_role(self, *roles):
+        rec = self.session()
+        if not rec or rec["role"] not in roles:
+            self.send_json(401, {"error": "Demo sign-in required", "sign_in": True})
+            return None
+        return rec
+
+    def demo_login(self, data):
+        role = clean_text(data.get("role"), 20).lower()
+        username = clean_text(data.get("username"), 40).upper()
+        password = clean_text(data.get("password"), 80)
+        if role not in DEMO_ACCOUNTS or username != "DEMO" or password != "PASSWORD":
+            return self.send_json(401, {"error": "Use the published demo credentials."})
+        token = uuid.uuid4().hex
+        account = DEMO_ACCOUNTS[role]
+        SESSIONS[token] = {"role": role, "username": account["username"],
+                           "label": account["label"], "expires": time.time() + SESSION_TTL}
+        body = json.dumps({"ok": True, "role": role, "label": account["label"],
+                           "expires_in_s": SESSION_TTL}).encode()
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Set-Cookie", "nr_demo_session=%s; HttpOnly; SameSite=Strict; Path=/; Max-Age=%d" % (token, SESSION_TTL))
+        self.end_headers()
+        self.wfile.write(body)
+
     def send_text(self, code, text, filename=None):
         body = text.encode("utf-8")
         self.send_response(code)
@@ -568,6 +621,8 @@ class Handler(SimpleHTTPRequestHandler):
         return self.send_json(200, {"ok": True, "ack": ack, "ride": snapshot})
 
     def dispatch_get(self, path, qs):
+        if not self.require_role("dispatch"):
+            return
         if path == "/api/dispatch/events":
             since = int(_num(qs, "since", 0))
             wait = min(55.0, max(0.0, _num(qs, "wait", 25)))
@@ -613,6 +668,10 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
         if path.startswith("/api/"):
+            if path == "/api/demo/session":
+                rec = self.session()
+                return self.send_json(200, {"signed_in": bool(rec), "role": rec and rec["role"],
+                                            "label": rec and rec["label"]})
             if path == "/api/dispatch/":
                 return self.send_json(404, {"error": "not found"})
             if path.startswith("/api/dispatch/"):
@@ -639,21 +698,30 @@ class Handler(SimpleHTTPRequestHandler):
                     "stageAction": STAGE_ACTION,
                 })
             if path == "/api/events":
+                if not self.require_role("rider"):
+                    return
                 since = int(_num(qs, "since", 0))
                 ride = _first(qs, "ride") or None
                 wait = min(55.0, max(0.0, _num(qs, "wait", 25)))
                 return self.send_json(200, read_events(since, ride, wait))
             if path.startswith("/api/drivers/") and path.endswith("/messages"):
-                name = urllib.parse.unquote(path.split("/")[3])
+                session = self.require_role("driver")
+                if not session:
+                    return
+                name = session["label"]
                 since = _num(qs, "since", 0)
                 with LOCK:
                     msgs = thread_messages(STORE, name, since)
                 return self.send_json(200, {"driver": name, "messages": msgs, "now": time.time()})
             if path == "/api/rides":
+                if not self.require_role("driver", "dispatch"):
+                    return
                 with LOCK:
                     rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
                     return self.send_json(200, {"rides": [public_ride(r, STORE) for r in rides]})
             if path.startswith("/api/rides/"):
+                if not self.require_role("rider", "driver", "dispatch"):
+                    return
                 rid = path.split("/")[3]
                 with LOCK:
                     ride = STORE["rides"].get(rid)
@@ -672,7 +740,12 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return self.send_json(400, {"error": "invalid JSON"})
 
+        if path == "/api/demo/login":
+            return self.demo_login(data)
+
         if path == "/api/rides":
+            if not self.require_role("rider"):
+                return
             pickup = clean_text(data.get("pickup"))
             dropoff = clean_text(data.get("dropoff"))
             name = clean_text(data.get("rider_name"), 60)
@@ -705,7 +778,8 @@ class Handler(SimpleHTTPRequestHandler):
                 "dropoff_coords": parse_coords(data.get("dropoff_coords")),
                 "distance_mi": round(miles, 1), "driver_to_pickup_mi": round(approach, 1),
                 "fare": fare(miles, approach), "status": "requested",
-                "payment_method": payment,
+                "payment_method": "Simulation only — no payment collected",
+                "simulated": True,
                 "driver": None, "created": time.time(),
                 "status_log": [{"status": "requested", "at": time.time()}],
             }
@@ -730,7 +804,12 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(201, reply)
 
         if path == "/api/drivers/ping":
+            session = self.require_role("driver")
+            if not session:
+                return
             name = clean_text(data.get("name"), 60)
+            # Driver demo users cannot choose another driver's identity.
+            name = session["label"]
             if not name:
                 return self.send_json(400, {"error": "name required"})
             coords = parse_coords(data.get("coords"))
@@ -742,6 +821,8 @@ class Handler(SimpleHTTPRequestHandler):
 
         parts = path.strip("/").split("/")
         if len(parts) >= 3 and parts[0] == "api" and parts[1] == "dispatch":
+            if not self.require_role("dispatch"):
+                return
             if len(parts) == 5 and parts[2] == "rides" and parts[4] == "ack":
                 return self.ack_ride(parts[3], data)
             if len(parts) == 3 and parts[2] == "message":
@@ -754,10 +835,24 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json(404, {"error": "not found"})
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "drivers" and parts[3] == "message":
-            return self.driver_message(urllib.parse.unquote(parts[2]), data)
+            session = self.require_role("driver")
+            if not session:
+                return
+            return self.driver_message(session["label"], data)
 
         if len(parts) == 4 and parts[0] == "api" and parts[1] == "rides":
             rid, action = parts[2], parts[3]
+            if action in ("accept", "advance"):
+                roles = ("driver",)
+            elif action == "rating":
+                roles = ("driver", "dispatch")
+            elif action == "cancel":
+                roles = ("rider",)
+            else:
+                roles = ()
+            session = self.require_role(*roles)
+            if not session:
+                return
             with LOCK:
                 ride = STORE["rides"].get(rid)
                 if not ride:
@@ -768,6 +863,8 @@ class Handler(SimpleHTTPRequestHandler):
                     entry = build_rating(data)
                     if isinstance(entry, str):
                         return self.send_json(400, {"error": entry})
+                    if entry["by"] != session["role"]:
+                        return self.send_json(403, {"error": "rating role does not match demo session"})
                     ride.setdefault("ratings", []).append(entry)
                     rec = (STORE.get("riders") or {}).get(ride.get("rider_id"))
                     if rec is not None:
@@ -779,9 +876,7 @@ class Handler(SimpleHTTPRequestHandler):
                 if action == "accept":
                     if ride["status"] != "requested":
                         return self.send_json(409, {"error": "ride is no longer available"})
-                    driver = clean_text(data.get("driver"), 60)
-                    if not driver:
-                        return self.send_json(400, {"error": "driver name required"})
+                    driver = session["label"]
                     ride["driver"] = driver
                     ride["status"] = "accepted"
                     log_status(ride, "accepted")

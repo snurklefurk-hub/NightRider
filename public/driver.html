@@ -6,7 +6,8 @@
 <title>NightRider — Driver</title>
 <link rel="stylesheet" href="nightrider.css">
 </head>
-<body>
+<body data-demo-role="driver">
+<p class="demo-notice">WORK IN PROGRESS — SOFTWARE DEMO ONLY. NO TRANSPORTATION SERVICES ARE OFFERED; ALL TRIPS ARE SIMULATED.</p>
 <header>
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
@@ -16,10 +17,10 @@
   </nav>
 </header>
 <main>
-  <h1>Driver board</h1>
+  <h1>Driver demo board</h1>
   <div class="card">
-    <label for="driverName">Your name</label>
-    <input id="driverName" placeholder="e.g. Sam" autocomplete="name">
+    <label for="driverName">Demo driver</label>
+    <input id="driverName" value="Demo Driver" readonly aria-readonly="true">
     <button type="button" id="refresh">Refresh open rides</button>
     <button type="button" class="alt" id="useTestDriver">Use test driver (Savannah City Hall)</button>
     <p class="msg" id="msg"></p>
@@ -45,6 +46,7 @@
   </div>
 </main>
 
+<script src="demo-access.js"></script>
 <script>
 (function () {
   "use strict";

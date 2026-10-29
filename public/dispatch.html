@@ -6,7 +6,8 @@
 <title>NightRider — Dispatch</title>
 <link rel="stylesheet" href="nightrider.css">
 </head>
-<body>
+<body data-demo-role="dispatch">
+<p class="demo-notice">WORK IN PROGRESS — SOFTWARE DEMO ONLY. NO TRANSPORTATION SERVICES ARE OFFERED; ALL TRIPS ARE SIMULATED.</p>
 <header>
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
@@ -16,10 +17,10 @@
   </nav>
 </header>
 <main>
-  <h1>Dispatch</h1>
+  <h1>Dispatch demo</h1>
 
   <div class="card">
-    <p class="muted">Live board. Dispatch holds a connection open and is woken the instant a rider
+    <p class="muted">Simulated board. Dispatch holds a connection open and is woken the instant a demo rider
       requests a ride — no polling every few seconds. Each incoming request is acknowledged back to
       the rider as a handshake, so nothing is silently dropped.</p>
     <div class="row">
@@ -102,6 +103,7 @@
   </div>
 </div>
 
+<script src="demo-access.js"></script>
 <script>
 (function () {
   "use strict";

@@ -1,6 +1,10 @@
-# NightRider (basic v0)
+# NightRider (software demo / WIP)
 
-A starter ride-hailing ecosystem for regional private drivers and small companies.
+NightRider is a closed, work-in-progress software demo. It offers no transportation
+services, accepts no real bookings or payments, and every trip in the app is simulated.
+Friends, family, drivers, riders, and interested reviewers can explore it with the shared
+`DEMO` / `PASSWORD` test credentials on the Rider, Driver, and Dispatch pages. Each visible
+role maps to a distinct internal demo account; public rider account creation is not available.
 
 ## Deploy
 See **DEPLOY.md** for step-by-step GitHub and Render instructions (render.yaml is included).

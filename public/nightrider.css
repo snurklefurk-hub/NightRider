@@ -39,6 +39,10 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opa
     to{background-position:15% 23%,80% 54%,29% 80%,0 0}}
 }
 header,main{position:relative;z-index:1}
+.demo-notice{position:relative;z-index:30;margin:0;padding:.45rem 1rem;background:#5b3820;color:#fff3d8;text-align:center;font-size:.82rem;font-weight:700;letter-spacing:.04em}
+.demo-gate{position:fixed;z-index:1000;inset:0;display:grid;place-items:center;padding:1.25rem;background:rgba(2,10,13,.84);backdrop-filter:blur(7px)}
+.demo-gate-card{width:min(100%,440px);padding:1.5rem;background:var(--panel);border:var(--frame);box-shadow:var(--block-lift);border-radius:7px}
+.demo-gate-card h1{margin:.1rem 0 .8rem}.demo-gate-card p{color:var(--mist)}.demo-gate-card .eyebrow{color:var(--lamp);font-size:.72rem;text-transform:uppercase;letter-spacing:.16em;font-weight:700}
 header{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding:1.1rem 1.5rem;border-bottom:1px solid rgba(47,233,255,.3);background:#081a20;flex-wrap:wrap}
 .brand{font:700 1.5rem/1 "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;letter-spacing:.16em;text-transform:uppercase;color:var(--ice);text-decoration:none}
 .brand span{color:var(--cyan)}

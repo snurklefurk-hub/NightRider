@@ -7,7 +7,8 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="nightrider.css">
 </head>
-<body class="rider">
+<body class="rider" data-demo-role="rider">
+<p class="demo-notice">WORK IN PROGRESS — SOFTWARE DEMO ONLY. NO TRANSPORTATION SERVICES ARE OFFERED; ALL TRIPS ARE SIMULATED.</p>
 <header>
   <a class="brand" href="/">Night<span>Rider</span></a>
   <nav>
@@ -50,10 +51,10 @@
       <span class="num" id="routeStats">—</span>
     </div>
     <div class="farebox">
-      <div class="farerow total"><span>Estimated total</span><span class="num" id="fareTotal">—</span></div>
+      <div class="farerow total"><span>Practice fare estimate — never charged</span><span class="num" id="fareTotal">—</span></div>
     </div>
     <div class="row">
-      <button type="button" class="cta" id="requestBtn" disabled>Request NightRide</button>
+      <button type="button" class="cta" id="requestBtn" disabled>Simulate NightRide</button>
       <button type="button" class="alt" id="backBtn" style="flex:0 0 auto;margin-left:0">Edit trip</button>
     </div>
     <label for="riderName">Name for the driver</label>
@@ -64,18 +65,18 @@
   <!-- Payment picker: shown before a ride request is actually sent -->
   <div id="payModal" class="modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="payTitle">
-      <p class="prompt" id="payTitle">Choose how you'll pay</p>
-      <p class="muted">Pick a payment method before sending your ride request.</p>
+      <p class="prompt" id="payTitle">Choose a practice payment label</p>
+      <p class="muted">This is a simulated workflow only. No payment information is collected and no charge can occur.</p>
       <div class="paylist" id="payList">
-        <button type="button" class="payopt" data-method="Cash App"><span class="payname">Cash App</span><span class="tiny muted">Placeholder</span></button>
-        <button type="button" class="payopt" data-method="PayPal"><span class="payname">PayPal</span><span class="tiny muted">Placeholder</span></button>
-        <button type="button" class="payopt" data-method="Zelle"><span class="payname">Zelle</span><span class="tiny muted">Placeholder</span></button>
-        <button type="button" class="payopt" data-method="Venmo"><span class="payname">Venmo</span><span class="tiny muted">Placeholder</span></button>
-        <button type="button" class="payopt" data-method="Cash"><span class="payname">Cash</span><span class="tiny muted">Pay the driver directly</span></button>
+        <button type="button" class="payopt" data-method="Cash App"><span class="payname">Cash App</span><span class="tiny muted">Simulated only</span></button>
+        <button type="button" class="payopt" data-method="PayPal"><span class="payname">PayPal</span><span class="tiny muted">Simulated only</span></button>
+        <button type="button" class="payopt" data-method="Zelle"><span class="payname">Zelle</span><span class="tiny muted">Simulated only</span></button>
+        <button type="button" class="payopt" data-method="Venmo"><span class="payname">Venmo</span><span class="tiny muted">Simulated only</span></button>
+        <button type="button" class="payopt" data-method="Cash"><span class="payname">Cash</span><span class="tiny muted">Simulated only</span></button>
       </div>
       <p class="msg" id="payMsg"></p>
       <div class="row">
-        <button type="button" class="cta" id="payConfirm" disabled>Send request</button>
+        <button type="button" class="cta" id="payConfirm" disabled>Start simulation</button>
         <button type="button" class="alt" id="payCancel" style="flex:0 0 auto;margin-left:0">Back</button>
       </div>
     </div>
@@ -84,7 +85,7 @@
   <!-- STEP 3: matching -->
   <div id="stepMatching" hidden>
     <p class="prompt"><span class="pulse" aria-hidden="true"></span>Finding your driver</p>
-    <p class="muted">Matching you with a nearby NightRider. Keep this page open.</p>
+    <p class="muted">Simulating a nearby NightRider. Keep this page open to explore the workflow.</p>
     <p class="tiny muted" id="ackMsg">Sending your request to dispatch…</p>
     <div class="row">
       <button type="button" class="alt" id="cancelMatch" style="margin-left:0">Cancel request</button>
@@ -124,6 +125,7 @@
 </section>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="demo-access.js"></script>
 <script>
 (function () {
   "use strict";

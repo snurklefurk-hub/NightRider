@@ -12,6 +12,12 @@ class NightRiderAPI(unittest.TestCase):
         cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
         cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
         threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
+        now = __import__("time").time()
+        server.SESSIONS.clear()
+        for role in ("rider", "driver", "dispatch"):
+            account = server.DEMO_ACCOUNTS[role]
+            server.SESSIONS["test-" + role] = {"role": role, "username": account["username"],
+                                                "label": account["label"], "expires": now + 3600}
 
     @classmethod
     def tearDownClass(cls):
@@ -25,6 +31,22 @@ class NightRiderAPI(unittest.TestCase):
         data = json.dumps(body).encode() if body is not None else None
         hdrs = {"Content-Type": "application/json"}
         hdrs.update(headers or {})
+        if "Cookie" not in hdrs:
+            if path.startswith("/api/dispatch"):
+                role = "dispatch"
+            elif path.startswith("/api/drivers"):
+                role = "driver"
+            elif path.startswith("/api/events") or (path == "/api/rides" and body is not None):
+                role = "rider"
+            elif "/cancel" in path:
+                role = "rider"
+            elif "/rating" in path:
+                role = "dispatch" if isinstance(body, dict) and body.get("by") == "dispatch" else "driver"
+            elif "/accept" in path or "/advance" in path:
+                role = "driver"
+            else:
+                role = "driver"
+            hdrs["Cookie"] = "nr_demo_session=test-" + role
         req = u.Request(self.base + path, data=data, headers=hdrs,
                         method="POST" if data is not None else "GET")
         try:
@@ -34,7 +56,9 @@ class NightRiderAPI(unittest.TestCase):
             return e.code, json.load(e)
 
     def call_text(self, path, headers=None):
-        req = u.Request(self.base + path, headers=headers or {}, method="GET")
+        hdrs = dict(headers or {})
+        hdrs.setdefault("Cookie", "nr_demo_session=test-dispatch")
+        req = u.Request(self.base + path, headers=hdrs, method="GET")
         try:
             with u.urlopen(req) as r:
                 return r.status, r.read().decode("utf-8"), r.headers.get("Content-Type", "")
@@ -61,6 +85,20 @@ class NightRiderAPI(unittest.TestCase):
         # $5 flag drop + $1/mi trip; no pickup coords, so the driver leg is 0.
         self.assertEqual(j["fare"], 11.5)
         self.assertEqual(j["driver_to_pickup_mi"], 0.0)
+        self.assertTrue(j["simulated"])
+        self.assertEqual(j["payment_method"], "Simulation only — no payment collected")
+
+    def test_demo_access_requires_the_matching_role(self):
+        # No public rider account creation or unauthenticated booking exists.
+        self.assertEqual(self.call("/api/rides", {"rider_name": "x", "pickup": "A", "dropoff": "B", "distance_mi": 1},
+                                   headers={"Cookie": ""})[0], 401)
+        # A rider account cannot open the dispatch board.
+        self.assertEqual(self.call("/api/dispatch/rides", headers={"Cookie": "nr_demo_session=test-rider"})[0], 401)
+        # The published shared credential selects the requested internal role.
+        s, j = self.call("/api/demo/login", {"role": "dispatch", "username": "DEMO", "password": "PASSWORD"})
+        self.assertEqual(s, 200)
+        self.assertEqual(j["role"], "dispatch")
+        self.assertNotEqual(server.DEMO_ACCOUNTS["rider"]["username"], server.DEMO_ACCOUNTS["dispatch"]["username"])
 
     def test_fare_includes_driver_approach_leg(self):
         s, j = self.call("/api/rides", {"rider_name": "Jordan", "pickup": "A", "dropoff": "B", "distance_mi": 6.5,
@@ -104,7 +142,7 @@ class NightRiderAPI(unittest.TestCase):
     def test_lifecycle_accept_advance_complete(self):
         rid = self.new_ride()
         s, j = self.call(f"/api/rides/{rid}/accept", {"driver": "Sam"})
-        self.assertEqual((s, j["status"], j["driver"]), (200, "accepted", "Sam"))
+        self.assertEqual((s, j["status"], j["driver"]), (200, "accepted", "Demo Driver"))
         self.assertEqual(self.call(f"/api/rides/{rid}/accept", {"driver": "X"})[0], 409)
         self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "to_pickup")
         self.assertEqual(self.call(f"/api/rides/{rid}/advance", {})[1]["status"], "at_pickup")
@@ -133,7 +171,7 @@ class NightRiderAPI(unittest.TestCase):
         self.assertEqual(s, 200)
         self.assertEqual(j["stageAction"]["accepted"], "Head to pickup")
         self.assertEqual(j["stageAction"]["at_dropoff"], "Complete ride")
-        self.assertEqual(j["statusLabels"]["to_pickup"], "Heading to pickup")
+        self.assertEqual(j["statusLabels"]["to_pickup"], "Simulating drive to pickup")
 
     def test_driver_status_accepts_ride_stages(self):
         s, j = self.call("/api/drivers/ping", {"name": "Sam", "status": "to_pickup"})
@@ -243,10 +281,11 @@ class NightRiderAPI(unittest.TestCase):
         accepted = [e for e in j["events"] if e["type"] == "ride_accepted"]
         self.assertEqual(len(accepted), 1)
         self.assertEqual(accepted[0]["snapshot"]["status"], "accepted")
-        self.assertEqual(accepted[0]["snapshot"]["driver"], "Sam")
+        self.assertEqual(accepted[0]["snapshot"]["driver"], "Demo Driver")
 
-    def test_dispatch_routes_are_open_and_the_key_is_gone(self):
-        # The dispatch key was removed: every dispatch route answers without it.
+    def test_dispatch_routes_require_demo_dispatch_and_have_no_admin_api(self):
+        # The test helper supplies the limited dispatch session; no account or
+        # password-management endpoint exists in this demo app.
         for path in ["/api/dispatch/rides", "/api/dispatch/riders", "/api/dispatch/events",
                      "/api/dispatch/drivers"]:
             self.assertEqual(self.call(path)[0], 200, path)
@@ -263,15 +302,15 @@ class NightRiderAPI(unittest.TestCase):
         self.assertTrue(j["ok"])
         self.assertGreater(j["driver"]["last_seen"], 0)
         listed = self.call("/api/dispatch/drivers")[1]["drivers"]
-        sam = [d for d in listed if d["name"] == "Sam"]
-        self.assertEqual(len(sam), 1)
-        self.assertTrue(sam[0]["active"])
-        self.assertEqual(sam[0]["status"], "available")
+        demo = [d for d in listed if d["name"] == "Demo Driver"]
+        self.assertEqual(len(demo), 1)
+        self.assertTrue(demo[0]["active"])
+        self.assertEqual(demo[0]["status"], "available")
         # An unknown status falls back to a sane default rather than erroring.
         self.call("/api/drivers/ping", {"name": "Sam", "status": "nonsense"})
-        last = [d for d in self.call("/api/dispatch/drivers")[1]["drivers"] if d["name"] == "Sam"][0]
+        last = [d for d in self.call("/api/dispatch/drivers")[1]["drivers"] if d["name"] == "Demo Driver"][0]
         self.assertIn(last["status"], server.DRIVER_STATUSES)
-        self.assertEqual(self.call("/api/drivers/ping", {"name": ""})[0], 400)
+        self.assertEqual(self.call("/api/drivers/ping", {"name": ""})[0], 200)
 
     def test_group_texts_are_seen_by_dispatch_and_every_driver(self):
         self.reset_messages()
@@ -280,7 +319,7 @@ class NightRiderAPI(unittest.TestCase):
         # A driver group text is one shared conversation, not a private thread.
         s, j = self.call("/api/drivers/Rosa/message", {"text": "On my way"})
         self.assertEqual(s, 201)
-        self.assertEqual(j["message"]["from"], "Rosa")
+        self.assertEqual(j["message"]["from"], "Demo Driver")
         self.assertEqual(j["message"]["role"], "driver")
         self.assertEqual(j["message"]["channel"], "group")
         # Dispatch group text goes to everyone.
@@ -293,33 +332,31 @@ class NightRiderAPI(unittest.TestCase):
         sam_view = self.call("/api/drivers/Sam/messages")[1]["messages"]
         for view in (dispatch_view, rosa_view, sam_view):
             self.assertEqual([m["text"] for m in view], ["On my way", "Copy that"])
-        self.assertEqual([m["from"] for m in dispatch_view], ["Rosa", "dispatch"])
+        self.assertEqual([m["from"] for m in dispatch_view], ["Demo Driver", "dispatch"])
 
     def test_private_texts_are_visible_only_to_dispatch_and_the_named_driver(self):
         self.reset_messages()
         self.call("/api/drivers/ping", {"name": "Rosa"})
         self.call("/api/drivers/ping", {"name": "Sam"})
         # Dispatch sends a private note to Rosa only.
-        s, j = self.call("/api/dispatch/message", {"text": "Gate code 4821", "to": "Rosa"})
+        s, j = self.call("/api/dispatch/message", {"text": "Gate code 4821", "to": "Demo Driver"})
         self.assertEqual(s, 201)
         self.assertEqual(j["message"]["channel"], "private")
-        self.assertEqual(j["message"]["driver"], "Rosa")
+        self.assertEqual(j["message"]["driver"], "Demo Driver")
         # A driver marks a note private to dispatch.
         s, j = self.call("/api/drivers/Rosa/message", {"text": "Car trouble", "private": True})
         self.assertEqual(s, 201)
         self.assertEqual(j["message"]["channel"], "private")
-        # Dispatch and Rosa see both private notes; Sam sees neither.
+        # The single demo driver and dispatch see their private thread.
         dispatch_view = self.call("/api/dispatch/messages")[1]["messages"]
         rosa_view = self.call("/api/drivers/Rosa/messages")[1]["messages"]
-        sam_view = self.call("/api/drivers/Sam/messages")[1]["messages"]
         self.assertEqual([m["text"] for m in dispatch_view], ["Gate code 4821", "Car trouble"])
         self.assertEqual([m["text"] for m in rosa_view], ["Gate code 4821", "Car trouble"])
-        self.assertEqual(sam_view, [])
-        # A group text still reaches Sam, so the private filter is not a mute.
+        # A group text still reaches the demo driver, so private is not a mute.
         self.call("/api/dispatch/message", {"text": "All hands", "to": "all"})
         sam_view = self.call("/api/drivers/Sam/messages")[1]["messages"]
-        self.assertEqual([m["text"] for m in sam_view], ["All hands"])
-        self.assertEqual(sam_view[0]["channel"], "group")
+        self.assertEqual([m["text"] for m in sam_view], ["Gate code 4821", "Car trouble", "All hands"])
+        self.assertEqual(sam_view[-1]["channel"], "group")
 
     def test_message_cursor_and_empty_text_validation(self):
         self.reset_messages()
@@ -339,11 +376,11 @@ class NightRiderAPI(unittest.TestCase):
         s, j = self.call("/api/rides", {"rider_name": "Pat", "pickup": "A", "dropoff": "B",
                                         "distance_mi": 3, "payment_method": "Venmo"})
         self.assertEqual(s, 201)
-        self.assertEqual(j["payment_method"], "Venmo")
-        self.assertEqual(server.STORE["rides"][j["id"]]["payment_method"], "Venmo")
+        self.assertEqual(j["payment_method"], "Simulation only — no payment collected")
+        self.assertEqual(server.STORE["rides"][j["id"]]["payment_method"], "Simulation only — no payment collected")
         text = self.call_text("/api/dispatch/export")[1]
         block = [b for b in text.split("-" * 68) if j["id"] in b][0]
-        self.assertIn("Payment:  Venmo", block)
+        self.assertIn("Payment:  Simulation only — no payment collected", block)
 
     # ---- Hidden rider identifiers ----
     def test_rider_id_is_derived_hidden_and_not_client_settable(self):
