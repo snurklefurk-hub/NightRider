@@ -90,12 +90,29 @@ test("Hub has separate public rider and driver information destinations", () => 
 test("Customer page explains design aspirations and simulated use without offering service", () => {
   const page = read("public/for-customers.html");
   for (const phrase of [
-    "The idea: a ride you could feel good about booking.",
+    "For the people in the passenger seat",
+    "The idea: Courtesy, consistency, quality, and safety.",
+    "Be what Rideshare was supposed to be: The Modern Taxi.",
+    "PROFESSIONAL",
+    "Ease of use, availability on any device, convenience, and data security via non-collection.",
+    "01 / COMFORT",
     "Clean, comfortable, and calm.",
+    "Our bare minimum is what the other guys call Premium.",
+    "02 / DEPENDABILITY",
     "Know what to expect.",
+    "03 / RESPECT &amp; SAFETY",
+    "Professional on both sides of the door.",
+    "Our drivers <strong>NEVER</strong> use voice calling",
+    "04 / HONEST VALUE",
     "Clarity beats gimmicks.",
+    "25¢ per mile to come to you, $1 per mile to take you there, and $5 on top per ride (flag drop or cancellation).",
+    "No surging, no surprises.",
     "A familiar driver beats another mystery ride.",
+    "All drivers are vetted, tested, and checked <strong>FAR</strong> above industry standards.",
     "No separate customer app to download.",
+    "book a ride from any device.",
+    "Use practice trip details.",
+    "Try the other sides.",
     "No transportation services are offered",
     "all trips are simulated",
     "Nothing is live except the code"
@@ -105,6 +122,13 @@ test("Customer page explains design aspirations and simulated use without offeri
   assert.match(page, /href="\/rider"/);
   assert.match(page, /href="\/hub"/);
   assert.match(page, /href="\/for-drivers\.html"/);
+  assert.match(page, /href="\/account\.html\?demo=rider"[^>]*>Try the Rider demo<\/a>/);
+  assert.match(page, /href="\/hub"[^>]*>Back to the Hub<\/a>/);
+  assert.match(page, /href="\/for-drivers\.html"[^>]*>Read the ideas behind the Driver tools\.<\/a>/);
+  assert.doesNotMatch(page, /book a ride from and device/);
+  const order = ["01 / COMFORT", "02 / DEPENDABILITY", "03 / RESPECT &amp; SAFETY", "04 / HONEST VALUE"];
+  assert.deepEqual(order.map(text => page.indexOf(text)), [...order.map(text => page.indexOf(text))].sort((a,b)=>a-b));
+  assert.ok(order.every(text => page.indexOf(text) >= 0));
   assert.match(page, /href="\/aero-theme\.css\?v=3"/);
   assert.match(page, /src="\/aero-theme\.js\?v=2"/);
   assert.ok(page.includes('name="viewport"'));
