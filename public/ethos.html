@@ -4,12 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#071b12">
+  <meta name="description" content="Why NightRider is building a modern local taxi company around professional drivers, real human dispatch, clear fares, and accountable service.">
   <title>NightRider — Our Ethos</title>
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/nightrider.css?v=verdant-1">
   <link rel="stylesheet" href="/aero-theme.css?v=3">
   <link rel="stylesheet" href="/partner-hub.css?v=1">
   <script src="/aero-theme.js?v=2"></script>
+  <style>
+    .ethos-intro{max-width:880px;margin-bottom:34px}
+    .ethos-kicker{font-size:.76rem;font-weight:800;letter-spacing:.15em;text-transform:uppercase;color:var(--cyan)}
+    .ethos-intro h2{font-size:clamp(1.5rem,3vw,2.2rem);line-height:1.25;margin:14px 0}
+    .ethos-lede{font-size:clamp(1.05rem,2vw,1.23rem);line-height:1.7}
+    .ethos-grid .partner-panel{padding:clamp(20px,3vw,30px)}
+    .ethos-grid .partner-panel p{line-height:1.7}
+    .ethos-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+    .ethos-actions a{display:inline-flex;align-items:center;min-height:44px;padding:10px 16px;border:1px solid var(--line);border-radius:10px;color:var(--ice);text-decoration:none;font-weight:700}
+    .ethos-actions a:focus-visible{outline:3px solid var(--lamp);outline-offset:3px}
+  </style>
 </head>
 <body>
   <aside class="nr-demo-notice" aria-label="Software demo notice"><strong>WIP · Software demo only.</strong> No transportation services are offered. All trips and payments are simulated. <a href="/hub">NightRider Hub</a>.</aside>
@@ -18,25 +30,54 @@
     <nav aria-label="Site navigation"><a href="/hub">Hub</a><a href="/for-customers.html">Info for Riders</a><a href="/for-drivers.html">Info for Drivers</a></nav>
   </header>
   <main class="partner-layout">
-    <div class="partner-intro">
+    <div class="partner-intro ethos-intro">
       <h1>Our Ethos</h1>
-      <p class="muted">Professional work, independent drivers, and trust earned through clear expectations. These principles guide the software we are building.</p>
+      <p class="ethos-kicker">The modern taxi, done properly</p>
+      <h2>We want to build what rideshare should have become.</h2>
+      <p class="ethos-lede">The convenience of modern technology. The standards of a professional transportation company. The accountability of people who actually live and work in the community.</p>
+      <p>NightRider's direction is simple: build a real local transportation business, and let the software make it easier to do the job right. We don't need another faceless platform where everyone is a dot on a map.</p>
     </div>
-    <div class="partner-grid">
+    <div class="partner-grid ethos-grid">
       <section class="partner-panel">
-        <h2>A professional ride should feel professional.</h2>
-        <p>Comfort, preparation, respectful communication, and care for safety belong at the center of the experience.</p>
-        <p><a href="/for-customers.html">Read our principles for riders</a></p>
+        <h2>Professional is the standard, not an upgrade.</h2>
+        <p>Clean, comfortable vehicles. Courteous, prepared drivers. Smooth driving, respect for people's time, and a safe trip from start to finish. The basics shouldn't require a premium tier or a special occasion.</p>
+        <p>We want one dependable standard of service, with qualified drivers and realistic expectations—not a menu of gimmicks.</p>
       </section>
       <section class="partner-panel">
-        <h2>Your business. Your reputation. Your customers.</h2>
-        <p>Drivers should have tools that support their independence, the quality of their work, and lasting customer relationships.</p>
-        <p><a href="/for-drivers.html">Read our principles for drivers</a></p>
+        <h2>A driver is a professional, not a disposable number.</h2>
+        <p>Good drivers build a reputation. They remember their regulars, take pride in the work, and deserve to benefit when someone asks for them again. We want technology that helps drivers grow lasting customer relationships instead of resetting them to strangers on every ride.</p>
+        <p>No bidding against each other for the lowest fare. No pushing the next job at someone who's concentrating on the road. Independence should come with dignity, not a constant race to the bottom.</p>
+      </section>
+      <section class="partner-panel">
+        <h2>A real local company. A real human dispatcher.</h2>
+        <p>When NightRider begins accepting real bookings, the plan is to have a live dispatcher on duty whenever we're taking them. Someone who knows the operation, can answer questions, and takes responsibility when a pickup gets complicated.</p>
+        <p>Customers and local partners shouldn't have to throw a request into an algorithm and hope it works out. There should be people behind the service who can follow through.</p>
+      </section>
+      <section class="partner-panel">
+        <h2>Clear fares. No games.</h2>
+        <p>We don't intend to win by being the cheapest ride in town. We'd rather offer a fair, understandable price and a ride worth booking again.</p>
+        <p>That means straightforward estimates, no surge-pricing roulette, no pressure to buy a better class of car, and no hidden tricks. Say what it costs, say what to expect, and stand behind it.</p>
+      </section>
+      <section class="partner-panel">
+        <h2>Technology should help, then get out of the way.</h2>
+        <p>Riders should be able to request a ride in a browser without downloading another app. The rider starts the request, Dispatch coordinates it, and the driver gets the information needed to do the work.</p>
+        <p>Less ringing, fewer interruptions, fewer things competing for attention while driving. Software is the tool. The ride—and the people involved—come first.</p>
+      </section>
+      <section class="partner-panel">
+        <h2>Be part of the community, not above it.</h2>
+        <p>We want to work with the people already here: regular customers, hotels, restaurants, venues, and other local businesses. A front desk should know who is responsible for a guest's ride. A returning rider should feel comfortable asking for a familiar driver.</p>
+        <p>Respect and accessibility matter too. We intend to follow applicable safety, accessibility, and nondiscrimination requirements while building a service people can trust.</p>
       </section>
       <section class="partner-panel partner-full">
-        <h2>Build for trust, not theatrics.</h2>
-        <p>We judge each change by whether it supports dependable rides, the driver's business, or a more transparent experience for customers.</p>
-                <p><a href="/hub">Explore the software demos from the Hub</a></p>
+        <h2>Here's the test for everything we build.</h2>
+        <p>Does it make delivering a professional ride easier or safer? Does it help a driver build a worthwhile business? Does it make the rider's experience more dependable, transparent, or trustworthy?</p>
+        <p>If the answer to all three is no, we probably don't need it. That's the standard we're trying to build around—not an endless list of flashy features.</p>
+        <div class="ethos-actions">
+          <a href="/for-customers.html">What riders can expect</a>
+          <a href="/for-drivers.html">Our approach to drivers</a>
+          <a href="/for-affiliates.html">Plans for local partners</a>
+          <a href="/hub">Explore the NightRider Hub</a>
+        </div>
       </section>
     </div>
   </main>
