@@ -168,8 +168,8 @@ test("Hub previews destinations without repeating the sitewide demo notice", () 
   ]) {
     const body = read(file).split("<body>")[1];
     assert.equal((body.match(/class="nr-demo-notice"/g) || []).length, 1, file);
-    assert.equal((body.match(/No transportation services are offered\\./g) || []).length, 1, file);
-    assert.equal((body.match(/All trips and payments are simulated\\./g) || []).length, 1, file);
+    assert.equal((body.match(/No transportation services are offered\./g) || []).length, 1, file);
+    assert.equal((body.match(/All trips and payments are simulated\./g) || []).length, 1, file);
     assert.doesNotMatch(body, /Only the code is live|Nothing is live except the code|may be completely absent or nonfunctional/i, file);
   }
 });
