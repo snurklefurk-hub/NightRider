@@ -80,6 +80,20 @@
       message.textContent = action === "confirm" ? "Terms acknowledged in simulation. No ride created." : "Offer withdrawn.";
     } catch (e) { error(e); try { await refresh(); } catch (_) {} }
   }
+  function prepareSampleOffer() {
+    if (!demoMode) return;
+    const pickup = new Date(Date.now() + 36 * 60 * 60 * 1000);
+    const local = new Date(pickup.getTime() - pickup.getTimezoneOffset() * 60000);
+    $("tripReference").value = "SAMPLE-" + Math.random().toString(36).slice(2, 7).toUpperCase();
+    $("pickup").value = "Sample hotel main entrance, Hilton Head Island";
+    $("dropoff").value = "Coligny Beach Park";
+    $("pickupAt").value = local.toISOString().slice(0, 16);
+    $("passengers").value = "2";
+    $("bags").value = "1";
+    $("payout").value = "42.00";
+    $("notes").value = "Fictional guest pickup";
+    $("authorized").checked = false;
+  }
   $("keyForm").addEventListener("submit", async e => {
     e.preventDefault();
     partnerKey = $("partnerKey").value.trim();
@@ -109,6 +123,7 @@
       form.reset();
       $("passengers").value = "1";
       $("bags").value = "0";
+      prepareSampleOffer();
       await refresh();
       message.textContent = "Simulated offer submitted for NightRider review. No reservation created.";
     } catch (err) { error(err); }
@@ -128,6 +143,7 @@
   if (demoMode) {
     $("affiliateLogin").classList.add("partner-hidden");
     $("affiliateDemoControls").classList.remove("partner-hidden");
+    prepareSampleOffer();
     $("affiliateLogout").classList.add("partner-hidden");
     $("demoPartnerPick").addEventListener("change", async () => {
       demoPartnerId = $("demoPartnerPick").value;
