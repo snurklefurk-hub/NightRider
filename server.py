@@ -3,6 +3,7 @@ import copy, datetime, hmac, json, math, os, random, secrets, threading, time, u
 import auth
 import account_archive
 import history_purge
+import demo_chatham_rides
 import partner_desk
 
 # A stand-in driver permanently parked at Savannah City Hall, so the
@@ -1400,7 +1401,12 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/dispatch/rides":
             with LOCK:
                 rides = sorted(STORE["rides"].values(), key=lambda r: r["created"], reverse=True)
-                return self.send_json(200, {"rides": [dispatch_ride(r, STORE) for r in rides]})
+                return self.send_json(200, {
+                    "rides": [dispatch_ride(r, STORE) for r in rides],
+                    # Never insert showroom examples into STORE['rides']: they
+                    # cannot be assigned, charged, messaged, or sent to drivers.
+                    "demo_rides": demo_chatham_rides.samples(STORE)
+                })
         if path == "/api/dispatch/riders":
             accounts = {
                 "NR-" + account["id"][:10].upper(): account["created_at"]
