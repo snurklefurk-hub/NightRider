@@ -53,17 +53,33 @@ The backend blocks the old direct Driver delete endpoint and accepts deletion on
 
 ## Chatham County Dispatch showroom rides (software demo only)
 
-Dispatch's **Recent rides** panel includes a separate, read-only set of ten
-fictional Chatham County examples: **three incoming/requested**, **five
-completed**, and **two cancelled**. Passenger names, travel distances, fares,
-and timelines are invented; pickup and drop-off addresses are public venues
-in Savannah, Pooler, Garden City/Tybee Island and remain inside Chatham County.
+Dispatch separates rides strictly by lifecycle: **Live Dispatch** at the
+top includes *every* unfinished status (including requested, accepted, heading
+to pickup, at pickup, heading to drop-off and at drop-off). **Previous Rides**
+contains *only* completed and cancelled records.
 
-These examples are *not* ride requests submitted by riders and **are not**
-inserted into the canonical rides collection. They cannot be assigned to a
-driver, texted, cancelled or charged, do not appear in the Android/Driver or
-Rider queues, and do not send new-ride events. Dispatch's normal operational
-counts and map continue to represent only the canonical simulation rides.
+The ten fictional Chatham County showcase rides are split between those
+panels: **one heading to pickup**, **one at pickup**, **one heading to
+drop-off**, **five completed** and **two cancelled**. Passenger names,
+distances, prices and timelines are invented. Addresses are public locations
+around Savannah, Pooler and Tybee Island in Chatham County.
+
+The Dispatch map also includes five stationary fictional drivers (three
+assigned to those DEMO rides and two marked available), along with fixed DEMO
+rider coordinates, pickup/drop-off pins and straight-line illustrative routes.
+When rider and driver occupy **identical** coordinates, the map shows a
+single **D+R** marker with a popup identifying both people. Nobody is shifted
+away from their actual coordinate just to display a second icon. The map uses
+a dedicated **Fictional DEMO markers** toggle and labels all examples as
+*fixed simulations, not live GPS*. Route lines are not driving directions
+or estimated travel times.
+
+The samples are *not* ride requests submitted by riders and **are not**
+inserted into the canonical rides or drivers collections. They cannot be
+assigned, contacted, cancelled or charged, never enter Android Driver/Rider
+queues or notifications, and never appear as genuine live driver telemetry.
+Dispatch's operational status counters continue to represent only canonical
+simulated rider-entered trips.
 
 The owner-admin's existing **Export & delete ride history** action includes
 these fictitious examples in its local JSON archive and sets a persisted

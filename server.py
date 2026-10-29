@@ -428,7 +428,9 @@ def dispatch_map_snapshot(store, now=None):
         else:
             item["rider_location"] = None
         rides.append(item)
-    return {"rides": rides, "drivers": drivers, "now": now,
+    return {"rides": rides, "drivers": drivers,
+            "demo_rides": demo_chatham_rides.map_rides(store),
+            "demo_drivers": demo_chatham_rides.demo_drivers(store), "now": now,
             "location_fresh_seconds": LOCATION_FRESH_SECONDS}
 
 

@@ -22,7 +22,7 @@ class ChathamDemoRideTests(unittest.TestCase):
         samples = demo_chatham_rides.samples(self.store)
         self.assertEqual(len(samples), 10)
         self.assertEqual(collections.Counter(r["status"] for r in samples),
-                         {"requested": 3, "completed": 5, "cancelled": 2})
+                         {"to_pickup": 1, "at_pickup": 1, "to_dropoff": 1, "completed": 5, "cancelled": 2})
         self.assertEqual(len(set(r["id"] for r in samples)), 10)
         self.assertEqual(len(set(r["rider_name"] for r in samples)), 10)
         self.assertTrue(all(r["demo_preview"] is True and r["simulated"] is True
@@ -78,6 +78,34 @@ class ChathamDemoRideTests(unittest.TestCase):
         self.assertEqual(history_purge.purge(self.store, "rides"),
                          {"rides": 0, "demo_rides": 0})
         self.assertEqual(demo_chatham_rides.samples(server.ensure_store(self.store)), [])
+
+    def test_three_geo_examples_and_five_fake_drivers_stay_isolated(self):
+        rides = demo_chatham_rides.map_rides(self.store)
+        drivers = demo_chatham_rides.demo_drivers(self.store)
+        self.assertEqual(len(rides), 3)
+        self.assertEqual(len(drivers), 5)
+        self.assertEqual({r["status"] for r in rides}, {"to_pickup", "at_pickup", "to_dropoff"})
+        self.assertEqual(len({d["id"] for d in drivers}), 5)
+        self.assertTrue(all(d["demo_preview"] is True and d["location_kind"] ==
+                            "fixed_demonstration_point" for d in drivers))
+        self.assertTrue(all(r["rider_location"]["live"] is False and
+                            r["rider_location"]["simulated"] is True for r in rides))
+        for ride in rides:
+            self.assertTrue(-82 < ride["pickup_coords"][1] < -80)
+            self.assertTrue(31 < ride["pickup_coords"][0] < 33)
+            self.assertNotIn(ride["id"], self.store["rides"])
+        pickup = next(r for r in rides if r["status"] == "to_pickup")
+        self.assertNotEqual(pickup["rider_location"]["coords"],
+                            next(d["coords"] for d in drivers if d["ride_id"] == pickup["id"]))
+        for ride in (r for r in rides if r["status"] in ("at_pickup", "to_dropoff")):
+            driver = next(d for d in drivers if d["ride_id"] == ride["id"])
+            self.assertEqual(driver["coords"], ride["rider_location"]["coords"],
+                             "Co-located fixture must share exact coordinates")
+        self.assertFalse(self.store["drivers"])
+        self.assertFalse(self.store["rides"])
+        history_purge.purge(self.store, "rides")
+        self.assertEqual(demo_chatham_rides.map_rides(self.store), [])
+        self.assertEqual(demo_chatham_rides.demo_drivers(self.store), [])
 
     def test_chat_purge_does_not_remove_demo_rides(self):
         history_purge.purge(self.store, "chat")

@@ -38,6 +38,17 @@
     <p class="tiny muted" id="conn">Connecting…</p>
   </div>
 
+  <section class="card" id="liveDispatchBoard" aria-labelledby="liveDispatchTitle">
+    <h2 id="liveDispatchTitle">Live Dispatch</h2>
+    <p class="tiny muted">Every unfinished ride, from requested through drop-off. DEMO rides below are read-only examples.</p>
+    <div id="liveRideRows" class="ridecards"></div>
+    <section id="demoLiveSection" aria-label="Chatham County fictional active rides" hidden>
+      <h3>DEMO · In-progress Chatham County rides</h3>
+      <p class="tiny muted">Fixed example coordinates, not live GPS. Select an example's Show on map control to inspect its fictional driver and passenger.</p>
+      <div id="demoLiveRows" class="ridecards"></div>
+    </section>
+  </section>
+
   <section class="card dispatch-map-card" id="dispatchMapCard" aria-labelledby="dispatchMapTitle">
     <div class="dispatch-map-heading">
       <h2 id="dispatchMapTitle">Simulation map</h2>
@@ -56,6 +67,7 @@
       <label class="map-layer-toggle"><input type="checkbox" id="mapShowRiders" checked> Riders</label>
       <label class="map-layer-toggle"><input type="checkbox" id="mapShowDispatch" checked> Dispatch</label>
       <label class="map-layer-toggle"><input type="checkbox" id="mapShowRoutes" checked> Routes</label>
+      <label class="map-layer-toggle"><input type="checkbox" id="mapShowDemo" checked> Fictional DEMO markers</label>
     </div>
     <div id="dispatchMap" class="dispatch-map-canvas" role="region" aria-label="Simulation map showing test drivers, ride endpoints, routes and shared rider locations"></div>
     <div id="dispatchMapCredit" class="nr-map-credit nr-map-credit-dispatch" aria-label="Map data attribution">
@@ -68,6 +80,8 @@
       <span><i class="legend-dot dropoff"></i>Drop-off</span>
       <span><i class="legend-dot rider"></i>Rider</span>
       <span><i class="legend-dot dispatch"></i>Dispatch</span>
+      <span><i class="legend-dot demo"></i>DEMO (fixed location)</span>
+      <span><i class="legend-dot pair"></i>D+R at one location</span>
       <span><i class="legend-route"></i>Trip route</span>
       <span><i class="legend-route approach"></i>Driver's current leg</span>
     </div>
@@ -94,12 +108,13 @@
   </div>
 
   <div class="card" id="rideBoard">
-    <h2>Recent rides</h2>
+    <h2>Previous Rides</h2>
+    <p class="tiny muted">Completed and cancelled rides only. Active trips remain in Live Dispatch above.</p>
     <div id="rows" class="ridecards"></div>
     <section id="demoRideSection" aria-label="Chatham County fictional demo rides" hidden>
-      <h3>Chatham County demo rides</h3>
+      <h3>DEMO · Previous Chatham County rides</h3>
       <p class="tiny muted">Fictional passengers and fares, public pickup/drop-off addresses.
-        3 incoming, 5 completed, 2 cancelled. Read-only examples — not real bookings,
+        5 completed, 2 cancelled. Read-only examples — not real bookings,
         not driver assignments, and no payments.</p>
       <div id="demoRideRows" class="ridecards"></div>
     </section>
@@ -373,15 +388,24 @@
     });
   }
 
-  /* ---- recent rides (ten expandable tiles) ----------------------------- */
+  /* ---- Live Dispatch vs archived Previous Rides ------------------------ */
+  function isTerminalRide(ride) {
+    return ride && (ride.status === "completed" || ride.status === "cancelled");
+  }
   function refresh() {
     api("/api/dispatch/rides", { cache: "no-store" }).then(function (r) {
       return r.json();
     }).then(function (d) {
       var all = d.rides || [];
       nrDispatchChat.setRides(all);
-      renderRows(all.slice(0, 10));
-      renderDemoRows(d.demo_rides || []);
+      // Invariant: no unfinished ride can appear in Previous Rides.
+      renderRows(all.filter(function (ride) { return !isTerminalRide(ride); }), "liveRideRows");
+      renderRows(all.filter(isTerminalRide).slice(0, 10), "rows");
+      var examples = d.demo_rides || [];
+      renderDemoRows(examples.filter(function (ride) { return !isTerminalRide(ride); }),
+        "demoLiveSection", "demoLiveRows");
+      renderDemoRows(examples.filter(isTerminalRide),
+        "demoRideSection", "demoRideRows");
       renderCounts(all);
       renderRiders();
       $("msg").textContent = "";
@@ -501,9 +525,13 @@
     return wrap;
   }
 
-  function renderRows(rides) {
-    var body = $("rows"); body.innerHTML = "";
-    if (!rides.length) { body.innerHTML = '<p class="muted">No actual simulation rides yet. Fictional examples appear below.</p>'; return; }
+  function renderRows(rides, targetId) {
+    var body = $(targetId); body.innerHTML = "";
+    if (!rides.length) {
+      body.innerHTML = '<p class="muted">' +
+        (targetId === "liveRideRows" ? "No active rider-submitted trips." : "No previous rider-submitted trips.") + '</p>';
+      return;
+    }
     rides.forEach(function (r) {
       var card = document.createElement("details");
       card.className = "ridecard";
@@ -585,10 +613,9 @@
     });
   }
 
-  // Dispatch-only, inert showroom tiles. These are deliberately NOT
-  // passed to Chat, the assignment controls, maps, rider records or drivers.
-  function renderDemoRows(rides) {
-    var section = $("demoRideSection"), body = $("demoRideRows");
+  // Dispatch-only, inert showroom tiles. Never passed to Chat, assignments or drivers.
+  function renderDemoRows(rides, sectionId, bodyId) {
+    var section = $(sectionId), body = $(bodyId);
     var examples = (rides || []).filter(function (ride) { return ride.demo_preview === true; });
     section.hidden = !examples.length;
     body.replaceChildren();
@@ -618,6 +645,16 @@
       var stages = stageBlock(r);
       if (stages) detail.appendChild(stages);
       card.appendChild(detail);
+      if (!isTerminalRide(r)) {
+        var showMap = document.createElement("button");
+        showMap.type = "button";
+        showMap.className = "alt";
+        showMap.textContent = "Show DEMO on map";
+        showMap.addEventListener("click", function () {
+          if (window.NightRiderDispatchMap) window.NightRiderDispatchMap.focusRide(r.id);
+        });
+        detail.appendChild(showMap);
+      }
       body.appendChild(card);
     });
   }
