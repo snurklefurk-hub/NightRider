@@ -158,8 +158,8 @@ class PartnerDomainTests(unittest.TestCase):
     def test_partner_desk_page_is_admin_only_and_hub_links_exist(self):
         from pathlib import Path
         html = (Path(__file__).resolve().parents[1] / "public" / "hub.html").read_text()
-        self.assertIn('href="/partner-desk"', html)
-        self.assertIn('href="/affiliate-hub"', html)
+        self.assertIn('href="/partner-desk-demo"', html)
+        self.assertIn('href="/affiliate-hub?demo=1"', html)
         for page in ("/partner-desk", "/partner-desk/", "/partner-desk.html"):
             for user in (None, STAFF, DEMO):
                 h = FakeHandler(user)
