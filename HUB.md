@@ -43,6 +43,16 @@ Dispatch maps, their shared Midnight palette, LIGHT/DARK behavior, ride markers,
 and the independent Android navigation workflow. Old preview bookmarks should
 return visitors to the Hub. Existing rider information bookmarks remain valid.
 
+## Prelaunch fare disclosures
+
+No commercial rate schedule or partner compensation has been approved.
+Published rider, driver, affiliate, insurer and ethos information should
+avoid historic demo formula figures and unconditional pricing promises.
+Real-world fares depend on commercial insurance, licensing, driver compensation
+and operating-cost review. Any amounts calculated in Rider or Dispatch demos
+are fictional examples, not public offers, quotes or current commercial rates.
+Keep the working demo fare calculator and private rate-testing controls intact.
+
 ## Public contact and prelaunch inquiries
 
 Public email: `carson.nightrider@gmail.com`. Show it on the Hub, informational Rider,
