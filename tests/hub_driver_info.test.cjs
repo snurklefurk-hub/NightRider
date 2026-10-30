@@ -8,7 +8,7 @@ const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 test("Hub preserves approved information copy and the unified Partner Hub destination", () => {
   const hub = read("public/hub.html");
-  const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
+  const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile(?: [^"]*)?"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
   assert.deepEqual(tiles.map(tile => tile[3]), [
     "Info for Riders", "Info for Drivers", "Affiliates and Partners", "Our Ethos",
     "Rider Demo", "Driver Demo", "Dispatch Demo", "Partner Hub", "For Insurers, Investors, and Clients"
