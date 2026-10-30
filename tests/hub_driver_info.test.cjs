@@ -27,6 +27,17 @@ test("Hub preserves approved information copy and the unified Partner Hub destin
   assert.equal((hub.match(/href="\/for-affiliates\.html"/g) || []).length, 1);
   assert.doesNotMatch(hub, /<h2>Account Sign-in<\/h2>/);
   assert.match(hub, /<a href="\/account\.html">Account<\/a>/);
+  // Keep the owner's deliberate Hub intro trim from regressing.
+  assert.doesNotMatch(hub, /Rider, Driver, and Dispatch tiles sign in with shared test accounts automatically/);
+  assert.doesNotMatch(hub, /Public rider registration is paused/);
+  assert.match(hub, /Explore the NightRider experience, from simple rider booking/);
+  assert.match(hub, /Questions or future interest\?/);
+  assert.match(hub, /mailto:carson\.nightrider@gmail\.com/);
+  assert.match(hub, /WIP · Software demo only/);
+  assert.match(hub, /data-demo-role="rider"/);
+  assert.match(hub, /data-demo-role="driver"/);
+  assert.match(hub, /data-demo-role="dispatch"/);
+
   for (const copy of [
     "The rider experience we're designing: browser-based booking, clear fares, professional driving, and familiar faces.",
     "Driver standards, independence, direct customer relationships, and the business behind professional rides.",
