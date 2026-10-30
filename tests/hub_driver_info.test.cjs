@@ -8,15 +8,21 @@ const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
 test("Hub preserves approved information copy and the unified Partner Hub destination", () => {
   const hub = read("public/hub.html");
-  const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
+  const tiles = [...hub.matchAll(/<(a|div) class="card hub-tile(?: [^"]*)?"([^>]*)>\s*<h2>(.*?)<\/h2>([\s\S]*?)<\/\1>/g)];
   assert.deepEqual(tiles.map(tile => tile[3]), [
     "Info for Riders", "Info for Drivers", "Affiliates and Partners", "Our Ethos",
-    "Rider Demo", "Driver Demo", "Dispatch Demo", "Partner Hub"
+    "Rider Demo", "Driver Demo", "Dispatch Demo", "Partner Hub", "For Insurers, Investors, and Clients"
   ]);
   assert.equal(tiles[2][1], "a");
   assert.match(tiles[2][2], /href="\/for-affiliates\.html"/);
   assert.match(tiles[2][4], /Plans for hotels and venues: concierge bookings, flexible referral pricing, and a real local dispatcher\./);
   assert.match(tiles[7][2], /href="\/partner-portal"/);
+  assert.equal(tiles[8][1], "a");
+  assert.match(tiles[8][2], /href="\/for-insurers\.html"/);
+  assert.match(tiles[8][4], /proposed driver screening, vehicle safety and comfort standards/);
+  assert.ok(hub.indexOf("<h2>For Insurers, Investors, and Clients</h2>") > hub.indexOf("<h2>Partner Hub</h2>"));
+  assert.match(hub, /\.hub-tile-wide\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
+  assert.match(hub, /@media \(max-width: 690px\)/);
   assert.equal((hub.match(/href="\/partner-portal"/g) || []).length, 1);
   assert.equal((hub.match(/href="\/for-affiliates\.html"/g) || []).length, 1);
   assert.doesNotMatch(hub, /<h2>Account Sign-in<\/h2>/);
@@ -36,6 +42,33 @@ test("Hub preserves approved information copy and the unified Partner Hub destin
   assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(hub, /max-width: 900px/);
   assert.match(hub, /max-width: 520px/);
+});
+
+test("Insurer, investor and client standards remain complete and truthfully prelaunch", () => {
+  const hub = read("public/hub.html");
+  const page = read("public/for-insurers.html");
+  assert.match(hub, /<h2>For Insurers, Investors, and Clients<\/h2>/);
+  assert.match(hub, /href="\/for-insurers\.html"/);
+  for (const [id, heading] of [["drivers", "Driver requirements"], ["vehicles", "Vehicle requirements"], ["roadmap", "Roadmap"]]) {
+    assert.ok(page.includes('<h2 id="standards-' + id + '">' + heading + "</h2>"), heading);
+  }
+  for (const phrase of [
+    "In the past 7 years", "In the past 3 years", "bodily injury to any person",
+    "property damage exceeding $500", "No convictions for violations other than simple paperwork",
+    "No speeding tickets for more than 10 mph", "Absolutely no tickets or convictions",
+    "more than 7 years", "under 15 years old", "Three adults can sit comfortably in the rear",
+    "Four side-entry doors", "four passengers and four carry-on-sized bags simultaneously",
+    "XL, XXL, Black, Comfort", "more than four passengers", "Classics, curiosities, and rare cars",
+    "Today", "Next landmark: Georgia compliance", "After that: Service launch",
+    "Savannah", "Beaufort and Jasper", "South Carolina requirements",
+    "40-1-190 through 40-1-201", "33-1-24",
+    "proposed NightRider operating policies", "No transportation services are offered."
+  ]) assert.ok(page.includes(phrase), "Missing owner standard: " + phrase);
+  assert.doesNotMatch(page, /46-1-1 through|services are available now|fully approved|insured and operating now/i);
+  assert.equal((page.match(/class="nr-demo-notice"/g) || []).length, 1);
+  assert.match(page, /href="\/hub"/);
+  assert.match(page, /href="\/ethos\.html"/);
+  assert.match(page, /@media \(max-width: 760px\)/);
 });
 
 test("public pages have no retired preview mentions or links, and all local page links resolve", () => {
