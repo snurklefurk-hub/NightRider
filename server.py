@@ -27,6 +27,8 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 BASE = os.path.dirname(os.path.abspath(__file__))
 PUBLIC = os.path.join(BASE, "public")
 DATA_FILE = os.path.join(BASE, "rides.json")
+# Conversation content and chat cursor must never enter the durable app state.
+VOLATILE_CHAT_KEYS = ("messages", "ride_messages", "account_messages", "chat_epoch")
 LOCK = threading.Lock()
 # Ephemeral one-time archive grants: never grant deletion from the legacy API.
 ACCOUNT_ARCHIVE_GRANTS = {}
@@ -117,13 +119,28 @@ def ensure_store(store):
 
 
 def save(store):
+    """Only non-chat state goes to PostgreSQL or rides.json."""
+    persistent = {key: value for key, value in store.items()
+                  if key not in VOLATILE_CHAT_KEYS}
     if os.environ.get("DATABASE_URL", "").strip():
-        auth.save_app_state(store, DATA_FILE)
+        auth.save_app_state(persistent, DATA_FILE)
         return
     tmp = DATA_FILE + ".tmp"
     with open(tmp, "w") as f:
-        json.dump(store, f, indent=2)
+        json.dump(persistent, f, indent=2)
     os.replace(tmp, DATA_FILE)
+
+
+def start_temporary_chat(store):
+    """Drop saved chat history and create a fresh RAM-only conversation epoch."""
+    legacy = any(key in store for key in VOLATILE_CHAT_KEYS)
+    store["messages"] = []
+    store["ride_messages"] = []
+    store["account_messages"] = {}
+    # JS-safe random integer changes when the server restarts so older tabs
+    # clear message bubbles even if they kept an open chat.
+    store["chat_epoch"] = secrets.randbelow(2 ** 48)
+    return legacy
 
 
 if os.environ.get("NIGHTRIDER_REQUIRE_DATABASE", "true").lower() == "true" and not os.environ.get("DATABASE_URL", "").strip():
@@ -131,7 +148,12 @@ if os.environ.get("NIGHTRIDER_REQUIRE_DATABASE", "true").lower() == "true" and n
 if os.environ.get("DATABASE_URL", "").strip():
     auth.initialize()
     auth.ensure_demo_users()
-STORE = ensure_store(load())
+_loaded_state = load()
+_legacy_chat_found = start_temporary_chat(_loaded_state)
+STORE = ensure_store(_loaded_state)
+if _legacy_chat_found:
+    # One-time scrub of previously persisted messages before serving requests.
+    save(STORE)
 
 DRIVER_CHAT_COLORS = [
     "#ff6b6b", "#ffa94d", "#ffd43b", "#a9e34b", "#38d9a9", "#3bc9db",
@@ -1053,7 +1075,7 @@ class Handler(SimpleHTTPRequestHandler):
                 message, error = add_account_message(STORE, target_rider, user, data)
                 if error:
                     return self.send_json(400, {"error": error})
-                save(STORE)
+                # Temporary chat does not trigger persistent writes.
             record_event("account_message", message_id=message["id"])
             return self.send_json(201, {"ok": True, "message": message})
         if ride_id:
@@ -1071,7 +1093,7 @@ class Handler(SimpleHTTPRequestHandler):
                 })
                 if error:
                     return self.send_json(400, {"error": error})
-                save(STORE)
+                # Temporary chat does not trigger persistent writes.
             record_event("ride_message", ride=ride_id, message=message)
             return self.send_json(201, {"ok": True, "message": message})
 
@@ -1100,7 +1122,7 @@ class Handler(SimpleHTTPRequestHandler):
                 client_id=(data or {}).get("client_id"),
                 sender_id=user["id"],
             )
-            save(STORE)
+            # Temporary chat does not trigger persistent writes.
         record_event("driver_message" if role == "driver" else "dispatch_message",
                      driver=user["display_name"] if role == "driver" else None,
                      message=message)
@@ -1119,7 +1141,7 @@ class Handler(SimpleHTTPRequestHandler):
         with LOCK:
             touch_driver(STORE, name)
             msg = add_message(STORE, name, text, driver=name, private=private)
-            save(STORE)
+            # Legacy driver messages also remain RAM-only.
         record_event("driver_message", driver=name, message=msg)
         return self.send_json(201, {"ok": True, "message": msg})
 
@@ -1136,7 +1158,7 @@ class Handler(SimpleHTTPRequestHandler):
                 touch_driver(STORE, to)
             msg = add_message(STORE, "dispatch", text,
                               driver=to if private else None, private=private)
-            save(STORE)
+            # Legacy Dispatch messages also remain RAM-only.
         record_event("dispatch_message", message=msg)
         return self.send_json(201, {"ok": True, "message": msg})
 
@@ -1876,7 +1898,7 @@ class Handler(SimpleHTTPRequestHandler):
                     message, error = add_ride_message(STORE, rid, user, data)
                     if error:
                         return self.send_json(400, {"error": error})
-                    save(STORE)
+                    # Legacy ride messages also remain RAM-only.
                     record_event("ride_message", ride=rid, message=message)
                     return self.send_json(201, {"ok": True, "message": message})
                 if action == "rating":

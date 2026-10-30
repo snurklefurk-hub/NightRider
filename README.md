@@ -124,11 +124,11 @@ The Rider and Dispatch maps automatically match the site-wide LIGHT/DARK setting
 
 ## Messaging
 
-Ride messages from riders reach Dispatch and any assigned driver. A separate **account conversation** connects the rider and Dispatch even between trips (it is never visible to drivers). Dispatch can open these from recent ride tiles, the Rider tab, or the rider account directory; Text driver buttons on ride and driver tiles select the driver's private chat. These are browser/app messages, **not SMS**: an absent rider sees them next time they visit the site. The safety and privacy contract is in [CHAT-POLICY.md](CHAT-POLICY.md).
+Ride messages reach Dispatch and the assigned driver while the server remains running. A separate **temporary account conversation** connects riders to Dispatch between rides without exposing private account messages to drivers. Team, private, ride, and account messages exist only in server RAM. **No chats are persisted** to PostgreSQL, rides.json or browser storage; they disappear on restart. These are browser/app messages, not SMS, and are not a durable notification method. The safety and privacy contract is in [CHAT-POLICY.md](CHAT-POLICY.md).
 
 ## Deployment and data
 
-The live site is hosted on Render using [render.yaml](render.yaml). Production requires PostgreSQL through `DATABASE_URL`; account and session records are in separate tables, while rides, messages, ratings, and presence are kept in one JSON state record. Keep the web service at one instance until that state store supports concurrent writers.
+The live site is hosted on Render using [render.yaml](render.yaml). Production requires PostgreSQL through `DATABASE_URL`; account and session records are in separate tables, while rides, ratings, and presence are kept in one JSON state record. Chat messages are held only in server RAM and excluded from every persistent write. Keep the web service at one instance until that state store supports concurrent writers.
 
 The current free-tier setup is for testing. See [DEPLOY.md](DEPLOY.md) for Render settings and [ACCOUNT-SETUP.md](ACCOUNT-SETUP.md) for account setup and recovery. Do not commit passwords, setup tokens, or database URLs.
 

@@ -11,14 +11,16 @@ This document is the shared contract for the website, Dispatch, browser Driver a
 | Driver | Rider | Rider, Dispatch, current driver; future assigned drivers inherit shared ride history |
 | Driver | Dispatch | That driver and Dispatch only, not the rider or other drivers |
 | Driver | Team | Dispatch and all drivers, not riders |
-| Dispatch | Rider account | Rider and Dispatch only; persistent across rides and never visible to drivers |
+| Dispatch | Rider account | Rider and Dispatch only while the server is running; never visible to drivers |
 | Dispatch | Ride thread | Rider and Dispatch only, not the assigned driver |
 | Dispatch | Driver | Dispatch and the selected driver only |
 | Dispatch | Team | Dispatch and all drivers, not riders |
 
-### Persistent account messages
+### Temporary messages across every account
 
-Account messages are indexed by the signed-in rider's account ID, not by a ride ID. A rider can view and reply from the rider website when no ride is active. Dispatch can initiate from the rider account directory or a recent ride tile, and can pick account contacts in its existing Rider tab. These messages are **in-app** communications; there is no SMS, email, push notification or off-browser delivery in this feature. Neither past nor future assigned drivers can read this account conversation.
+**All NightRider chat is ephemeral.** Team, private Driver/Dispatch, ride and rider-account messages are kept only in server-process memory, never in PostgreSQL, rides.json or browser storage. A restart clears conversations and rotates the in-memory chat epoch so already-open browser tabs clear old bubbles. Startup also removes previously stored chat collections from the current state record. This does not erase earlier database backups or operator-saved archives.
+
+While a server remains running, account chats are indexed by rider-account ID; riders and Dispatch can reply between rides. Recipient permissions are unchanged: drivers never see private rider/Dispatch account conversations. There is no SMS, email, push notification or off-browser delivery. Do not treat any chat as reliable long-term correspondence.
 
 ### Ride reassignment
 
