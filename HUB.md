@@ -43,6 +43,19 @@ Dispatch maps, their shared Midnight palette, LIGHT/DARK behavior, ride markers,
 and the independent Android navigation workflow. Old preview bookmarks should
 return visitors to the Hub. Existing rider information bookmarks remain valid.
 
+## Public contact and prelaunch inquiries
+
+Public email: `carson.nightrider@gmail.com`. Show it on the Hub, informational Rider,
+Driver and Affiliate/Partner pages, insurer standards, and Partner Hub.
+The three information pages contain prefilled, audience-specific forms for
+expressing interest or asking a question. The form opens an email-client draft
+with the visitor's reply address and message; they must press Send from their
+own email app. Never claim the browser action sent, stored or accepted an
+inquiry. Always show the direct email link as a fallback. No public storage
+endpoint, ride request, account creation or driver application is involved.
+The Partner Hub account-request form remains simulation-only; its real
+interest link points to the Affiliates and Partners information form.
+
 ## Value gate
 
 1. Professional ride safety: preserve operational map behavior and access gates;

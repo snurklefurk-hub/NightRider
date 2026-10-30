@@ -9,6 +9,7 @@
   <link rel="icon" href="/nightrider-mark.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/nightrider.css?v=verdant-1">
   <link rel="stylesheet" href="/aero-theme.css?v=3">
+  <link rel="stylesheet" href="/nr-contact.css?v=1">
   <script src="/aero-theme.js?v=2"></script>
   <style>
     .customer-info { max-width: 1040px; margin: 0 auto; padding: clamp(28px, 5vw, 64px) 20px 76px; }
@@ -138,10 +139,29 @@
       </div>
     </section>
 
+    <section class="nr-contact" id="contact" aria-labelledby="nr-rider-heading">
+      <h2 id="nr-rider-heading">Questions about riding with NightRider?</h2>
+      <p>Ask a question or let us know you would like updates about future Savannah-area rider service.</p>
+      <p><strong>Contact NightRider:</strong> <a href="mailto:carson.nightrider@gmail.com">carson.nightrider@gmail.com</a></p>
+      <form data-nr-contact="rider" action="mailto:carson.nightrider@gmail.com" method="post" enctype="text/plain">
+        <div class="nr-contact-grid">
+          <div class="nr-contact-field"><label for="nr-rider-name">Your name</label><input id="nr-rider-name" name="name" type="text" autocomplete="name" maxlength="100" required></div>
+          <div class="nr-contact-field"><label for="nr-rider-email">Your email address</label><input id="nr-rider-email" name="email" type="email" autocomplete="email" maxlength="180" required></div>
+        </div>
+        <label for="nr-rider-kind">What would you like to do?</label>
+        <select id="nr-rider-kind" name="kind" required><option value="interest" selected>Express interest</option><option value="question">Ask a question</option></select>
+        <label for="nr-rider-message">Your message</label>
+        <textarea id="nr-rider-message" name="message" maxlength="1200" rows="5" required>Hello NightRider,&#10;&#10;I'm interested in hearing when your Savannah-area ride service launches.&#10;&#10;Thanks!</textarea>
+        <button type="submit">Open email draft</button>
+      </form>
+      <p class="nr-contact-note">This opens your email app with a prefilled draft. Nothing is sent until you review it and press Send. If no app opens, email the address above directly. This is not a ride request or driver application; services and onboarding are not yet available. Please do not include payment information, passenger records, or sensitive personal details.</p>
+      <p class="nr-contact-status" role="status" aria-live="polite"></p>
+    </section>
     <footer class="customer-footer">
       <p>Comfort, reliability, and professionalism guide the design. <a href="/for-drivers.html">Read the ideas behind the Driver tools.</a></p>
     </footer>
   </main>
+  <script src="/nr-contact.js?v=1" defer></script>
   <script src="/nightrider-motion.js"></script>
 </body>
 </html>
