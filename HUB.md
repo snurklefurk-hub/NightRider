@@ -20,8 +20,13 @@ underwriting and state requirements. The owner-provided Georgia code reference
 instead cites `40-1-190` through `40-1-201` and `33-1-24`.
 Regulatory review must verify audit obligations prior to launch.
 
-Keep the same source and keyboard order as the grid becomes two columns or one
-column on smaller screens. Affiliates and Partners now links to a **public
+Keep the same source and keyboard order as the grid becomes two columns on
+normal phone widths and one column only on very narrow screens (340px or less).
+On phones, the Hub tightens its header, intro, text sizes and tile spacing
+without hiding or rewriting the nine descriptions, removing demo access, or
+changing desktop's four-column layout. The ninth tile stays full-width at every
+breakpoint. Verify both LIGHT and DARK appearance, links, focus order,
+text enlargement and lack of horizontal overflow. Affiliates and Partners now links to a **public
 future-plans information page** at `/for-affiliates.html`. It describes intended
 hospitality/referral and third-party booking capabilities, but offers no active
 transportation or payment services. Account sign-in remains in the header.
