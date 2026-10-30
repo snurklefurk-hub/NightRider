@@ -30,7 +30,32 @@
     }
     .hub-footer { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 30px; }
     @media (max-width: 900px) { .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-    @media (max-width: 520px) { .hub-grid { grid-template-columns: 1fr; } }
+    /* Keep the desktop card directory visible at phone widths instead of
+       turning every destination into an oversized full-width panel. */
+    @media (max-width: 600px) {
+      body > header { padding: .75rem .85rem; gap: .55rem; }
+      body > header .brand { font-size: 1.08rem; letter-spacing: .08em; }
+      body > header .brand::before { width: 1.5rem; height: 1.5rem; }
+      body > header nav { display: flex; align-items: center; flex-wrap: wrap; width: 100%; gap: .45rem .75rem; }
+      body > header nav a { display: inline-flex; align-items: center; min-height: 40px; margin: 0; font-size: .73rem; letter-spacing: .07em; }
+      body > header nav .nr-ui-mode-group { margin-left: auto; }
+      .hub-main { padding: 18px 12px 48px; }
+      .hub-intro { margin-bottom: 18px; }
+      .hub-intro h1 { font-size: clamp(1.65rem, 7vw, 2.15rem); letter-spacing: .065em; margin-bottom: 8px; }
+      .hub-intro p { font-size: .92rem; line-height: 1.48; margin: 0 0 10px; }
+      .hub-grid { gap: 10px; }
+      .hub-tile { min-height: 0; margin-bottom: 0; padding: 14px 12px; gap: 8px; border-radius: 13px; }
+      .hub-tile h2 { font-size: .97rem; line-height: 1.25; letter-spacing: .045em; overflow-wrap: anywhere; }
+      .hub-tile p { font-size: .88rem; line-height: 1.43; overflow-wrap: anywhere; }
+      .hub-tile .hub-route { font-size: .75rem; line-height: 1.35; }
+      .hub-tile-wide { grid-column: 1 / -1; padding: 16px; }
+      .hub-footer { margin-top: 20px; }
+    }
+    @media (max-width: 520px) { .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 340px) {
+      .hub-grid { grid-template-columns: 1fr; }
+      .hub-tile { padding: 16px; }
+    }
     @media (prefers-reduced-motion: reduce) { .hub-tile { transition: none; } }
   </style>
 </head>

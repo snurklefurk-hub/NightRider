@@ -42,6 +42,13 @@ test("Hub preserves approved information copy and the unified Partner Hub destin
   assert.match(hub, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
   assert.match(hub, /max-width: 900px/);
   assert.match(hub, /max-width: 520px/);
+  assert.match(hub, /max-width: 340px/);
+  assert.match(hub, /@media \(max-width: 520px\) \{ \.hub-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); \} \}/);
+  assert.match(hub, /@media \(max-width: 340px\) \{\s*\.hub-grid \{ grid-template-columns: 1fr; \}/);
+  assert.match(hub, /\.hub-tile-wide \{ grid-column: 1 \/ -1;/);
+  assert.match(hub, /\.hub-tile \{ min-height: 0; margin-bottom: 0; padding: 14px 12px;/);
+  assert.match(hub, /body > header nav \.nr-ui-mode-group \{ margin-left: auto; \}/);
+  assert.match(hub, /\.hub-intro h1 \{ font-size: clamp\(1\.65rem, 7vw, 2\.15rem\)/);
 });
 
 test("Insurer, investor and client standards remain complete and truthfully prelaunch", () => {
