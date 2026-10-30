@@ -346,7 +346,10 @@ test("Public demo entry points publish all three roles without active-service or
     assert.match(source, /PASSWORD/);
     assert.doesNotMatch(source, /We're growing carefully|evolving pilot|always on duty|register as a rider|no Indians/i);
   }
-  for (const source of [hub, customers, welcome]) {
+  // The Hub intentionally omits this long setup sentence; detail belongs
+  // on the Rider information page and the onboarding welcome experience.
+  for (const source of [customers, welcome]) {
     assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
   }
+  assert.doesNotMatch(hub, /Public rider registration is paused/);
 });
