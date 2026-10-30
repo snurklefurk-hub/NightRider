@@ -3,12 +3,22 @@
 The public Hub gives visitors a dependable way to find the software demo and
 understand its intended standards. All transportation and payments remain simulated.
 
-On desktop, show exactly two rows of four tiles in this reading order:
+On desktop, preserve two rows of four approved tiles in this reading order, followed by one compact full-width ninth destination:
 
 | First row | | | |
 | --- | --- | --- | --- |
 | Info for Riders | Info for Drivers | Affiliates and Partners | Our Ethos |
 | Rider Demo | Driver Demo | Dispatch Demo | Partner Hub |
+
+The ninth tile, **For Insurers, Investors, and Clients**, spans the full grid
+width with a shallow horizontal layout. It links to `/for-insurers.html`, whose
+three sections describe proposed Driver requirements, Vehicle requirements and
+Roadmap. The new page keeps software-demo notices, never asserts existing
+licensing/insurance or active transport, and conditions eligibility on inspection,
+underwriting and state requirements. The owner-provided Georgia code reference
+(`46-1-1` through `46-1-8`) was not the TNC section range; the public page
+instead cites `40-1-190` through `40-1-201` and `33-1-24`.
+Regulatory review must verify audit obligations prior to launch.
 
 Keep the same source and keyboard order as the grid becomes two columns or one
 column on smaller screens. Affiliates and Partners now links to a **public

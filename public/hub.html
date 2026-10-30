@@ -21,6 +21,13 @@
     .hub-tile h2 { font-size: 1.22rem; margin: 0; }
     .hub-tile p { line-height: 1.5; margin: 0; }
     .hub-tile .hub-route { margin-top: auto; font-size: .8rem; opacity: .7; overflow-wrap: anywhere; }
+    /* Ninth destination is a shallow horizontal card, not another column. */
+    .hub-tile-wide { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(225px,.95fr) minmax(0,2fr) auto; align-items: center; min-height: 92px; }
+    .hub-tile-wide .hub-route { margin-top: 0; text-align: right; }
+    @media (max-width: 690px) {
+      .hub-tile-wide { display: flex; flex-direction: column; align-items: stretch; min-height: 0; }
+      .hub-tile-wide .hub-route { text-align: left; }
+    }
     .hub-footer { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-top: 30px; }
     @media (max-width: 900px) { .hub-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
     @media (max-width: 520px) { .hub-grid { grid-template-columns: 1fr; } }
@@ -82,6 +89,11 @@
         <h2>Partner Hub</h2>
         <p>Learn about the future partner workflow, request account consideration, or use an existing partner login.</p>
         <span class="hub-route">Partner landing · Request or login</span>
+      </a>
+      <a class="card hub-tile hub-tile-wide" href="/for-insurers.html">
+        <h2>For Insurers, Investors, and Clients</h2>
+        <p>Our proposed driver screening, vehicle safety and comfort standards, and roadmap toward a licensed local transportation service.</p>
+        <span class="hub-route">Qualification standards · Launch roadmap</span>
       </a>
     </div>
     <div class="hub-footer">
