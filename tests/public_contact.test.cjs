@@ -71,6 +71,9 @@ test("public inquiry never claims server delivery or collects data on the websit
   assert.match(hub, /Questions or future interest\?/);
   assert.match(portal, /href="\/for-affiliates\.html#contact"/);
   assert.match(portal, /nothing you enter is sent or saved/);
+  assert.match(read("public/nr-contact.css"), /\.nr-public-contact-link:link, \.nr-public-contact-link:visited \{ color: var\(--cyan\); \}/);
+  assert.match(insurer, /class="nr-public-contact-link" href="mailto:/);
+  assert.match(portal, /class="nr-public-contact-link" href="\/for-affiliates\.html#contact"/);
   assert.doesNotMatch(hub, /<h2>Contact<\/h2>/);
   assert.match(read("HUB.md"), /Public contact and prelaunch inquiries/);
 });

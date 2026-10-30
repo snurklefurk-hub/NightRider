@@ -19,3 +19,6 @@ html[data-nr-ui="aero"] .nr-contact button { color: #fff; }
 .nr-contact-note { font-size: .83rem; color: var(--mist); }
 .nr-contact-status { min-height: 1.25em; font-size: .84rem; color: var(--mist); }
 @media (max-width: 580px) { .nr-contact-grid { grid-template-columns: 1fr; } }
+
+/* Keep new standalone public email links within the LIGHT/DARK palette. */
+.nr-public-contact-link:link, .nr-public-contact-link:visited { color: var(--cyan); }
