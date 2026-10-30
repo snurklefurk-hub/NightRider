@@ -59,20 +59,17 @@ def build_archive(store, user, generated_at):
         (dict(ride) for ride in (store.get("rides") or {}).values() if matches(ride)),
         key=lambda ride: (ride.get("created") or 0, str(ride.get("id") or "")),
     )
-    ride_ids = {ride.get("id") for ride in rides}
-    ride_messages = [
-        dict(message) for message in store.get("ride_messages", [])
-        if message.get("ride_id") in ride_ids
-    ]
+    # Do not include any in-memory conversations in an operator-saved file.
     data = {
         "archive_type": "NightRider account deletion audit",
         "version": 1,
         "generated_at_unix": generated_at,
         "account": identity,
         "rides": rides,
-        "ride_messages": ride_messages,
+        "ride_messages": [],
+        "chat_retention": "Temporary chats are excluded from this archive.",
         "notes": [
-            "Contains all records currently retained by NightRider that match this account.",
+            "Contains non-chat operational records currently retained for this account.",
             "Older records already purged by retention limits cannot be recovered.",
             "Password hashes, authentication tokens, and session cookies are never exported.",
             "Deleting the login does not erase NightRider's operational trip ledger.",
@@ -81,8 +78,7 @@ def build_archive(store, user, generated_at):
     }
     if role == "rider":
         data["rider_history"] = (store.get("riders") or {}).get(rid)
-        data["account_messages"] = list(
-            (store.get("account_messages") or {}).get(account_id, []))
+        data["account_messages"] = []
         data["driver_records"] = []
         data["team_messages"] = []
     else:
@@ -94,11 +90,7 @@ def build_archive(store, user, generated_at):
             if record.get("account_id") == account_id or (
                 not record.get("account_id") and record.get("name") == name)
         ]
-        data["team_messages"] = [
-            dict(msg) for msg in store.get("messages", [])
-            if not msg.get("private") or msg.get("driver") == name or
-            msg.get("sender_id") == account_id
-        ]
+        data["team_messages"] = []
     return data
 
 

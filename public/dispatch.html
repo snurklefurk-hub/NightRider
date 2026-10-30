@@ -99,9 +99,10 @@
 
   <div class="card" id="chatCard">
     <h2>Messages</h2>
+    <p class="tiny muted">Practice messages are temporary and disappear when the server restarts.</p>
     <div id="nrDispatchChat"></div>
     <div class="row">
-      <button type="button" class="alt" id="clearChatHistory" hidden>Export &amp; delete all chat logs</button>
+      <button type="button" class="alt" id="clearChatHistory" hidden>Export summary &amp; clear temporary chats</button>
     </div>
     <p class="tiny muted" id="clearChatMsg" role="status" aria-live="polite">Checking history-management access…</p>
   </div>
@@ -857,7 +858,7 @@
         throw writeError;
       }
       output.textContent = "Archive saved locally. Contains sensitive information; store securely.";
-      var description = kind === "chat" ? "ALL retained chat logs (including private messages)" :
+      var description = kind === "chat" ? "temporary chat conversations (archive contains counts only, no message text)" :
         "ALL retained completed and cancelled rides, linked ride chats and ride ratings";
       if (!window.confirm("Archive saved. Permanently delete " + description +
           "? No active rides will be deleted. This cannot be undone.")) {

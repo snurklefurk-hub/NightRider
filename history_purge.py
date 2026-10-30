@@ -32,15 +32,21 @@ def snapshot(store, kind, generated_at):
             "Sensitive records: store this archive securely.",
             "Only records currently retained by this software demo are included.",
             "Account logins, authentication credentials and payment records are excluded.",
-            "After deletion the server cannot restore this data without this saved file.",
+            "Chat contents are never included and cannot be restored from this archive.",
             "Operational transportation record-retention obligations must be reviewed before live use."
         ]
     }
     if kind == "chat":
+        # Administrators can clear ephemeral conversations, but even an
+        # intentional local export must not archive message content.
         common.update({
-            "team_and_private_driver_messages": store.get("messages") or [],
-            "ride_messages": store.get("ride_messages") or [],
-            "rider_account_messages": store.get("account_messages") or {},
+            "note": "Message bodies are omitted: chats are temporary only.",
+            "message_counts": {
+                "team": len(store.get("messages") or []),
+                "ride": len(store.get("ride_messages") or []),
+                "account": sum(len(items) for items in
+                               (store.get("account_messages") or {}).values()),
+            },
         })
     else:
         rides = store.get("rides") or {}
@@ -48,9 +54,9 @@ def snapshot(store, kind, generated_at):
         common.update({
             "rides": rides,
             "dispatch_only_fictional_demo_rides": demo_chatham_rides.samples(store),
-            "ride_messages_for_deleted_rides": [
-                m for m in store.get("ride_messages", []) if m.get("ride_id") in ride_ids
-            ],
+            "ride_message_count_for_deleted_rides": sum(
+                m.get("ride_id") in ride_ids for m in store.get("ride_messages", [])
+            ),
             "rider_history_refs": {
                 rid: {
                     "rides": [ride_id for ride_id in rec.get("rides", []) if ride_id in ride_ids],
