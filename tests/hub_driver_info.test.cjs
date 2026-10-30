@@ -51,6 +51,20 @@ test("Hub preserves approved information copy and the unified Partner Hub destin
   assert.match(hub, /\.hub-intro h1 \{ font-size: clamp\(1\.65rem, 7vw, 2\.15rem\)/);
 });
 
+test("Hub links do not inherit purple browser visited-link colors", () => {
+  const hub = read("public/hub.html");
+  const dark = read("public/nightrider.css");
+  const light = read("public/aero-theme.css");
+  assert.match(hub, /a\.hub-tile, a\.hub-tile:visited \{ color: var\(--ice\); \}/);
+  assert.match(hub, /\.hub-intro a:link, \.hub-intro a:visited,\s*\.hub-footer a:link, \.hub-footer a:visited \{ color: var\(--cyan\); \}/);
+  assert.match(hub, /\.hub-tile \.hub-route \{[^}]*color: var\(--mist\)/);
+  for (const source of [dark, light]) {
+    for (const token of ["ice", "mist", "cyan"]) {
+      assert.match(source, new RegExp("--" + token + ":[#][0-9a-fA-F]{6}"), "Missing theme token: " + token);
+    }
+  }
+});
+
 test("Insurer, investor and client standards remain complete and truthfully prelaunch", () => {
   const hub = read("public/hub.html");
   const page = read("public/for-insurers.html");
