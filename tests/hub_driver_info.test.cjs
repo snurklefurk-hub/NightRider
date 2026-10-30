@@ -27,6 +27,17 @@ test("Hub preserves approved information copy and the unified Partner Hub destin
   assert.equal((hub.match(/href="\/for-affiliates\.html"/g) || []).length, 1);
   assert.doesNotMatch(hub, /<h2>Account Sign-in<\/h2>/);
   assert.match(hub, /<a href="\/account\.html">Account<\/a>/);
+  // Keep the owner's deliberate Hub intro trim from regressing.
+  assert.doesNotMatch(hub, /Rider, Driver, and Dispatch tiles sign in with shared test accounts automatically/);
+  assert.doesNotMatch(hub, /Public rider registration is paused/);
+  assert.match(hub, /Explore the NightRider experience, from simple rider booking/);
+  assert.match(hub, /Questions or future interest\?/);
+  assert.match(hub, /mailto:carson\.nightrider@gmail\.com/);
+  assert.match(hub, /WIP · Software demo only/);
+  assert.match(hub, /data-demo-role="rider"/);
+  assert.match(hub, /data-demo-role="driver"/);
+  assert.match(hub, /data-demo-role="dispatch"/);
+
   for (const copy of [
     "The rider experience we're designing: browser-based booking, clear fares, professional driving, and familiar faces.",
     "Driver standards, independence, direct customer relationships, and the business behind professional rides.",
@@ -335,7 +346,10 @@ test("Public demo entry points publish all three roles without active-service or
     assert.match(source, /PASSWORD/);
     assert.doesNotMatch(source, /We're growing carefully|evolving pilot|always on duty|register as a rider|no Indians/i);
   }
-  for (const source of [hub, customers, welcome]) {
+  // The Hub intentionally omits this long setup sentence; detail belongs
+  // on the Rider information page and the onboarding welcome experience.
+  for (const source of [customers, welcome]) {
     assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
   }
+  assert.doesNotMatch(hub, /Public rider registration is paused/);
 });
