@@ -68,8 +68,9 @@ class ArchiveContractTests(unittest.TestCase):
     def test_rider_archive_is_complete_for_retained_account_not_others(self):
         doc = archive.build_archive(self.store, RIDER, 123)
         self.assertEqual([r["id"] for r in doc["rides"]], ["a"])
-        self.assertEqual(len(doc["ride_messages"]), 1)
-        self.assertEqual(len(doc["account_messages"]), 1)
+        self.assertEqual(doc["ride_messages"], [])
+        self.assertEqual(doc["account_messages"], [])
+        self.assertIn("Temporary chats", doc["chat_retention"])
         self.assertEqual(doc["rider_history"]["rides"], ["a"])
         dump = archive.serialise_archive(doc)
         self.assertNotIn("SECRET OTHER RIDER", dump)
@@ -83,7 +84,8 @@ class ArchiveContractTests(unittest.TestCase):
         doc = archive.build_archive(self.store, DRIVER, 123)
         self.assertEqual([r["id"] for r in doc["rides"]], ["a"])
         self.assertEqual(doc["driver_chat_color"], "#ffffff")
-        self.assertEqual([m["text"] for m in doc["team_messages"]], ["Check luggage"])
+        self.assertEqual(doc["team_messages"], [])
+        self.assertNotIn("Check luggage", archive.serialise_archive(doc))
 
     def test_active_rider_or_driver_ride_prevents_deletion(self):
         self.store["rides"]["a"]["status"] = "accepted"
@@ -128,7 +130,7 @@ class ArchiveContractTests(unittest.TestCase):
             self.assertFalse(server.ACCOUNT_ARCHIVE_GRANTS)
             self.assertEqual(result["archive_sha256"], payload["sha256"])
 
-    def test_history_changes_after_archive_require_fresh_local_export(self):
+    def test_temporary_chat_changes_do_not_invalidate_nonchat_account_archive(self):
         h = FakeHandler()
         with (patch.object(server, "STORE", self.store),
               patch.object(auth, "get_account_for_archive", return_value=RIDER),
@@ -140,9 +142,8 @@ class ArchiveContractTests(unittest.TestCase):
             code, result = server.Handler.delete_account_after_archive(
                 h, {"role": "rider", "id": RIDER["id"],
                     "token": payload["token"], "sha256": payload["sha256"]})
-            self.assertEqual(code, 409)
-            delete.assert_not_called()
-            self.assertIn("changed", result["error"])
+            self.assertEqual(code, 200)
+            delete.assert_called_once_with(RIDER["id"])
 
     def test_active_ride_blocks_export_and_never_issues_token(self):
         self.store["rides"]["a"]["status"] = "accepted"

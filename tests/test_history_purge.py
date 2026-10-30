@@ -82,9 +82,9 @@ class HistoryDeletionTests(unittest.TestCase):
         status, exported = self.export("chat")
         self.assertEqual(status, 200)
         data = history_purge.snapshot(self.store, "chat", exported["expires_at_unix"] - server.HISTORY_PURGE_TTL)
-        self.assertEqual(len(data["team_and_private_driver_messages"]), 2)
-        self.assertEqual(len(data["ride_messages"]), 2)
-        self.assertEqual(len(data["rider_account_messages"]["r1"]), 1)
+        self.assertEqual(data["message_counts"], {"team": 2, "ride": 2, "account": 1})
+        for secret in ("Hello drivers", "Only driver", "Pickup notes", "Private rider account"):
+            self.assertNotIn(secret, exported["content"])
         self.assertEqual(history_purge.sha256(exported["content"]), exported["sha256"])
         status, result = self.delete("chat", exported["token"], exported["sha256"])
         self.assertEqual(status, 200)
@@ -102,7 +102,8 @@ class HistoryDeletionTests(unittest.TestCase):
     def test_ride_purge_clears_linked_messages_and_rider_refs_only(self):
         status, exported = self.export("rides")
         self.assertEqual(status, 200)
-        self.assertIn("Pickup notes", exported["content"])
+        self.assertNotIn("Pickup notes", exported["content"])
+        self.assertIn("ride_message_count_for_deleted_rides", exported["content"])
         self.assertIn("stars", exported["content"])
         self.assertNotIn("Private rider account", exported["content"])
         status, result = self.delete("rides", exported["token"], exported["sha256"])

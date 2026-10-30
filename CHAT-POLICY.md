@@ -45,13 +45,14 @@ the **Messages** and **Recent rides** cards. The controls are never shown to
 shared DEMO Dispatch logins or ordinary Dispatch staff. The server enforces
 the same restrictions; UI visibility is not authorization.
 
-- **Export & delete all chat logs:** archives and clears all currently retained
-  team/driver private messages, ride chat, and private rider-account/Dispatch
-  conversations. Rider/driver account logins and ride records are preserved.
+- **Export summary & clear temporary chats:** exports message counts only
+  (never text) and clears the in-memory team, private, ride and account chat
+  collections. Rider/driver accounts and ride records are preserved. The
+  separate account archive also deliberately omits all chat text.
 - **Export & delete ride history:** archives and clears *all* currently
-  retained completed/cancelled rides, their associated ride messages, and
-  references/ratings held in rider history. Account conversations, team chat,
-  and user login accounts are preserved.
+  retained completed/cancelled rides, plus rider history references and
+  ratings. It clears their in-memory ride messages but never archives chat
+  bodies. Account conversations, team chat, and user logins remain.
 - **Fail closed:** both actions are blocked while **any** ride is still active
   or requested. The admin must close or cancel every trip first.
 - Each deletion requires the desktop browser File System Access Save As picker,
