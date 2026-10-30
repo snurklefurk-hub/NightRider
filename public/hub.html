@@ -16,11 +16,15 @@
     .hub-intro p { line-height: 1.55; }
     .hub-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
     .hub-tile { display: flex; flex-direction: column; gap: 10px; min-height: 174px; padding: 22px; text-decoration: none; border: 1px solid currentColor; border-color: rgba(120,150,150,.18); border-radius: 16px; transition: border-color .12s; }
+    /* Never allow browser visited-link purple to override the Hub palette. */
+    a.hub-tile, a.hub-tile:visited { color: var(--ice); }
+    .hub-intro a:link, .hub-intro a:visited,
+    .hub-footer a:link, .hub-footer a:visited { color: var(--cyan); }
     .hub-tile:focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
     a.hub-tile:hover { border-color: currentColor; }
     .hub-tile h2 { font-size: 1.22rem; margin: 0; }
     .hub-tile p { line-height: 1.5; margin: 0; }
-    .hub-tile .hub-route { margin-top: auto; font-size: .8rem; opacity: .7; overflow-wrap: anywhere; }
+    .hub-tile .hub-route { margin-top: auto; font-size: .8rem; color: var(--mist); opacity: .85; overflow-wrap: anywhere; }
     /* Ninth destination is a shallow horizontal card, not another column. */
     .hub-tile-wide { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(225px,.95fr) minmax(0,2fr) auto; align-items: center; min-height: 92px; }
     .hub-tile-wide .hub-route { margin-top: 0; text-align: right; }
