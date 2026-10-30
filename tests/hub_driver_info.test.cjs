@@ -15,7 +15,7 @@ test("Hub preserves approved information copy and the unified Partner Hub destin
   ]);
   assert.equal(tiles[2][1], "a");
   assert.match(tiles[2][2], /href="\/for-affiliates\.html"/);
-  assert.match(tiles[2][4], /Plans for hotels and venues: concierge bookings, flexible referral pricing, and a real local dispatcher\./);
+  assert.match(tiles[2][4], /Plans for hotels and venues: concierge bookings, potential referral arrangements, and a real local dispatcher\./);
   assert.match(tiles[7][2], /href="\/partner-portal"/);
   assert.equal(tiles[8][1], "a");
   assert.match(tiles[8][2], /href="\/for-insurers\.html"/);
@@ -41,7 +41,7 @@ test("Hub preserves approved information copy and the unified Partner Hub destin
   for (const copy of [
     "The rider experience we're designing: browser-based booking, clear fares, professional driving, and familiar faces.",
     "Driver standards, independence, direct customer relationships, and the business behind professional rides.",
-    "Plans for hotels and venues: concierge bookings, flexible referral pricing, and a real local dispatcher.",
+    "Plans for hotels and venues: concierge bookings, potential referral arrangements, and a real local dispatcher.",
     "Our principles for safer professional rides, rider trust, and a better local transportation industry.",
     "Create a practice booking, review the fare, and follow trip updates and messages from your browser.",
     "Explore the Driver board, progress practice rides, and preview the LIGHT and DARK navigation designs.",
@@ -214,7 +214,7 @@ test("Hub previews destinations without repeating the sitewide demo notice", () 
   for (const phrase of [
     "browser-based booking, clear fares",
     "direct customer relationships",
-    "concierge bookings, flexible referral pricing, and a real local dispatcher",
+    "concierge bookings, potential referral arrangements, and a real local dispatcher",
     "safer professional rides, rider trust, and a better local transportation industry",
     "follow trip updates and messages",
     "preview the LIGHT and DARK navigation designs",
@@ -304,8 +304,8 @@ test("Customer page explains design aspirations and simulated use without offeri
     "Our drivers <strong>NEVER</strong> use voice calling",
     "04 / HONEST VALUE",
     "Clarity beats gimmicks.",
-    "25¢ per mile to come to you, $1 per mile to take you there, and $5 on top per ride (flag drop or cancellation).",
-    "No surging, no surprises.",
+    "NightRider has not set public fares or a commercial pricing schedule.",
+    "Any practice fares shown in the software demo are fictional examples, not quotes.",
     "A familiar driver beats another mystery ride.",
     "All drivers are vetted, tested, and checked <strong>FAR</strong> above industry standards.",
     "No separate customer app to download.",
@@ -352,4 +352,19 @@ test("Public demo entry points publish all three roles without active-service or
     assert.match(source, /[Pp]ublic rider account creation is paused|[Pp]ublic rider registration is paused/);
   }
   assert.doesNotMatch(hub, /Public rider registration is paused/);
+});
+
+// Avoid advertising the old practice fare schedule before TNC insurance is known.
+test("Public pages avoid obsolete real-world fare and partner fee promises", () => {
+  for (const name of ["hub", "for-customers", "for-drivers", "for-affiliates", "for-insurers", "ethos"]) {
+    const html = read("public/" + name + ".html");
+    assert.doesNotMatch(html, /25¢|\$0\.25\s*(?:\/|per)\s*mi|\$1\s*(?:\/|per)\s*mi|\$5\s*(?:flag|on top)|no surging, no surprises|no surge-pricing roulette|concierge fees and flexible pricing/i, name);
+  }
+  assert.match(read("public/for-customers.html"), /not set public fares or a commercial pricing schedule/);
+  assert.match(read("public/for-affiliates.html"), /No fees, commissions, or passenger fares are established/);
+  assert.match(read("public/for-insurers.html"), /No commercial fare schedule has been set/);
+  assert.match(read("public/ethos.html"), /Insurance, licensing, driver compensation, and operating costs/);
+  assert.match(read("public/index.html"), /practice amount is illustrative and is not a published fare or quote/);
+  assert.match(read("public/dispatch.html"), /These are simulation-only rates for new practice ride requests/);
+  assert.match(read("public/hub.html"), /class="card hub-tile hub-tile-wide"/);
 });

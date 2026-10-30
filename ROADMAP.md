@@ -89,8 +89,11 @@ Validate supported geography, pickup distance and route plausibility. Distances
 and authoritative fares must be checked by the server before real use. Label
 estimates and confirmed amounts consistently, and explain any change before a
 commitment. A supplied browser distance is not an authoritative fare input.
-NightRider has one service and one pricing structure, with no vehicle-class
-upsells. Actual passenger/luggage capacity must be checked rather than assumed.
+NightRider plans one service standard, with no vehicle-class upsells.
+Commercial rates and the detailed fare policy have not been established;
+insurance, regulatory and operating costs must be known before publication.
+Until then, all demo rates are illustrative only. Actual passenger/luggage
+capacity must be checked rather than assumed.
 
 Acceptance: a replay pack produces explainable turn timing and stable stationary
 behavior; lost GPS/network never masquerades as a fresh route or live ETA;
