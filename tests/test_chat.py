@@ -153,3 +153,23 @@ class ChatContractTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EphemeralChatPersistenceTests(unittest.TestCase):
+    def test_snapshot_strips_chat_without_mutating_live_messages(self):
+        live = {"rides": {"r": {}}, "messages": [{"text": "team"}], "ride_messages": [{"text": "ride"}], "account_messages": {"u": [{"text": "account"}]}}
+        snap = server.chat_free_snapshot(live)
+        self.assertEqual(snap["messages"], [])
+        self.assertEqual(snap["ride_messages"], [])
+        self.assertEqual(snap["account_messages"], {})
+        self.assertEqual(snap["rides"], live["rides"])
+        self.assertEqual(len(live["messages"]), 1)
+
+    def test_database_save_strips_all_chat(self):
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"DATABASE_URL": "postgres://test"}), patch.object(server.auth, "save_app_state") as db:
+            server.save({"rides": {}, "messages": [{"text": "team"}], "ride_messages": [{"text": "ride"}], "account_messages": {"u": [{"text": "account"}]}})
+            saved = db.call_args.args[0]
+            self.assertEqual(saved["messages"], [])
+            self.assertEqual(saved["ride_messages"], [])
+            self.assertEqual(saved["account_messages"], {})

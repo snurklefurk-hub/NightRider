@@ -116,13 +116,24 @@ def ensure_store(store):
     return store
 
 
+# All messaging remains live in process memory only. Never persist chat
+# for demo or real accounts, including during unrelated ride updates.
+def chat_free_snapshot(store):
+    snapshot = dict(store)
+    snapshot["messages"] = []
+    snapshot["ride_messages"] = []
+    snapshot["account_messages"] = {}
+    return snapshot
+
+
 def save(store):
+    snapshot = chat_free_snapshot(store)
     if os.environ.get("DATABASE_URL", "").strip():
-        auth.save_app_state(store, DATA_FILE)
+        auth.save_app_state(snapshot, DATA_FILE)
         return
     tmp = DATA_FILE + ".tmp"
     with open(tmp, "w") as f:
-        json.dump(store, f, indent=2)
+        json.dump(snapshot, f, indent=2)
     os.replace(tmp, DATA_FILE)
 
 
@@ -132,6 +143,10 @@ if os.environ.get("DATABASE_URL", "").strip():
     auth.initialize()
     auth.ensure_demo_users()
 STORE = ensure_store(load())
+# Discard any legacy persisted conversations on every server start.
+STORE["messages"] = []
+STORE["ride_messages"] = []
+STORE["account_messages"] = {}
 
 DRIVER_CHAT_COLORS = [
     "#ff6b6b", "#ffa94d", "#ffd43b", "#a9e34b", "#38d9a9", "#3bc9db",
