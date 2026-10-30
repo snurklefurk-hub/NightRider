@@ -19,6 +19,9 @@ test("NightRider's approved bridge-moon brand icon is a real optimized WebP asse
 test("all public HTML pages use the approved and cache-versioned NightRider icon", () => {
   const pages = fs.readdirSync(path.join(root, "public")).filter(name => name.endsWith(".html"));
   assert.equal(pages.length, 13);
+  const stylesheet = fs.readFileSync(path.join(root, "public/nightrider.css"), "utf8");
+  assert.match(stylesheet, /url\("\/media\/branding\/nightrider-icon\.webp\?v=barb-1"\)/);
+  assert.doesNotMatch(stylesheet, /background:url\("\/nightrider-mark\.svg/);
   for (const name of pages) {
     const contents = fs.readFileSync(path.join(root, "public", name), "utf8");
     assert.match(contents, /<link rel="icon" href="\/media\/branding\/nightrider-icon\.webp\?v=barb-1" type="image\/webp">/, name);
