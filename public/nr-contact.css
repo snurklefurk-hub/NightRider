@@ -1,0 +1,21 @@
+/* Public interest and question form. Scoped to informational pages only. */
+.nr-contact { margin: 28px 0 42px; padding: clamp(18px, 3vw, 28px); background: var(--panel); border: 1px solid rgba(var(--cyan-rgb), .35); border-radius: 16px; }
+.nr-contact h2 { margin: 0 0 12px; font-size: 1.25rem; }
+.nr-contact p { margin: 0 0 14px; line-height: 1.6; }
+.nr-contact a:link, .nr-contact a:visited { color: var(--cyan); overflow-wrap: anywhere; }
+.nr-contact-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
+.nr-contact-field { min-width: 0; }
+.nr-contact label { display: block; margin: 8px 0 5px; font-size: .83rem; letter-spacing: .04em; color: var(--ice); text-transform: none; }
+.nr-contact input, .nr-contact select, .nr-contact textarea {
+  display: block; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: var(--sheet); color: var(--ice); font: 400 16px/1.45 system-ui, sans-serif;
+}
+.nr-contact textarea { min-height: 116px; resize: vertical; }
+.nr-contact input:focus-visible, .nr-contact select:focus-visible, .nr-contact textarea:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
+.nr-contact button { min-height: 44px; margin: 10px 0 0; padding: 10px 18px; color: #071b12; border: 1px solid var(--cyan); background: var(--cyan); border-radius: 10px; text-transform: none; letter-spacing: .025em; }
+.nr-contact button:hover { background: var(--plum); border-color: var(--plum); color: #071b12; transform: none; }
+html[data-nr-ui="aero"] .nr-contact button { color: #fff; }
+.nr-contact-note { font-size: .83rem; color: var(--mist); }
+.nr-contact-status { min-height: 1.25em; font-size: .84rem; color: var(--mist); }
+@media (max-width: 580px) { .nr-contact-grid { grid-template-columns: 1fr; } }
