@@ -22,6 +22,14 @@ def initialize():
         connection.execute(TABLE)
 
 
+def credential_matches(supplied, token):
+    """Compare credentials as bytes so non-ASCII input cannot raise TypeError."""
+    try:
+        return hmac.compare_digest(supplied.encode("utf-8"), token.encode("utf-8"))
+    except (AttributeError, UnicodeEncodeError):
+        return False
+
+
 def role(handler):
     header = handler.headers.get("Authorization", "")
     if not header.startswith("Bearer "):
@@ -29,7 +37,7 @@ def role(handler):
     supplied = header[7:]
     for sender, env in TOKENS.items():
         token = os.environ.get(env, "")
-        if token and hmac.compare_digest(supplied, token):
+        if token and credential_matches(supplied, token):
             return sender
     return None
 
