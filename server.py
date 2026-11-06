@@ -1,6 +1,7 @@
 """NightRider basic server: static pages + JSON ride API. Standard library only."""
 import copy, datetime, hmac, json, math, os, random, secrets, threading, time, urllib.parse, uuid
 import auth
+import mailbox
 import account_archive
 import history_purge
 import demo_chatham_rides
@@ -148,6 +149,8 @@ if os.environ.get("NIGHTRIDER_REQUIRE_DATABASE", "true").lower() == "true" and n
 if os.environ.get("DATABASE_URL", "").strip():
     auth.initialize()
     auth.ensure_demo_users()
+    if all(os.environ.get(key) for key in mailbox.TOKENS.values()):
+        mailbox.initialize()
 _loaded_state = load()
 _legacy_chat_found = start_temporary_chat(_loaded_state)
 STORE = ensure_store(_loaded_state)
@@ -1491,6 +1494,10 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
+        if path == "/agent-mailbox/api/messages":
+            return mailbox.get(self, qs)
+        if path in ("/agent-mailbox", "/agent-mailbox/"):
+            self.path = "/agent-mailbox.html"
         if path == "/":
             # Bare domain opens Hub; legacy ride links with query parameters open Rider.
             location = "/rider?" + parsed.query if parsed.query else "/hub"
@@ -1658,6 +1665,8 @@ class Handler(SimpleHTTPRequestHandler):
             if origin_host != request_host:
                 return self.send_json(403, {"error": "request origin is not allowed"})
 
+        if path == "/agent-mailbox/api/messages":
+            return mailbox.post(self, data)
         if path.startswith("/api/auth/"):
             return self.account_endpoint(path, data)
         if path.startswith("/api/partner-desk/") or path.startswith("/api/affiliate-hub/"):
