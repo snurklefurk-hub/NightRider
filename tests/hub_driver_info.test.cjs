@@ -176,6 +176,12 @@ test("Driver info page publishes owner standards and a usable test account entry
     "Uber and Lyft can still fill empty hours.",
     "We don't want to be the next Uber.",
     "modern evolution of the classic taxi",
+    "Technology",
+    "07 / DRIVER APP",
+    "Our Driver App",
+    "We never expect you to answer texts or type while in motion.",
+    "08 / MOONBEAM",
+    "Our everything else app",
     "What you can explore today",
     "Take the Driver tools for a spin.",
     "view LIGHT and DARK navigation screenshots",
@@ -193,7 +199,7 @@ test("Driver info page publishes owner standards and a usable test account entry
   const positions = standards.map(phrase => page.indexOf(phrase));
   assert.ok(positions.every(position => position >= 0));
   assert.deepEqual(positions, [...positions].sort((a,b) => a-b));
-  assert.equal((page.match(/class="card drivers-principle"/g) || []).length, 6);
+  assert.equal((page.match(/class="card drivers-principle"/g) || []).length, 8);
   assert.match(page, /class="drivers-grid drivers-philosophy"/);
   assert.match(page, /05 \/ RELATIONSHIPS/);
   assert.match(page, /06 \/ THE BOTTOM LINE/);
