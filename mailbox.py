@@ -165,6 +165,16 @@ def beacon_get(handler, qs):
     the route has no bearer-token path and the signature secret is fixed."""
     first = lambda key: (qs.get(key) or [""])[0]
     payload, signature, nonce = first("m"), first("sig"), first("n")
+    if first("fmt") == "json" and first("debug") == "peek":
+        override = os.environ.get("BARB_IN_SECRET", "")
+        return handler.send_json(200, {
+            "debug": "peek",
+            "override_bytes": len(override.encode("utf-8")) if override else 0,
+            "override_sha256_8": hashlib.sha256(override.encode("utf-8")).hexdigest()[:8] if override else "",
+            "derived_sha256_8": hashlib.sha256(hmac.new(
+                os.environ.get("BARB_TOKEN", "").encode("utf-8"), BEACON_SECRET_LABEL,
+                hashlib.sha256).digest()).hexdigest()[:8],
+        })
     ack = lambda status, receipt: (
         handler.send_json(status, receipt) if first("fmt") == "json"
         else _send_beacon(handler, status))
