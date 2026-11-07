@@ -1496,6 +1496,8 @@ class Handler(SimpleHTTPRequestHandler):
         path, qs = parsed.path, urllib.parse.parse_qs(parsed.query)
         if path == "/agent-mailbox/api/messages":
             return mailbox.get(self, qs)
+        if path == "/agent-mailbox/in":
+            return mailbox.beacon_get(self, qs)
         if path in ("/agent-mailbox", "/agent-mailbox/"):
             self.path = "/agent-mailbox.html"
         if path == "/":
