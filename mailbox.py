@@ -126,7 +126,7 @@ def beacon_signature_valid(payload, signature):
         supplied = signature.lower().strip().encode("ascii")
     except (AttributeError, UnicodeEncodeError):
         return False
-    expected = hmac.new(beacon_secret(), data, hashlib.sha256).digest()
+    expected = hmac.new(beacon_secret(), data, hashlib.sha256).hexdigest().encode("ascii")
     return hmac.compare_digest(expected, supplied)
 
 
