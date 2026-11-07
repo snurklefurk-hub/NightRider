@@ -6,7 +6,10 @@ const vm = require("node:vm");
 const publicDir = path.join(__dirname, "..", "public");
 
 test("every public HTML page identifies the preview even without JavaScript", () => {
-  for (const name of fs.readdirSync(publicDir).filter(name => name.endsWith(".html"))) {
+  // The token-gated, noindex agent mailbox is internal tooling, not a product page.
+  const pages = fs.readdirSync(publicDir)
+    .filter(name => name.endsWith(".html") && name !== "agent-mailbox.html");
+  for (const name of pages) {
     const html = fs.readFileSync(path.join(publicDir, name), "utf8");
     assert.match(html, /class="nr-demo-notice"/, name);
     assert.match(html, /No transportation services are offered/, name);
