@@ -8,23 +8,40 @@ import threading
 import time
 import psycopg
 
-TABLE = """CREATE TABLE IF NOT EXISTS agent_mailbox_messages (
+SENDERS = ("Barb", "Hoss", "Gab", "Zip")
+SENDER_VALUES = "(" + ", ".join("'%s'" % sender for sender in SENDERS) + ")"
+SENDER_CONSTRAINT = "agent_mailbox_messages_sender_check"
+TABLE = f"""CREATE TABLE IF NOT EXISTS agent_mailbox_messages (
     id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    sender TEXT NOT NULL CHECK (sender IN ('Barb', 'Hoss', 'Gab')),
+    sender TEXT NOT NULL CHECK (sender IN {SENDER_VALUES}),
     body TEXT NOT NULL CHECK (length(body) BETWEEN 1 AND 12000),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     dedupe TEXT
 )"""
 TOKENS = {"reader": "READER_TOKEN", "Barb": "BARB_TOKEN",
-          "Hoss": "HOSS_TOKEN", "Gab": "GAB_TOKEN"}
+          "Hoss": "HOSS_TOKEN", "Gab": "GAB_TOKEN", "Zip": "ZIP_TOKEN"}
 
 
 def initialize():
     values = [os.environ.get(key, "") for key in TOKENS.values()]
-    if any(len(value) < 24 for value in values) or len(set(values)) != 4:
-        raise RuntimeError("Four distinct mailbox tokens of at least 24 characters are required")
+    if any(len(value) < 24 for value in values) or len(set(values)) != len(TOKENS):
+        raise RuntimeError(
+            f"{len(TOKENS)} distinct mailbox tokens of at least 24 characters are required")
     with psycopg.connect(os.environ["DATABASE_URL"]) as connection:
         connection.execute(TABLE)
+        # Older deployments created the sender check without Zip. Rebuild it
+        # only when needed so restarts do not repeatedly lock or scan the table.
+        existing = connection.execute(
+            "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
+            "WHERE conrelid = 'agent_mailbox_messages'::regclass AND conname = %s",
+            (SENDER_CONSTRAINT,)).fetchone()
+        if not existing or "Zip" not in existing[0]:
+            connection.execute(
+                f"ALTER TABLE agent_mailbox_messages "
+                f"DROP CONSTRAINT IF EXISTS {SENDER_CONSTRAINT}")
+            connection.execute(
+                f"ALTER TABLE agent_mailbox_messages "
+                f"ADD CONSTRAINT {SENDER_CONSTRAINT} CHECK (sender IN {SENDER_VALUES})")
         # Older deployments created the table without the dedupe column.
         connection.execute("ALTER TABLE agent_mailbox_messages "
                            "ADD COLUMN IF NOT EXISTS dedupe TEXT")
