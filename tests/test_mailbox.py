@@ -25,6 +25,7 @@ GAB_TOKEN = "gab-token-value-0000000000000001"
 HOSS_TOKEN = "hoss-token-value-000000000000002"
 BARB_TOKEN = "barb-token-value-000000000000003"
 READER_TOKEN = "reader-token-value-00000000000004"
+ZIP_TOKEN = "zip-token-value-000000000000000005"
 DATABASE_URL = "postgresql://fixture-only:test@127.0.0.1/none"
 
 
@@ -50,6 +51,7 @@ class MailboxCredentialTest(unittest.TestCase):
             "HOSS_TOKEN": HOSS_TOKEN,
             "BARB_TOKEN": BARB_TOKEN,
             "READER_TOKEN": READER_TOKEN,
+            "ZIP_TOKEN": ZIP_TOKEN,
         })
         environment.start()
         self.addCleanup(environment.stop)
@@ -61,6 +63,7 @@ class MailboxCredentialTest(unittest.TestCase):
         self.assertEqual(self.role("Bearer " + GAB_TOKEN), "Gab")
         self.assertEqual(self.role("Bearer " + HOSS_TOKEN), "Hoss")
         self.assertEqual(self.role("Bearer " + BARB_TOKEN), "Barb")
+        self.assertEqual(self.role("Bearer " + ZIP_TOKEN), "Zip")
         self.assertEqual(self.role("Bearer " + READER_TOKEN), "reader")
 
     def test_missing_or_malformed_header_is_rejected(self):
@@ -145,6 +148,9 @@ class FakeCursor:
     def fetchall(self):
         return self._rows
 
+    def fetchone(self):
+        return self._rows[0] if self._rows else None
+
 
 class FakeConnection:
     def __init__(self, rows):
@@ -162,11 +168,41 @@ class FakeConnection:
         return FakeCursor(self.rows)
 
 
+class MailboxInitializationTest(unittest.TestCase):
+    def setUp(self):
+        environment = patch.dict(os.environ, {
+            "GAB_TOKEN": GAB_TOKEN, "HOSS_TOKEN": HOSS_TOKEN,
+            "BARB_TOKEN": BARB_TOKEN, "READER_TOKEN": READER_TOKEN,
+            "ZIP_TOKEN": ZIP_TOKEN, "DATABASE_URL": DATABASE_URL,
+        })
+        environment.start()
+        self.addCleanup(environment.stop)
+
+    def statements(self, constraint):
+        connection = FakeConnection([(constraint,)])
+        with patch.object(mailbox.psycopg, "connect", return_value=connection):
+            mailbox.initialize()
+        return "\n".join(sql for sql, _ in connection.calls)
+
+    def test_initialize_rebuilds_old_sender_constraint_for_zip(self):
+        statements = self.statements("CHECK (sender IN ('Barb', 'Hoss', 'Gab'))")
+        self.assertIn("DROP CONSTRAINT IF EXISTS agent_mailbox_messages_sender_check", statements)
+        self.assertIn("ADD CONSTRAINT agent_mailbox_messages_sender_check", statements)
+        self.assertIn("'Zip'", statements)
+
+    def test_initialize_leaves_current_sender_constraint_alone(self):
+        statements = self.statements(
+            "CHECK (sender IN ('Barb', 'Hoss', 'Gab', 'Zip'))")
+        self.assertNotIn("DROP CONSTRAINT", statements)
+        self.assertNotIn("ADD CONSTRAINT", statements)
+
+
 class BeaconUnitTest(unittest.TestCase):
     def setUp(self):
         environment = patch.dict(os.environ, {
             "GAB_TOKEN": GAB_TOKEN, "HOSS_TOKEN": HOSS_TOKEN,
             "BARB_TOKEN": BARB_TOKEN, "READER_TOKEN": READER_TOKEN,
+            "ZIP_TOKEN": ZIP_TOKEN,
             "BARB_IN_SECRET": "", "DATABASE_URL": DATABASE_URL,
         })
         environment.start()
@@ -218,6 +254,7 @@ class BeaconRouteTest(unittest.TestCase):
         environment = patch.dict(os.environ, {
             "GAB_TOKEN": GAB_TOKEN, "HOSS_TOKEN": HOSS_TOKEN,
             "BARB_TOKEN": BARB_TOKEN, "READER_TOKEN": READER_TOKEN,
+            "ZIP_TOKEN": ZIP_TOKEN,
             "BARB_IN_SECRET": "", "DATABASE_URL": DATABASE_URL,
         })
         environment.start()
